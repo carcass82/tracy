@@ -1,6 +1,6 @@
 /*
  * Tracy, a simple raytracer
- * inspired by Ray Tracing in One Weekend" minibook
+ * inspired by "Ray Tracing in One Weekend" minibook
  *
  * (c) Carlo Casta, 2017
  */
@@ -14,6 +14,7 @@ using std::cout;
 #include "glm/gtx/norm.hpp"
 using glm::vec3;
 
+#include "noise.hpp"
 #include "material.hpp"
 #include "camera.hpp"
 #include "hitable.hpp"
@@ -47,16 +48,19 @@ hitable* random_scene()
 {
 	const int n = 500;
 	hitable** list = new hitable*[n + 1];
-	list[0] = new sphere(vec3(0, -1000, 0), 1000, new lambertian(vec3(0.5, 0.5, 0.5)));
+
+	texture* terrain_texture = new checker_texture(new constant_texture(vec3(0.2, 0.3, 0.1)), new constant_texture(vec3(0.9, 0.9, 0.9)));
+	list[0] = new sphere(vec3(0, -1000, 0), 1000, new lambertian(terrain_texture));
 
 	int i = 1;
-	for (int a = -11; a < 11; ++a) {
-		for (int b = -11; b < 11; ++b) {
+	for (int a = -10; a < 10; ++a) {
+		for (int b = -10; b < 10; ++b) {
 			float choose_mat = drand48();
 			vec3 center(a + 0.9 * drand48(), 0.2, b + 0.9 * drand48());
 			if ((center - vec3(4, 0.2, 0)).length() > 0.9) {
 				if (choose_mat < 0.8) {
-					list[i++] = new sphere(center, 0.2, new lambertian(vec3(drand48() * drand48(), drand48() * drand48(), drand48() * drand48())));
+					//list[i++] = new moving_sphere(center, center + vec3(0, 0.5 * drand48(), 0.0), 0.0, 1.0, 0.2, new lambertian(new constant_texture(vec3(drand48() * drand48(), drand48() * drand48(), drand48() * drand48())));
+					list[i++] = new sphere(center, 0.2, new lambertian(new constant_texture(vec3(drand48() * drand48(), drand48() * drand48(), drand48() * drand48()))));
 				} else if (choose_mat < 0.95) {
 					list[i++] = new sphere(center, 0.2, new metal(vec3(0.5*(1 + drand48()), 0.5*(1 + drand48()), 0.5*(1 + drand48())), 0.5 * drand48()));
 				} else {
@@ -68,17 +72,19 @@ hitable* random_scene()
 	}
 
 	list[i++] = new sphere(vec3(0, 1, 0), 1.0, new dielectric(1.5));
-	list[i++] = new sphere(vec3(-4, 1, 0), 1.0, new lambertian(vec3(0.4, 0.2, 0.1)));
+	list[i++] = new sphere(vec3(-4, 1, 0), 1.0, new lambertian(new constant_texture(vec3(0.4, 0.2, 0.1))));
 	list[i++] = new sphere(vec3(4, 1, 0), 1.0, new metal(vec3(0.7, 0.6, 0.5), 0.0f));
+
+	list[i++] = new sphere(vec3(6, 1, 0), 1.0, new lambertian(new noise_texture(5.0f)));
 
 	return new hitable_list(list, i);
 }
 
 int main()
 {
-	const int nx = 1024; // w
-	const int ny = 768; // h
-	const int ns = 10; // samples
+	const int nx = 1280; // w
+	const int ny = 700; // h
+	const int ns = 50; // samples
 
 	hitable *world = random_scene(); 
 
@@ -89,7 +95,7 @@ int main()
 	const float dist_to_focus = length(look_from - look_at);
 	const float aperture = 2.0f;
 
-	camera cam(look_from, look_at, vec3(0.0f, 1.0f, 0.0f), fov, float(nx) / float(ny), aperture, dist_to_focus);
+	camera cam(look_from, look_at, vec3(0.0f, 1.0f, 0.0f), fov, float(nx) / float(ny), aperture, dist_to_focus, 0.0f, 1.0f);
 
 	// PPM file header
 	cout << "P3\n" << nx << " " << ny << "\n255\n";

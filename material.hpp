@@ -1,6 +1,6 @@
 /*
  * Tracy, a simple raytracer
- * inspired by Ray Tracing in One Weekend" minibook
+ * inspired by "Ray Tracing in One Weekend" minibook
  *
  * (c) Carlo Casta, 2017
  */
@@ -11,7 +11,7 @@
 
 #include "hitable.hpp"
 #include "geom.hpp"
-
+#include "texture.hpp"
 #include "ray.hpp"
 
 class material
@@ -23,18 +23,18 @@ public:
 class lambertian : public material
 {
 public:
-	lambertian(const vec3& a) : albedo(a) {}
+	lambertian(texture* a) : albedo(a) {}
 
 	virtual bool scatter(const ray& r_in, const hit_record& rec, vec3& attenuation, ray& scattered) const override
 	{
 		vec3 target = rec.p + rec.normal + random_in_unit_sphere();
-		scattered = ray(rec.p, target - rec.p);
-		attenuation = albedo;
+		scattered = ray(rec.p, target - rec.p, r_in.time());
+		attenuation = albedo->value(0, 0, rec.p);
 
 		return true;
 	}
 
-	vec3 albedo;
+	texture* albedo;
 };
 
 class metal : public material
@@ -44,7 +44,7 @@ public:
 	virtual bool scatter(const ray& r_in, const hit_record& rec, vec3& attenuation, ray& scattered) const override
 	{
 		vec3 reflected = reflect(glm::normalize(r_in.direction()), rec.normal);
-		scattered = ray(rec.p, reflected + fuzz * random_in_unit_sphere());
+		scattered = ray(rec.p, reflected + fuzz * random_in_unit_sphere(), r_in.time());
 		attenuation = albedo;
 
 		return (dot(scattered.direction(), rec.normal) > 0.0f);
@@ -89,9 +89,9 @@ public:
 		}
 
 		if (drand48() < reflect_prob) {
-			scattered = ray(rec.p, reflected);
+			scattered = ray(rec.p, reflected, r_in.time());
 		} else {
-			scattered = ray(rec.p, refracted);
+			scattered = ray(rec.p, refracted, r_in.time());
 		}
 
 		return true;
