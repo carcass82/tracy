@@ -1,6 +1,8 @@
 /*
- * simple raytracer
+ * Tracy, a simple raytracer
+ * inspired by Ray Tracing in One Weekend" minibook
  *
+ * (c) Carlo Casta, 2017
  */
 #include <iostream>
 using std::cout;

@@ -1,4 +1,11 @@
+/*
+ * Tracy, a simple raytracer
+ * inspired by Ray Tracing in One Weekend" minibook
+ *
+ * (c) Carlo Casta, 2017
+ */
 #pragma once
+
 #include "glm/glm.hpp"
 
 class camera
