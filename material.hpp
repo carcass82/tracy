@@ -9,15 +9,28 @@
 #include "glm/glm.hpp"
 #include "glm/gtc/epsilon.hpp"
 
-#include "hitable.hpp"
+//#include "hitable.hpp"
 #include "geom.hpp"
 #include "texture.hpp"
 #include "ray.hpp"
+
+class material;
+
+struct hit_record
+{
+	float t;
+	float u;
+	float v;
+	vec3 p;
+	vec3 normal;
+	material* mat_ptr;
+};
 
 class material
 {
 public:
 	virtual bool scatter(const ray& r_in, const hit_record& rec, vec3& attenuation, ray& scattered) const = 0;
+	virtual vec3 emitted(float u, float v, const vec3& p) const { return vec3(); }
 };
 
 class lambertian : public material
@@ -98,4 +111,39 @@ public:
 	}
 
 	float ref_idx;
+};
+
+
+class diffuse_light : public material
+{
+public:
+	diffuse_light(texture* a) : emit(a) {}
+
+	virtual bool scatter(const ray& r_in, const hit_record& rec, vec3& attenuation, ray& scattered) const override
+	{
+		return false;
+	}
+
+	virtual vec3 emitted(float u, float v, const vec3& p) const override
+	{
+		return emit->value(u, v, p);
+	}
+
+	texture* emit;
+};
+
+
+class isotropic : public material
+{
+public:
+	isotropic(texture* a) : albedo(a) {}
+
+	virtual bool scatter(const ray& r_in, const hit_record& rec, vec3& attenuation, ray& scattered) const override	
+	{
+		scattered = ray(rec.p, random_in_unit_sphere(), r_in.time());
+		attenuation = albedo->value(rec.u, rec.v, rec.p);
+		return true;
+	}
+
+	texture* albedo;
 };
