@@ -14,6 +14,9 @@ using std::cout;
 #include "glm/gtx/norm.hpp"
 using glm::vec3;
 
+#define STB_IMAGE_IMPLEMENTATION
+#include "stb_image.h"
+
 #include "noise.hpp"
 #include "material.hpp"
 #include "camera.hpp"
@@ -71,26 +74,37 @@ hitable* random_scene()
 		}
 	}
 
-	list[i++] = new sphere(vec3(0, 1, 0), 1.0, new dielectric(1.5));
-	list[i++] = new sphere(vec3(-4, 1, 0), 1.0, new lambertian(new constant_texture(vec3(0.4, 0.2, 0.1))));
-	list[i++] = new sphere(vec3(4, 1, 0), 1.0, new metal(vec3(0.7, 0.6, 0.5), 0.0f));
+	// lambertian
+	list[i++] = new sphere(vec3(-2, 1, 0), 1.0, new lambertian(new constant_texture(vec3(0.4, 0.2, 0.1))));
 
-	list[i++] = new sphere(vec3(6, 1, 0), 1.0, new lambertian(new noise_texture(5.0f)));
+	// dielectric
+	list[i++] = new sphere(vec3(0, 1, 0), 1.0, new dielectric(1.5));
+
+	// metal
+	list[i++] = new sphere(vec3(2, 1, 0), 1.0, new metal(vec3(0.7, 0.6, 0.5), 0.0f));
+
+	// lambertian noise ("marble like")
+	list[i++] = new sphere(vec3(4, 1, 0), 1.0, new lambertian(new noise_texture(5.0f)));
+
+	// lambertian textured
+	int nx, ny, nn;
+	unsigned char* tex_data = stbi_load("earth.jpg", &nx, &ny, &nn, 0);
+	list[i++] = new sphere(vec3(6, 1, 0), 1.0, new lambertian(new image_texture(tex_data, nx, ny)));
 
 	return new hitable_list(list, i);
 }
 
 int main()
 {
-	const int nx = 1280; // w
-	const int ny = 700; // h
-	const int ns = 50; // samples
+	const int nx = 600; // w
+	const int ny = 300; // h
+	const int ns = 10; // samples
 
 	hitable *world = random_scene(); 
 
 	// camera
-	const vec3 look_from(12.0f, 1.5f, 3.0f);
-	const vec3 look_at(0.0f, 0.5f, -1.0f);
+	const vec3 look_from(10.0f, 1.5f, 4.0f);
+	const vec3 look_at(2.0f, 0.5f, -2.0f);
 	const float fov = 45.0f;
 	const float dist_to_focus = length(look_from - look_at);
 	const float aperture = 2.0f;

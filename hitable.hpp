@@ -19,6 +19,8 @@ class material;
 struct hit_record
 {
 	float t;
+	float u;
+	float v;
 	vec3 p;
 	vec3 normal;
 	material* mat_ptr;
@@ -53,6 +55,7 @@ public:
 				rec.t = temp;
 				rec.p = r.point_at_parameter(temp);
 				rec.normal = (rec.p - center) / radius;
+				get_sphere_uv((rec.p - center) / radius, rec.u, rec.v);
 				rec.mat_ptr = mat;
 
 				return true;
@@ -63,6 +66,7 @@ public:
 				rec.t = temp;
 				rec.p = r.point_at_parameter(temp);
 				rec.normal = (rec.p - center) / radius;
+				get_sphere_uv((rec.p - center) / radius, rec.u, rec.v);
 				rec.mat_ptr = mat;
 
 				return true;
@@ -108,6 +112,7 @@ public:
 				rec.t = temp;
 				rec.p = r.point_at_parameter(rec.t);
 				rec.normal = (rec.p - center(r.time())) / radius;
+				get_sphere_uv((rec.p - center(r.time())) / radius, rec.u, rec.v);
 				rec.mat_ptr = mat;
 
 				return true;
@@ -118,6 +123,7 @@ public:
 				rec.t = temp;
 				rec.p = r.point_at_parameter(rec.t);
 				rec.normal = (rec.p - center(r.time())) / radius;
+				get_sphere_uv((rec.p - center(r.time())) / radius, rec.u, rec.v);
 				rec.mat_ptr = mat;
 
 				return true;

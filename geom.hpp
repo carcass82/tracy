@@ -6,7 +6,10 @@
  */
 #pragma once
 
+#include <cmath>
+
 #include "glm/glm.hpp"
+#include "glm/gtx/norm.hpp"
 #include "glm/gtx/norm.hpp"
 
 #include "aabb.hpp"
@@ -29,6 +32,14 @@ vec3 random_in_unit_disk()
 	} while (dot(p, p) >= 1.0f);
 
 	return p;
+}
+
+void get_sphere_uv(const vec3& p, float& u, float& v)
+{
+	float phi = atan2(p.z, p.x);
+	float theta = glm::asin(p.y);
+	u = 1.0f - (phi + M_PI) / (2.0f * M_PI);
+	v = (theta + M_PI / 2.0f) / M_PI;
 }
 
 float schlick(float cos, float ref_idx)
