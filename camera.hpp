@@ -11,10 +11,16 @@
 class camera
 {
 public:
+	camera() {}
 	camera(vec3 lookfrom, vec3 lookat, vec3 vup, float vfov, float aspect, float aperture, float focus_dist, float t0, float t1)
-		: time0(t0)
-		, time1(t1)
 	{
+		setup(lookfrom, lookat, vup, vfov, aspect, aperture, focus_dist, t0, t1);
+	}
+	
+	void setup(vec3 lookfrom, vec3 lookat, vec3 vup, float vfov, float aspect, float aperture, float focus_dist, float t0, float t1)
+	{
+		time0 = t0;
+		time1 = t1;
 		lens_radius = aperture / 2.0f;
 
 		float theta = vfov * M_PI / 180.0f;

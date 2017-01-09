@@ -4,11 +4,18 @@
  *
  * (c) Carlo Casta, 2017
  */
+ 
 #include <iostream>
 using std::cout;
 
 #include <cfloat>
+
+#define _USE_MATH_DEFINES
 #include <cmath>
+
+#if defined(_WIN32)
+double drand48() { return (rand() / (RAND_MAX + 1.0)); }
+#endif
 
 #include "glm/glm.hpp"
 #include "glm/gtx/norm.hpp"
@@ -41,11 +48,12 @@ vec3 color(const ray& r, hitable* world, int depth)
 
 	} else {
 
+		return vec3();
+
+		// debug - blueish gradient
 		//vec3 unit_direction = glm::normalize(r.direction());
 		//float t = 0.5f * (unit_direction.y + 1.0f);
 		//return (1.0f - t) * vec3(1.0f, 1.0f, 1.0f) + t * vec3(0.5f, 0.7f, 1.0f);
-		
-		return vec3();
 
 		// debug - white "ambient" light
 		//return vec3(1,1,1);
@@ -192,38 +200,45 @@ hitable* final()
 	return new hitable_list(list, l);
 }
 
+
+enum eScene { eRANDOM, eCORNELLBOX, eFINAL, eFROMFILE, eNUM_SCENES };
+
+hitable* load_scene(eScene scene, camera& cam, float ratio)
+{
+	switch (scene) {
+	case eRANDOM:
+		cout << "loading random scene...\n";
+		cam.setup(vec3(10.0f, 1.5f, 4.0f), vec3(2.0f, 0.5f, -2.0f), vec3(0.0f, 1.0f, 0.0f), 45.0f, ratio, 2.0f, 5.0f, 0.0f, 1.0f);
+		return random_scene();
+		
+	case eCORNELLBOX:
+		cout << "loading cornell scene...\n";
+		cam.setup(vec3(278, 278, -800), vec3(278, 278, 0), vec3(0.0f, 1.0f, 0.0f), 40.0f, ratio, 0.0f, 10.0f, 0.0f, 1.0f);
+		return cornellbox_scene();
+		
+	case eFINAL:
+		cout << "loading final scene...\n";
+		cam.setup(vec3(278, 278, -800), vec3(278, 278, 0), vec3(0.0f, 1.0f, 0.0f), 40.0f, ratio, 0.0f, 10.0f, 0.0f, 1.0f);
+		return final();
+		
+	default:
+		cout << "i'm going to crash...\n";
+		return nullptr;
+	};
+}
+
+
 int main()
 {
-	const int nx = 500; // w
-	const int ny = 500; // h
+	const int nx = 600; // w
+	const int ny = 600; // h
 	const int ns = 1000; // samples
 
-#if 0
-	hitable *world = random_scene(); 
-
-	// camera
-	const vec3 look_from(10.0f, 1.5f, 4.0f);
-	const vec3 look_at(2.0f, 0.5f, -2.0f);
-	const float fov = 45.0f;
-	const float dist_to_focus = length(look_from - look_at);
-	const float aperture = 2.0f;
-#endif
-
-	hitable *world = cornellbox_scene();
-
-#if 0
-	hitable *world = final();
-#endif
-
-	// camera
-	const vec3 look_from(278, 278, -800);
-	const vec3 look_at(278, 278, 0);
-	const float fov = 40.0f;
-	const float dist_to_focus = 10;
-	const float aperture = 0.0f;
-
-
-	camera cam(look_from, look_at, vec3(0.0f, 1.0f, 0.0f), fov, float(nx) / float(ny), aperture, dist_to_focus, 0.0f, 1.0f);
+	camera cam;
+	
+	hitable* world = load_scene(eRANDOM, cam, float(nx) / float(ny));
+	//hitable* world = load_scene(eCORNELLBOX, cam, float(nx) / float(ny));
+	//hitable* world = load_scene(eFINAL, cam, float(nx) / float(ny));
 
 	// PPM file header
 	cout << "P3\n" << nx << " " << ny << "\n255\n";
