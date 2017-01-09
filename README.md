@@ -10,7 +10,7 @@ Your friendly kawaii raytracer (more a path tracer, actually).
 
 or
 
-`cl.exe /EHsc- /fp:fast /O2x /openmp raytracer.cpp`
+`cl.exe /nologo /EHsc- /fp:fast /O2x /openmp raytracer.cpp`
 
 *(flags for best performance evah on my machine)*
 

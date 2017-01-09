@@ -7,6 +7,7 @@
  
 #include <iostream>
 using std::cout;
+using std::cerr;
 
 #include <cfloat>
 
@@ -89,7 +90,7 @@ hitable* random_scene()
 
 	// area light
 	//list[i++] = new xy_rect(-2, 6, 0, 3, -3, new diffuse_light(new constant_texture(vec3(4,4,4))));
-	list[i++] = new xz_rect(-20, 20, -20, 20, 10, new diffuse_light(new constant_texture(vec3(0.85,0.85,0.85))));
+	list[i++] = new xz_rect(-20, 20, -20, 20, 10, new diffuse_light(new constant_texture(vec3(2,2,2))));
 
 	// lambertian
 	list[i++] = new sphere(vec3(-2, 1, 0), 1.0, new lambertian(new constant_texture(vec3(0.4, 0.2, 0.1))));
@@ -119,19 +120,22 @@ hitable* cornellbox_scene()
 	material* red = new lambertian(new constant_texture(vec3(0.65, 0.05, 0.05)));
 	material* white = new lambertian(new constant_texture(vec3(0.73, 0.73, 0.73)));
 	material* green = new lambertian(new constant_texture(vec3(0.12, 0.45, 0.15)));
-	material* light = new diffuse_light(new constant_texture(vec3(1, 1, 1)));
+	material* light = new diffuse_light(new constant_texture(vec3(7, 7, 7)));
+	material* glass = new dielectric(1.5);
 
 	int i = 0;
 	list[i++] = new flip_normals(new yz_rect(0, 555, 0, 555, 555, green));
 	list[i++] = new yz_rect(0, 555, 0, 555, 0, red);
-	list[i++] = new xz_rect(113, 443, 127, 432, 550, light);
+	list[i++] = new xz_rect(203, 353, 237, 322, 548, light);
 	list[i++] = new flip_normals(new xz_rect(0, 555, 0, 555, 555, white));
 	list[i++] = new xz_rect(0, 555, 0, 555, 0, white);
 	list[i++] = new flip_normals(new xy_rect(0, 555, 0, 555, 555, white));
 
-	//list[i++] = new translate(new rotate_y(new box(vec3(0, 0, 0), vec3(165, 165, 165), white), -18), vec3(130, 0, 65));
-	list[i++] = new sphere(vec3(200, 100, 150), 100.0, new dielectric(1.5));
+	list[i++] = new translate(new rotate_y(new box(vec3(0, 0, 0), vec3(165, 165, 165), white), -18), vec3(130, 0, 65));
 	list[i++] = new translate(new rotate_y(new box(vec3(0, 0, 0), vec3(165, 330, 165), white), 15), vec3(265, 0, 295));
+	
+	//list[i++] = new sphere(vec3(190, 50, 100), 50.0, new dielectric(1.5));
+	//list[i++] = new flip_normals(new xz_rect(203, 353, 237, 322, 1, light));
 
 	return new hitable_list(list, i);
 }
@@ -145,7 +149,7 @@ hitable* final()
 
 	material* white = new lambertian(new constant_texture(vec3(0.73, 0.73, 0.73)));
 	material* ground = new lambertian(new constant_texture(vec3(0.48, 0.83, 0.53)));
-	material* light = new diffuse_light(new constant_texture(vec3(7, 7, 7)));
+	material* light = new diffuse_light(new constant_texture(vec3(15, 15, 15)));
 
 	int b = 0;
 	for (int i = 0; i < nb; ++i) {
@@ -207,22 +211,22 @@ hitable* load_scene(eScene scene, camera& cam, float ratio)
 {
 	switch (scene) {
 	case eRANDOM:
-		cout << "loading random scene...\n";
+		cerr << "tracing random scene...\n";
 		cam.setup(vec3(10.0f, 1.5f, 4.0f), vec3(2.0f, 0.5f, -2.0f), vec3(0.0f, 1.0f, 0.0f), 45.0f, ratio, 2.0f, 5.0f, 0.0f, 1.0f);
 		return random_scene();
 		
 	case eCORNELLBOX:
-		cout << "loading cornell scene...\n";
+		cerr << "tracing cornell scene...\n";
 		cam.setup(vec3(278, 278, -800), vec3(278, 278, 0), vec3(0.0f, 1.0f, 0.0f), 40.0f, ratio, 0.0f, 10.0f, 0.0f, 1.0f);
 		return cornellbox_scene();
 		
 	case eFINAL:
-		cout << "loading final scene...\n";
+		cerr << "tracing final scene...\n";
 		cam.setup(vec3(278, 278, -800), vec3(278, 278, 0), vec3(0.0f, 1.0f, 0.0f), 40.0f, ratio, 0.0f, 10.0f, 0.0f, 1.0f);
 		return final();
 		
 	default:
-		cout << "i'm going to crash...\n";
+		cerr << "tracing NULL, i'm going to crash...\n";
 		return nullptr;
 	};
 }
@@ -230,14 +234,14 @@ hitable* load_scene(eScene scene, camera& cam, float ratio)
 
 int main()
 {
-	const int nx = 600; // w
-	const int ny = 600; // h
+	const int nx = 500; // w
+	const int ny = 500; // h
 	const int ns = 1000; // samples
 
 	camera cam;
 	
-	hitable* world = load_scene(eRANDOM, cam, float(nx) / float(ny));
-	//hitable* world = load_scene(eCORNELLBOX, cam, float(nx) / float(ny));
+	//hitable* world = load_scene(eRANDOM, cam, float(nx) / float(ny));
+	hitable* world = load_scene(eCORNELLBOX, cam, float(nx) / float(ny));
 	//hitable* world = load_scene(eFINAL, cam, float(nx) / float(ny));
 
 	// PPM file header
@@ -248,36 +252,46 @@ int main()
 
 		for (int i = 0; i < nx; ++i) {
 
-			vec3 col(0, 0, 0);
+			vec3 col;
 
 #if 1
+			vec3 loop_col;
+
 			#pragma omp parallel for
 			for (int s = 0; s < ns; ++s) {
 
-				float u = float(i + drand48()) / float(nx);
-				float v = float(j + drand48()) / float(ny);
+				float u = float(i + float(s) / float(ns) /* drand48()*/) / float(nx);
+				float v = float(j + float(s) / float(ns) /* drand48()*/) / float(ny);
 
 				ray r = cam.get_ray(u, v);
-
-				vec3 temp_col = color(r, world, 0);
-
-				#pragma omp critical
-				col += temp_col;
+				vec3 tempcol = color(r, world, 0);
+				
+				#pragma omp atomic
+				loop_col[0] += tempcol[0];
+				
+				#pragma omp atomic
+				loop_col[1] += tempcol[1];
+				
+				#pragma omp atomic
+				loop_col[2] += tempcol[2];
 			}
-			col /= float(ns);
+			col = loop_col / float(ns);
+
 #else
+
 			float u = float(i) / float(nx);
 			float v = float(j) / float(ny);
 
 			ray r = cam.get_ray(u, v);
 			col = color(r, world, 0);
+
 #endif
 
 			// ToneMap
 			// Narkowicz 2015, "ACES Filmic Tone Mapping Curve"
-			{
-				col = (col * (2.51f * col + 0.03f)) / (col * (2.43f * col + 0.59f) + 0.14f);
-			}
+			//{
+			//	col = (col * (2.51f * col + 0.03f)) / (col * (2.43f * col + 0.59f) + 0.14f);
+			//}
 
 			// gamma correct 2.0
 			col = glm::sqrt(col);

@@ -440,7 +440,7 @@ public:
 		hasbox = ptr->bounding_box(0, 1, bbox);
 
 		vec3 min(FLT_MAX, FLT_MAX, FLT_MAX);
-		vec3 max(FLT_MIN, FLT_MIN, FLT_MIN);
+		vec3 max(-FLT_MAX, -FLT_MAX, -FLT_MAX);
 
 		for (int i = 0; i < 2; ++i) {
 			for (int j = 0; j < 2; ++j) {
@@ -480,10 +480,10 @@ public:
 			vec3 normal = rec.normal;
 
 			p[0] = cos_theta * rec.p[0] + sin_theta * rec.p[2];
-			p[2] = sin_theta * rec.p[0] + cos_theta * rec.p[2];
+			p[2] = -sin_theta * rec.p[0] + cos_theta * rec.p[2];
 
 			normal[0] = cos_theta * rec.normal[0] + sin_theta * rec.normal[2];
-			normal[2] = sin_theta * rec.normal[0] + cos_theta * rec.normal[2];
+			normal[2] = -sin_theta * rec.normal[0] + cos_theta * rec.normal[2];
 
 			rec.p = p;
 			rec.normal = normal;
@@ -607,7 +607,7 @@ public:
 		bool db = false;
 
 		hit_record rec1, rec2;
-		if (boundary->hit(r, FLT_MIN, FLT_MAX, rec1)) {
+		if (boundary->hit(r, -FLT_MAX, FLT_MAX, rec1)) {
 			if (boundary->hit(r, rec1.t + 0.0001, FLT_MAX, rec2)) {
 				if (rec1.t < t_min) rec1.t = t_min;
 				if (rec2.t > t_max) rec2.t = t_max;
