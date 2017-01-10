@@ -9,6 +9,8 @@
 using std::cout;
 using std::cerr;
 
+#include <iomanip>
+
 #include <cfloat>
 
 #define _USE_MATH_DEFINES
@@ -24,6 +26,8 @@ using glm::vec3;
 
 #define STB_IMAGE_IMPLEMENTATION
 #include "stb_image.h"
+
+#include "timer.hpp"
 
 #include "noise.hpp"
 #include "material.hpp"
@@ -204,8 +208,28 @@ hitable* final()
 	return new hitable_list(list, l);
 }
 
+hitable* test_scene()
+{
+	hitable** list = new hitable*[30];
 
-enum eScene { eRANDOM, eCORNELLBOX, eFINAL, eFROMFILE, eNUM_SCENES };
+
+	texture* ground = new checker_texture(new constant_texture(vec3(0.2, 0.2, 0.4)), new constant_texture(vec3(0.8, 0.8, 1.0)));
+	material* _lambertian = new lambertian(ground);
+	material* red = new lambertian(new constant_texture(vec3(0.65, 0.05, 0.05)));
+	material* _light = new diffuse_light(new constant_texture(vec3(4, 4, 4)));
+
+	int i = 0;
+
+	list[i++] = new sphere(vec3(0, 1, -1), 1, _light);
+	list[i++] = new sphere(vec3(0, -1, -1), 1, _lambertian);
+	//list[i++] = new xz_rect(-50, 50, -50, 50, 0, red);
+	//list[i++] = new yz_rect(0, 50, 0, 50, 0, red);
+
+	return new hitable_list(list, i);
+}
+
+
+enum eScene { eRANDOM, eCORNELLBOX, eFINAL, eTEST, eFROMFILE, eNUM_SCENES };
 
 hitable* load_scene(eScene scene, camera& cam, float ratio)
 {
@@ -224,6 +248,11 @@ hitable* load_scene(eScene scene, camera& cam, float ratio)
 		cerr << "tracing final scene...\n";
 		cam.setup(vec3(278, 278, -800), vec3(278, 278, 0), vec3(0.0f, 1.0f, 0.0f), 40.0f, ratio, 0.0f, 10.0f, 0.0f, 1.0f);
 		return final();
+
+	case eTEST:
+		cerr << "tracing test scene...\n";
+		cam.setup(vec3(0, 0, 5), vec3(0, 0, 0), vec3(0, 1, 0), 45.0f, ratio, 0.0f, 10.0f, 0.0f, 1.0f);
+		return test_scene();
 		
 	default:
 		cerr << "tracing NULL, i'm going to crash...\n";
@@ -236,13 +265,17 @@ int main()
 {
 	const int nx = 500; // w
 	const int ny = 500; // h
-	const int ns = 1000; // samples
+	const int ns = 100; // samples
 
 	camera cam;
 	
 	//hitable* world = load_scene(eRANDOM, cam, float(nx) / float(ny));
-	hitable* world = load_scene(eCORNELLBOX, cam, float(nx) / float(ny));
+	//hitable* world = load_scene(eCORNELLBOX, cam, float(nx) / float(ny));
 	//hitable* world = load_scene(eFINAL, cam, float(nx) / float(ny));
+	hitable* world = load_scene(eTEST, cam, float(nx) / float(ny));
+	
+	Timer t;
+	t.begin();
 
 	// PPM file header
 	cout << "P3\n" << nx << " " << ny << "\n255\n";
@@ -302,4 +335,7 @@ int main()
 		}
 
 	}
+
+	t.end();
+	cerr << "finished in " << std::setprecision(3) << t.duration() << " secs\n";
 }
