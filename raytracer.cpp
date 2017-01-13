@@ -11,9 +11,7 @@ using std::cerr;
 
 #include <iomanip>
 
-#define _USE_MATH_DEFINES
 #include <cmath>
-
 #include <cfloat>
 
 #if defined(_WIN32)
@@ -27,7 +25,6 @@ double drand48() { return (rand() / (RAND_MAX + 1.0)); }
 #include "stb_image.h"
 
 #include "timer.hpp"
-#include "noise.hpp"
 #include "material.hpp"
 #include "camera.hpp"
 #include "hitable.hpp"
@@ -74,16 +71,16 @@ hitable* random_scene()
     int i = 1;
     for (int a = -10; a < 10; ++a) {
         for (int b = -10; b < 10; ++b) {
-            float choose_mat = drand48();
+            float choose_mat = float(drand48());
             glm::vec3 center(a + 0.9 * drand48(), 0.2, b + 0.9 * drand48());
             if ((center - glm::vec3(4, 0.2, 0)).length() > 0.9) {
                 if (choose_mat < 0.8) {
                     //list[i++] = new moving_sphere(center, center + vec3(0, 0.5 * drand48(), 0.0), 0.0, 1.0, 0.2, new lambertian(new constant_texture(vec3(drand48() * drand48(), drand48() * drand48(), drand48() * drand48())));
-                    list[i++] = new sphere(center, 0.2, new lambertian(new constant_texture(glm::vec3(drand48() * drand48(), drand48() * drand48(), drand48() * drand48()))));
+                    list[i++] = new sphere(center, 0.2f, new lambertian(new constant_texture(glm::vec3(drand48() * drand48(), drand48() * drand48(), drand48() * drand48()))));
                 } else if (choose_mat < 0.95) {
-                    list[i++] = new sphere(center, 0.2, new metal(glm::vec3(0.5*(1 + drand48()), 0.5*(1 + drand48()), 0.5*(1 + drand48())), 0.5 * drand48()));
+                    list[i++] = new sphere(center, 0.2f, new metal(glm::vec3(0.5f * (1.0f + float(drand48())), 0.5f * (1.0f + float(drand48())), 0.5f * (1.0f + float(drand48()))), 0.5f * float(drand48())));
                 } else {
-                    list[i++] = new sphere(center, 0.2, new dielectric(1.5));
+                    list[i++] = new sphere(center, 0.2f, new dielectric(1.5));
                 }
 
             }
@@ -161,7 +158,7 @@ hitable* final()
             float z0 = -1000 + j * w;
             float y0 = 0;
             float x1 = x0 + w;
-            float y1 = 100 * (drand48() + 0.01);
+            float y1 = 100 * (float(drand48()) + 0.01f);
             float z1 = z0 + w;
 
             boxlist[b++] = new box(glm::vec3(x0, y0, z0), glm::vec3(x1, y1, z1), ground);
@@ -214,12 +211,13 @@ hitable* test_scene()
     texture* ground = new checker_texture(new constant_texture(glm::vec3(0.2, 0.2, 0.4)), new constant_texture(glm::vec3(0.8, 0.8, 1.0)));
     material* _lambertian = new lambertian(ground);
     //material* red = new lambertian(new constant_texture(glm::vec3(0.65, 0.05, 0.05)));
-    material* _light = new diffuse_light(new constant_texture(glm::vec3(4, 4, 4)));
+    material* _light = new diffuse_light(new constant_texture(glm::vec3(15, 15, 15)));
 
     int i = 0;
 
-    list[i++] = new sphere(glm::vec3(0, 1, -1), 1, _light);
+    list[i++] = new sphere(glm::vec3(0, 1, 0), 0.5, _light);
     list[i++] = new sphere(glm::vec3(0, -1, -1), 1, _lambertian);
+    //list[i++] = new sphere(glm::vec3(0, -1, -1), 1.0, new lambertian(new noise_texture(5.0f)));
     //list[i++] = new xz_rect(-50, 50, -50, 50, 0, red);
     //list[i++] = new yz_rect(0, 50, 0, 50, 0, red);
 

@@ -35,7 +35,10 @@ public:
 class lambertian : public material
 {
 public:
-    lambertian(texture* a) : albedo(a) {}
+    lambertian(texture* a)
+        : albedo(a)
+    {
+    }
 
     virtual bool scatter(const ray& r_in, const hit_record& rec, glm::vec3& attenuation, ray& scattered) const override
     {
@@ -46,22 +49,29 @@ public:
         return true;
     }
 
+private:
     texture* albedo;
 };
 
 class metal : public material
 {
 public:
-    metal(const glm::vec3& a, float f) : albedo(a) { fuzz = (f < 1.0f)? f : 1.0f; }
+    metal(const glm::vec3& a, float f)
+        : albedo(a)
+    {
+        fuzz = glm::max(f, 1.0f);
+    }
+    
     virtual bool scatter(const ray& r_in, const hit_record& rec, glm::vec3& attenuation, ray& scattered) const override
     {
         glm::vec3 reflected = reflect(glm::normalize(r_in.direction()), rec.normal);
         scattered = ray(rec.p, reflected + fuzz * random_in_unit_sphere());
         attenuation = albedo;
 
-        return (dot(scattered.direction(), rec.normal) > 0.0f);
+        return (glm::dot(scattered.direction(), rec.normal) > 0.0f);
     }
 
+private:
     glm::vec3 albedo;
     float fuzz;
 };
@@ -69,7 +79,10 @@ public:
 class dielectric : public material
 {
 public:
-    dielectric(float ri) : ref_idx(ri) {}
+    dielectric(float ri)
+        : ref_idx(ri)
+    {
+    }
 
     virtual bool scatter(const ray& r_in, const hit_record& rec, glm::vec3& attenuation, ray& scattered) const override
     {
@@ -109,6 +122,7 @@ public:
         return true;
     }
 
+private:
     float ref_idx;
 };
 
@@ -116,7 +130,10 @@ public:
 class diffuse_light : public material
 {
 public:
-    diffuse_light(texture* a) : emit(a) {}
+    diffuse_light(texture* a)
+        : emit(a)
+    {
+    }
 
     virtual bool scatter(const ray& r_in, const hit_record& rec, glm::vec3& attenuation, ray& scattered) const override
     {
@@ -128,6 +145,7 @@ public:
         return emit->value(u, v, p);
     }
 
+private:
     texture* emit;
 };
 
@@ -135,7 +153,10 @@ public:
 class isotropic : public material
 {
 public:
-    isotropic(texture* a) : albedo(a) {}
+    isotropic(texture* a)
+        : albedo(a)
+    {
+    }
 
     virtual bool scatter(const ray& r_in, const hit_record& rec, glm::vec3& attenuation, ray& scattered) const override	
     {
@@ -144,5 +165,6 @@ public:
         return true;
     }
 
+private:
     texture* albedo;
 };

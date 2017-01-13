@@ -6,7 +6,7 @@
  */
 #pragma once
 
-#include "noise.hpp"
+#include "glm/gtc/noise.hpp"
 
 class texture
 {
@@ -26,6 +26,7 @@ public:
         return color;
     }
 
+private:
     glm::vec3 color;
 };
 
@@ -38,10 +39,11 @@ public:
 
     virtual glm::vec3 value(float u, float v, const glm::vec3& p) const override
     {
-        float sines = glm::sin(10 * p.x) * glm::sin(10 * p.y) * sin(10 * p.z);
+        float sines = glm::sin(10.0f * p.x) * glm::sin(10.0f * p.y) * sin(10.0f * p.z);
         return (sines < 0.0f)? odd->value(u, v, p) : even->value(u, v, p);
     }
 
+private:
     texture* even;
     texture* odd;
 };
@@ -54,11 +56,11 @@ public:
 
     virtual glm::vec3 value(float u, float v, const glm::vec3& p) const override
     {
-        //return vec3(1.0f) * noise.noise(p * scale);
-        return glm::vec3(1.0f) * 0.5f * (1.0f + glm::sin(scale * p.z + 10 * noise.turb(p)));
+        return glm::vec3(1.0f) * 0.5f * (1.0f + glm::sin(scale * p.z + 10 * glm::perlin(p)));
     }
 
-    perlin noise;
+private:
+
     float scale;
 };
 
@@ -72,11 +74,8 @@ public:
 
     virtual glm::vec3 value(float u, float v, const glm::vec3& p) const override
     {
-        //int i = glm::clamp(int(u * nx),                 0, nx - 1);
-        //int j = glm::clamp(int(1.0f - v * ny - 0.001f), 0, ny - 1);
-
-        int i = (u) * nx;
-        int j = (1-v) * ny - 0.001;
+        int i = static_cast<int>((u) * nx);
+        int j = static_cast<int>((1 - v) * ny - 0.001f);
         if (i < 0) i = 0;
         if (j < 0) j = 0;
         if (i > nx - 1) i = nx - 1;
@@ -89,6 +88,7 @@ public:
         return glm::vec3(r, g, b);
     }
 
+private:
     unsigned char* data;
     int nx;
     int ny;

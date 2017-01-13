@@ -21,7 +21,7 @@ public:
     {
         lens_radius = aperture / 2.0f;
 
-        float theta = vfov * M_PI / 180.0f;
+        float theta = vfov * glm::pi<float>() / 180.0f;
         float half_height = tan(theta / 2.0f);
         float half_width = aspect * half_height;
 

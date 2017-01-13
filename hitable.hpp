@@ -7,6 +7,7 @@
 #pragma once
 
 #include <iostream>
+#include <algorithm>
 
 #include "glm/glm.hpp"
 
@@ -29,9 +30,12 @@ public:
 class sphere : public hitable
 {
 public:
-    sphere()                              {}
     sphere(glm::vec3 c, float r, material* m)
-        : center(c), radius(r), mat(m)    {}
+        : center(c)
+        , radius(r)
+        , mat(m)
+    {
+    }
 
     virtual bool hit(const ray& r, float t_min, float t_max, hit_record& rec) const override
     {
@@ -48,7 +52,7 @@ public:
                 rec.t = temp;
                 rec.p = r.point_at_parameter(temp);
                 rec.normal = (rec.p - center) / radius;
-                get_sphere_uv((rec.p - center) / radius, rec.u, rec.v);
+                get_uv_at((rec.p - center) / radius, rec.u, rec.v);
                 rec.mat_ptr = mat;
 
                 return true;
@@ -59,7 +63,7 @@ public:
                 rec.t = temp;
                 rec.p = r.point_at_parameter(temp);
                 rec.normal = (rec.p - center) / radius;
-                get_sphere_uv((rec.p - center) / radius, rec.u, rec.v);
+                get_uv_at((rec.p - center) / radius, rec.u, rec.v);
                 rec.mat_ptr = mat;
 
                 return true;
@@ -76,60 +80,77 @@ public:
         return true;
     }
 
+private:
+    void get_uv_at(const glm::vec3& p, float& u, float& v) const
+    {
+        float phi = glm::atan(p.z, p.x);
+        float theta = glm::asin(p.y);
+
+        u = 1.0f - (phi + glm::pi<float>()) / (2.0f * glm::pi<float>());
+        v = (theta + glm::pi<float>() / 2.0f) / glm::pi<float>();
+    }
+
     glm::vec3 center;
     float radius;
     material* mat;
 };
 
-int box_x_compare(const void* a, const void* b)
-{
-    aabb box_left, box_right;
-    hitable* ah = *(hitable**)a;
-    hitable* bh = *(hitable**)b;
-
-    if (!ah->bounding_box(0, 0, box_left) || !bh->bounding_box(0, 0, box_right))
-        std::cerr << "no bbox in bvh_node constructor!\n";
-
-    return (box_left.min().x - box_right.min().x < 0.0f)? -1 : 1;
-}
-
-int box_y_compare(const void* a, const void* b)
-{
-    aabb box_left, box_right;
-    hitable* ah = *(hitable**)a;
-    hitable* bh = *(hitable**)b;
-
-    if (!ah->bounding_box(0, 0, box_left) || !bh->bounding_box(0, 0, box_right))
-        std::cerr << "no bbox in bvh_node constructor!\n";
-
-    return (box_left.min().y - box_right.min().y < 0.0f)? -1 : 1;
-}
-
-int box_z_compare(const void* a, const void* b)
-{
-    aabb box_left, box_right;
-    hitable* ah = *(hitable**)a;
-    hitable* bh = *(hitable**)b;
-
-    if (!ah->bounding_box(0, 0, box_left) || !bh->bounding_box(0, 0, box_right))
-        std::cerr << "no bbox in bvh_node constructor!\n";
-
-    return (box_left.min().z - box_right.min().z < 0.0f)? -1 : 1;
-}
-
 class bvh_node : public hitable
 {
 public:
-    bvh_node() {}
     bvh_node(hitable **l, int n, float time0, float time1)
     {
         int axis = int(3 * drand48());
-        if (axis == 0)
-            qsort(l, n, sizeof(hitable*), box_x_compare);
-        else if (axis == 1)
-            qsort(l, n, sizeof(hitable*), box_y_compare);
-        else //axis == 2
-            qsort(l, n, sizeof(hitable*), box_z_compare);
+
+        auto x_comparer = [](const void* a, const void* b)
+        {
+            hitable* ah = *(hitable**)a;
+            hitable* bh = *(hitable**)b;
+
+            aabb box_left, box_right;
+            if (!ah->bounding_box(0, 0, box_left) || !bh->bounding_box(0, 0, box_right))
+                std::cerr << "no bbox in bvh_node constructor!\n";
+
+            return (box_left.min().x - box_right.min().x < 0.0f)? -1 : 1;
+        };
+
+        auto y_comparer = [](const void* a, const void* b)
+        {
+            hitable* ah = *(hitable**)a;
+            hitable* bh = *(hitable**)b;
+
+            aabb box_left, box_right;
+            if (!ah->bounding_box(0, 0, box_left) || !bh->bounding_box(0, 0, box_right))
+                std::cerr << "no bbox in bvh_node constructor!\n";
+
+            return (box_left.min().y - box_right.min().y < 0.0f)? -1 : 1;
+        };
+
+        auto z_comparer = [](const void* a, const void* b)
+        {
+            hitable* ah = *(hitable**)a;
+            hitable* bh = *(hitable**)b;
+
+            aabb box_left, box_right;
+            if (!ah->bounding_box(0, 0, box_left) || !bh->bounding_box(0, 0, box_right))
+                std::cerr << "no bbox in bvh_node constructor!\n";
+
+            return (box_left.min().z - box_right.min().z < 0.0f)? -1 : 1;
+        };
+
+        switch (axis) {
+        case 0:
+            qsort(l, n, sizeof(hitable*), x_comparer);
+            break;
+
+        case 1:
+            qsort(l, n, sizeof(hitable*), y_comparer);
+            break;
+
+        case 2:
+            qsort(l, n, sizeof(hitable*), z_comparer);
+            break;
+        }
 
         if (n == 1) {
             left = right = l[0];
@@ -145,7 +166,8 @@ public:
         if (!left->bounding_box(time0, time1, box_left) || !right->bounding_box(time0, time1, box_right))
             std::cerr << "no bbox in bvh_node constructor!\n";
 
-        box = surrounding_box(box_left, box_right);
+        box = box_left;
+        box.expand(box_right);
     }
 
     virtual bool hit(const ray& r, float t_min, float t_max, hit_record& rec) const override
@@ -194,7 +216,14 @@ class xy_rect : public hitable
 public:
     xy_rect() {}
     xy_rect(float _x0, float _x1, float _y0, float _y1, float _k, material* mat)
-        : x0(_x0), x1(_x1), y0(_y0), y1(_y1), k(_k), mp(mat) {}
+        : x0(_x0)
+        , x1(_x1)
+        , y0(_y0)
+        , y1(_y1)
+        , k(_k)
+        , mp(mat)
+    {
+    }
 
     virtual bool hit(const ray& r, float t_min, float t_max, hit_record& rec) const override
     {
@@ -218,7 +247,7 @@ public:
 
     virtual bool bounding_box(float t0, float t1, aabb& box) const override
     {
-        box = aabb(glm::vec3(x0, y0, k - 0.0001), glm::vec3(x1, y1, k + 0.0001));
+        box = aabb(glm::vec3(x0, y0, k - 0.0001f), glm::vec3(x1, y1, k + 0.0001f));
         return true;
     }
 
@@ -234,9 +263,15 @@ public:
 class xz_rect : public hitable
 {
 public:
-    xz_rect() {}
     xz_rect(float _x0, float _x1, float _z0, float _z1, float _k, material* mat)
-        : x0(_x0), x1(_x1), z0(_z0), z1(_z1), k(_k), mp(mat) {}
+        : x0(_x0)
+        , x1(_x1)
+        , z0(_z0)
+        , z1(_z1)
+        , k(_k)
+        , mp(mat)
+    {
+    }
 
     virtual bool hit(const ray& r, float t_min, float t_max, hit_record& rec) const override
     {
@@ -276,9 +311,15 @@ public:
 class yz_rect : public hitable
 {
 public:
-    yz_rect() {}
     yz_rect(float _y0, float _y1, float _z0, float _z1, float _k, material* mat)
-        : y0(_y0), y1(_y1), z0(_z0), z1(_z1), k(_k), mp(mat) {}
+        : y0(_y0)
+        , y1(_y1)
+        , z0(_z0)
+        , z1(_z1)
+        , k(_k)
+        , mp(mat)
+    {
+    }
 
     virtual bool hit(const ray& r, float t_min, float t_max, hit_record& rec) const override
     {
@@ -318,7 +359,10 @@ public:
 class flip_normals : public hitable
 {
 public:
-    flip_normals(hitable* p) : ptr(p) {}
+    flip_normals(hitable* p)
+        : ptr(p)
+    {
+    }
 
     virtual bool hit(const ray& r, float t_min, float t_max, hit_record& rec) const override
     {
@@ -342,7 +386,11 @@ public:
 class translate : public hitable
 {
 public:
-    translate(hitable* p, const glm::vec3& displacement) : ptr(p), offset(displacement) {}
+    translate(hitable* p, const glm::vec3& displacement)
+        : ptr(p)
+        , offset(displacement)
+    {
+    }
 
     virtual bool hit(const ray& r, float t_min, float t_max, hit_record& rec) const override
     {
@@ -451,14 +499,18 @@ class hitable_list : public hitable
 {
 public:
     hitable_list() {}
-    hitable_list(hitable** l, int n) : list(l), list_size(n) {}
+    hitable_list(hitable** l, int n)
+        : list(l)
+        , list_size(n)
+    {
+    }
 
     virtual bool hit(const ray& r, float t_min, float t_max, hit_record& rec) const override
     {
         hit_record temp_rec;
         bool hit_anything = false;
 
-        double closest_so_far = t_max;
+        float closest_so_far = t_max;
         for (int i = 0; i < list_size; ++i) {
             if (list[i]->hit(r, t_min, closest_so_far, temp_rec)) {
                 hit_anything = true;
@@ -484,7 +536,7 @@ public:
 
         for (int i = 1; i < list_size; ++i) {
             if (list[0]->bounding_box(t0, t1, temp_box)) {
-                box = surrounding_box(box, temp_box);
+                box.expand(temp_box);
             } else {
                 return false;
             }
@@ -528,6 +580,7 @@ public:
         return true;
     }
 
-    glm::vec3 pmin, pmax;
+    glm::vec3 pmin;
+    glm::vec3 pmax;
     hitable* list_ptr;
 };

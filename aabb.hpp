@@ -25,6 +25,12 @@ public:
     {
     }
 
+    void expand(const aabb& other_box)
+    {
+        m_min = glm::min(m_min, other_box.min());
+        m_max = glm::max(m_max, other_box.max());
+    }
+
     const glm::vec3& min() const 
     {
         return m_min;
