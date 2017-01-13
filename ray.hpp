@@ -11,16 +11,34 @@
 class ray
 {
 public:
-	ray()                                          {}
-	ray(const vec3& a, const vec3& b, float t)
-		: A(a), B(b), _time(t)                     {}
+    ray()
+        : m_origin()
+        , m_direction()
+    {
+    }
+    
+    ray(const glm::vec3& origin, const glm::vec3& direction)
+        : m_origin(origin)
+        , m_direction(direction)
+    {
+    }
 
-	vec3 origin() const                            { return A; }
-	vec3 direction() const                         { return B; }
-	float time() const                             { return _time; }
-	vec3 point_at_parameter(float t) const         { return A + t * B; }
+    const glm::vec3& origin() const
+    {
+        return m_origin;
+    }
+    
+    const glm::vec3& direction() const
+    {
+        return m_direction;
+    }
+    
+    glm::vec3 point_at_parameter(float t) const
+    {
+        return m_origin + t * m_direction;
+    }
 
-	vec3 A;
-	vec3 B;
-	float _time;
+private:
+    glm::vec3 m_origin;
+    glm::vec3 m_direction;
 };

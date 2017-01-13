@@ -13,26 +13,43 @@
 class aabb
 {
 public:
-	aabb() {}
-	aabb(const vec3& a, const vec3& b)
-		: _min(a), _max(b) {}
+    aabb()
+        : m_min()
+        , m_max()
+    {
+    }
 
-	const vec3& min() const { return _min; }
-	const vec3& max() const { return _max; }
+    aabb(const glm::vec3& a, const glm::vec3& b)
+        : m_min(a)
+        , m_max(b)
+    {
+    }
 
-	bool hit(const ray& r, float tmin, float tmax) const
-	{
-		for (int a = 0; a < 3; ++a) {
-			float t0 = glm::min((_min[a] - r.origin()[a]) / r.direction()[a], (_max[a] - r.origin()[a]) / r.direction()[a]);
-			float t1 = glm::max((_min[a] - r.origin()[a]) / r.direction()[a], (_max[a] - r.origin()[a]) / r.direction()[a]);
+    const glm::vec3& min() const 
+    {
+        return m_min;
+    }
+    
+    const glm::vec3& max() const
+    {
+        return m_max;
+    }
 
-			if (glm::min(t1, tmax) <= glm::max(t0, tmin))
-				return false;
-		}
-		return true;
-	}
+    bool hit(const ray& r, float tmin, float tmax) const
+    {
+        for (int i = 0; i < 3; ++i) {
+            
+            float a = (m_min[i] - r.origin()[i]) / r.direction()[i];
+            float b = (m_max[i] - r.origin()[i]) / r.direction()[i];
+            
+            if (glm::min(glm::max(a, b), tmax) <= glm::max(glm::min(a, b), tmin))
+                return false;
+        }
 
+        return true;
+    }
 
-	vec3 _min;
-	vec3 _max;
+private:
+    glm::vec3 m_min;
+    glm::vec3 m_max;
 };
