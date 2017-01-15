@@ -45,7 +45,7 @@ hitable* random_scene()
 
     // lambertian textured
     int nx, ny, nn;
-    unsigned char* tex_data = stbi_load("earth.jpg", &nx, &ny, &nn, 0);
+    unsigned char* tex_data = stbi_load("data/earth.jpg", &nx, &ny, &nn, 0);
     list[i++] = new sphere(glm::vec3(6, 1, 0), 1.0, new lambertian(new image_texture(tex_data, nx, ny)));
 
     return new hitable_list(list, i);
@@ -59,7 +59,7 @@ hitable* cornellbox_scene()
     material* red = new lambertian(new constant_texture(glm::vec3(0.65, 0.05, 0.05)));
     material* white = new lambertian(new constant_texture(glm::vec3(0.73, 0.73, 0.73)));
     material* green = new lambertian(new constant_texture(glm::vec3(0.12, 0.45, 0.15)));
-    material* light = new diffuse_light(new constant_texture(glm::vec3(7, 7, 7)));
+    material* light = new diffuse_light(new constant_texture(glm::vec3(15, 15, 15)));
     //material* glass = new dielectric(1.5);
 
     int i = 0;
@@ -72,8 +72,8 @@ hitable* cornellbox_scene()
 
     list[i++] = new translate(new rotate_y(new box(glm::vec3(0, 0, 0), glm::vec3(165, 165, 165), white), -18), glm::vec3(130, 0, 65));
     list[i++] = new translate(new rotate_y(new box(glm::vec3(0, 0, 0), glm::vec3(165, 330, 165), white), 15), glm::vec3(265, 0, 295));
-    
-    //list[i++] = new sphere(vec3(190, 50, 100), 50.0, new dielectric(1.5));
+    list[i++] = new sphere(glm::vec3(190, 50, 100), 50.0, new dielectric(1.5));
+
     //list[i++] = new flip_normals(new xz_rect(203, 353, 237, 322, 1, light));
 
     return new hitable_list(list, i);
@@ -110,7 +110,7 @@ hitable* final()
     material* _metal = new metal(glm::vec3(0.8, 0.8, 0.9), 10.0);
 
     int nx, ny, nn;
-    unsigned char* tex_data = stbi_load("earth.jpg", &nx, &ny, &nn, 0);
+    unsigned char* tex_data = stbi_load("data/earth.jpg", &nx, &ny, &nn, 0);
     material* _textured = new lambertian(new image_texture(tex_data, nx, ny));
 
     material* _noise = new lambertian(new noise_texture(0.1));
@@ -148,18 +148,23 @@ hitable* test_scene()
     hitable** list = new hitable*[30];
 
 
-    texture* ground = new checker_texture(new constant_texture(glm::vec3(0.2, 0.2, 0.4)), new constant_texture(glm::vec3(0.8, 0.8, 1.0)));
-    material* _lambertian = new lambertian(ground);
+    //texture* ground = new checker_texture(new constant_texture(glm::vec3(0.2, 0.2, 0.4)), new constant_texture(glm::vec3(0.8, 0.8, 1.0)));
+    //material* _lambertian = new lambertian(ground);
     //material* red = new lambertian(new constant_texture(glm::vec3(0.65, 0.05, 0.05)));
-    material* _light = new diffuse_light(new constant_texture(glm::vec3(15, 15, 15)));
-
+    material* _light = new diffuse_light(new constant_texture(glm::vec3(15, 15, 10)));
+    
+    // lambertian textured
+    int nx, ny, nn;
+    unsigned char* tex_data = stbi_load("data/earth.jpg", &nx, &ny, &nn, 0);
+    
     int i = 0;
 
-    list[i++] = new sphere(glm::vec3(0, 1, 0), 0.5, _light);
-    list[i++] = new sphere(glm::vec3(0, -1, -1), 1, _lambertian);
+    list[i++] = new sphere(glm::vec3(1, 0.6, 0), 0.3, _light);
+    //list[i++] = new sphere(glm::vec3(0, -1, -1), 1, _lambertian);
     //list[i++] = new sphere(glm::vec3(0, -1, -1), 1.0, new lambertian(new noise_texture(5.0f)));
     //list[i++] = new xz_rect(-50, 50, -50, 50, 0, red);
     //list[i++] = new yz_rect(0, 50, 0, 50, 0, red);
+    list[i++] = new sphere(glm::vec3(0, -1, -1), 1.0f, new lambertian(new image_texture(tex_data, nx, ny)));
 
     return new hitable_list(list, i);
 }
@@ -171,27 +176,27 @@ hitable* load_scene(eScene scene, camera& cam, float ratio)
 {
     switch (scene) {
     case eRANDOM:
-        cerr << "tracing random scene...\n";
+        std::cerr << "tracing random scene...\n";
         cam.setup(glm::vec3(10.0f, 1.5f, 4.0f), glm::vec3(2.0f, 0.5f, -2.0f), glm::vec3(0.0f, 1.0f, 0.0f), 45.0f, ratio, 2.0f, 5.0f);
         return random_scene();
         
     case eCORNELLBOX:
-        cerr << "tracing cornell scene...\n";
+        std::cerr << "tracing cornell scene...\n";
         cam.setup(glm::vec3(278, 278, -800), glm::vec3(278, 278, 0), glm::vec3(0.0f, 1.0f, 0.0f), 40.0f, ratio, 0.0f, 10.0f);
         return cornellbox_scene();
         
     case eFINAL:
-        cerr << "tracing final scene...\n";
+        std::cerr << "tracing final scene...\n";
         cam.setup(glm::vec3(278, 278, -800), glm::vec3(278, 278, 0), glm::vec3(0.0f, 1.0f, 0.0f), 40.0f, ratio, 0.0f, 10.0f);
         return final();
 
     case eTEST:
-        cerr << "tracing test scene...\n";
+        std::cerr << "tracing test scene...\n";
         cam.setup(glm::vec3(0, 0, 5), glm::vec3(0, 0, 0), glm::vec3(0, 1, 0), 45.0f, ratio, 0.0f, 10.0f);
         return test_scene();
         
     default:
-        cerr << "tracing NULL, i'm going to crash...\n";
+        std::cerr << "tracing NULL, i'm going to crash...\n";
         return nullptr;
     };
 }

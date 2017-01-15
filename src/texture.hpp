@@ -69,27 +69,27 @@ class image_texture : public texture
 {
 public:
     image_texture() {}
-    image_texture(unsigned char* pixels, int A, int B)
-        : data(pixels), nx(A), ny(B) {}
+    image_texture(uint8_t* pixels, int width, int height)
+        : data(pixels)
+        , nx(width)
+        , ny(height)
+    {
+    }
 
     virtual glm::vec3 value(float u, float v, const glm::vec3& p) const override
     {
-        int i = static_cast<int>((u) * nx);
-        int j = static_cast<int>((1 - v) * ny - 0.001f);
-        if (i < 0) i = 0;
-        if (j < 0) j = 0;
-        if (i > nx - 1) i = nx - 1;
-        if (j > ny - 1) j = ny - 1;
+        int i = glm::clamp(static_cast<int>((u) * nx),                 0, nx - 1);
+        int j = glm::clamp(static_cast<int>((1.0f - v) * ny - 0.001f), 0, ny - 1);
 
-        float r = int(data[3 * i + 3 * nx * j + 0]) / 255.0f;
-        float g = int(data[3 * i + 3 * nx * j + 1]) / 255.0f;
-        float b = int(data[3 * i + 3 * nx * j + 2]) / 255.0f;
+        float r = data[3 * i + 3 * nx * j + 0] / 255.0f;
+        float g = data[3 * i + 3 * nx * j + 1] / 255.0f;
+        float b = data[3 * i + 3 * nx * j + 2] / 255.0f;
 
         return glm::vec3(r, g, b);
     }
 
 private:
-    unsigned char* data;
+    uint8_t* data;
     int nx;
     int ny;
 };

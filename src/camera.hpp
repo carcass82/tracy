@@ -11,18 +11,21 @@
 class camera
 {
 public:
-    camera() {}
-    camera(glm::vec3 lookfrom, glm::vec3 lookat, glm::vec3 vup, float vfov, float aspect, float aperture, float focus_dist)
+    camera()
+    {
+    }
+    
+    camera(const glm::vec3& lookfrom, const glm::vec3& lookat, const glm::vec3& vup, float vfov, float aspect, float aperture, float focus_dist)
     {
         setup(lookfrom, lookat, vup, vfov, aspect, aperture, focus_dist);
     }
     
-    void setup(glm::vec3 lookfrom, glm::vec3 lookat, glm::vec3 vup, float vfov, float aspect, float aperture, float focus_dist)
+    void setup(const glm::vec3& lookfrom, const glm::vec3& lookat, const glm::vec3& vup, float vfov, float aspect, float aperture, float focus_dist)
     {
         lens_radius = aperture / 2.0f;
 
-        float theta = vfov * glm::pi<float>() / 180.0f;
-        float half_height = tan(theta / 2.0f);
+        float theta = glm::radians(vfov);
+        float half_height = glm::tan(theta / 2.0f);
         float half_width = aspect * half_height;
 
         origin = lookfrom;
