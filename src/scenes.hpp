@@ -113,7 +113,7 @@ hitable* final()
     unsigned char* tex_data = stbi_load("data/earth.jpg", &nx, &ny, &nn, 0);
     material* _textured = new lambertian(new image_texture(tex_data, nx, ny));
 
-    material* _noise = new lambertian(new noise_texture(0.1));
+    material* _noise = new lambertian(new noise_texture(0.1f));
 
 
     int l = 0;
@@ -159,7 +159,7 @@ hitable* test_scene()
     
     int i = 0;
 
-    list[i++] = new sphere(glm::vec3(1, 0.6, 0), 0.3, _light);
+    list[i++] = new sphere(glm::vec3(1, 0.6, 0), 0.3f, _light);
     //list[i++] = new sphere(glm::vec3(0, -1, -1), 1, _lambertian);
     //list[i++] = new sphere(glm::vec3(0, -1, -1), 1.0, new lambertian(new noise_texture(5.0f)));
     //list[i++] = new xz_rect(-50, 50, -50, 50, 0, red);
@@ -176,22 +176,22 @@ hitable* load_scene(eScene scene, camera& cam, float ratio)
 {
     switch (scene) {
     case eRANDOM:
-        std::cerr << "tracing random scene...\n";
+        std::cerr << "'random' scene selected\n";
         cam.setup(glm::vec3(10.0f, 1.5f, 4.0f), glm::vec3(2.0f, 0.5f, -2.0f), glm::vec3(0.0f, 1.0f, 0.0f), 45.0f, ratio, 2.0f, 5.0f);
         return random_scene();
         
     case eCORNELLBOX:
-        std::cerr << "tracing cornell scene...\n";
+        std::cerr << "'cornell' scene selected\n";
         cam.setup(glm::vec3(278, 278, -800), glm::vec3(278, 278, 0), glm::vec3(0.0f, 1.0f, 0.0f), 40.0f, ratio, 0.0f, 10.0f);
         return cornellbox_scene();
         
     case eFINAL:
-        std::cerr << "tracing final scene...\n";
+        std::cerr << "'final' scene selected\n";
         cam.setup(glm::vec3(278, 278, -800), glm::vec3(278, 278, 0), glm::vec3(0.0f, 1.0f, 0.0f), 40.0f, ratio, 0.0f, 10.0f);
         return final();
 
     case eTEST:
-        std::cerr << "tracing test scene...\n";
+        std::cerr << "'test' scene selected\n";
         cam.setup(glm::vec3(0, 0, 5), glm::vec3(0, 0, 0), glm::vec3(0, 1, 0), 45.0f, ratio, 0.0f, 10.0f);
         return test_scene();
         

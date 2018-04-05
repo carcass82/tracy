@@ -6,6 +6,7 @@
  */
  
 #include <iostream>
+#include <fstream>
 #include <iomanip>
 #include <vector>
 #include <cmath>
@@ -58,94 +59,76 @@ glm::vec3 color(const ray& r, hitable* world, int depth)
     }
 }
 
-int main()
+int main(int argc, char** argv)
 {
-    const int nx = 500; // w
-    const int ny = 500; // h
+    const int nx = 512; // w
+    const int ny = 512; // h
     const int ns = 100; // samples
+	constexpr float inv_ns = 1.f / (float)ns;
 
     camera cam;
     
     //hitable* world = load_scene(eRANDOM, cam, float(nx) / float(ny));
-    hitable* world = load_scene(eCORNELLBOX, cam, float(nx) / float(ny));
-    //hitable* world = load_scene(eFINAL, cam, float(nx) / float(ny));
+    //hitable* world = load_scene(eCORNELLBOX, cam, float(nx) / float(ny));
+    hitable* world = load_scene(eFINAL, cam, float(nx) / float(ny));
     //hitable* world = load_scene(eTEST, cam, float(nx) / float(ny));
-    
+	
+	char* filename = "output.ppm";
+	if (argc == 2) {
+		filename = argv[1];
+	}
+		
+	std::ofstream ppm_stream(filename, std::ios::binary);
+	if (!ppm_stream.good()) {
+		std::cerr << "unable to open " << filename << " for writing, abort\n";
+		return -1;
+	}
+	
+	ppm_stream << "P6\n" << nx << " " << ny << " " << 0xff << "\n";
+	
     Timer t;
     t.begin();
 
-    // PPM file header
-    std::cout << "P3\n" << nx << " " << ny << "\n255\n";
-
-    std::vector<glm::vec3> output;
-    output.reserve(nx * ny);
-
     // path tracing
+	size_t pixel_idx(0);
     for (int j = ny - 1; j >= 0; --j) {
 
         for (int i = 0; i < nx; ++i) {
 
             glm::vec3 col;
 
-            #pragma omp parallel for
+			#pragma omp parallel for
             for (int s = 0; s < ns; ++s) {
 
                 float u = float(i + drand48()) / float(nx);
                 float v = float(j + drand48()) / float(ny);
 
                 ray r = cam.get_ray(u, v);
-                glm::vec3 tempcol = color(r, world, 0);
+				glm::vec3 temp = color(r, world, 0);
                 
-                #pragma omp atomic
-                col[0] += tempcol[0];
-                
-                #pragma omp atomic
-                col[1] += tempcol[1];
-                
-                #pragma omp atomic
-                col[2] += tempcol[2];
-            }
+				#pragma omp critical
+				col += temp;
+			}
+			#pragma omp barrier
             
-            col /= float(ns);
-
-            // gamma correct 2.0
-            col = glm::sqrt(col);
-
-            // TODO: should not be clamped but histogram equalized
-            //cout << int(glm::clamp(255.99f * col[0], 0.0f, 255.0f)) << " "
-            //     << int(glm::clamp(255.99f * col[1], 0.0f, 255.0f)) << " "
-            //     << int(glm::clamp(255.99f * col[2], 0.0f, 255.0f)) << "\n";
-            
-            output.push_back(col);
+            glm::vec3 clamped_col = glm::clamp(255.99f * col * inv_ns, 0.0f, 255.0f);
+			
+			float progress = float(pixel_idx++) / float(nx * ny);
+			const size_t progbarsize = 70;
+			
+			std::cout << "tracing... [";
+			for (size_t p = 0; p < progbarsize; ++p) {
+				std::cout << ((p <= progress * progbarsize)? "=" : " ");
+			}
+			std::cout << "] " << std::fixed << std::setprecision(1) << progress * 100.0f << "%\r";
+			
+			ppm_stream << uint8_t(clamped_col.r) << uint8_t(clamped_col.g) << uint8_t(clamped_col.b);
         }
 
     }
 
+	ppm_stream.close();
+	
     t.end();
     std::cerr << "finished in " << std::setprecision(3) << t.duration() << " secs\n";
-
-    const glm::vec3 yuv(0.299f, 0.114f, 0.587f);
-    std::vector<float> y_vals;
-    std::vector<float> u_vals;
-    std::vector<float> v_vals;
-    for (auto pixel : output) {
-        float y = pixel.r * yuv.r + pixel.g * yuv.g + pixel.b * yuv.b;
-        
-        u_vals.push_back(0.436f * (pixel.b - y) / (1.0f - yuv.b));
-        v_vals.push_back(0.615f * (pixel.r - y) / (1.0f - yuv.r));
-        y_vals.push_back(y);
-    }
-    
-    //histogram_equalize(y_vals);
-    
-    for (size_t i = 0; i < y_vals.size(); ++i) {
-        
-        float r = y_vals[i] + v_vals[i] * ((1.0f - yuv.r) / 0.615f);
-        float g = y_vals[i] - (u_vals[i] * (yuv.b * (1.0f - yuv.b)) / (0.436f * yuv.g)) - (v_vals[i] * (yuv.r * (1.0f - yuv.r)) / (0.615f * yuv.g));
-        float b = y_vals[i] + u_vals[i] * ((1.0f - yuv.b) / 0.436f);
-        
-        std::cout << int(255.99f * r) << " " << int(255.99f * g) << " " << int(255.99f * b) << "\n";
-    }
-    
-    std::cout << std::endl;
 }
