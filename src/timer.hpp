@@ -7,37 +7,38 @@
 #pragma once
 
 #include <chrono>
+using namespace std::chrono_literals;
+using std::chrono::high_resolution_clock;
 
 class Timer
 {
 public:
-    Timer()
-        : span(0)
+    Timer() : span(0ms)
     {}
 
     void begin()
     {
-        t0 = std::chrono::high_resolution_clock::now();
+        t0 = high_resolution_clock::now();
     }
 
     void end()
     {
-        t1 = std::chrono::high_resolution_clock::now();
-        span += std::chrono::duration_cast<std::chrono::duration<double>>(t1 - t0).count();
+        t1 = high_resolution_clock::now();
+        span += (t1 - t0);
     }
 
     double duration() const
     {
-        return span;
+        return span.count() / 1000.0;
     }
 
     void clear()
     {
-        span = 0;
+        span = 0ms;
     }
 
 private:
-    std::chrono::high_resolution_clock::time_point t0;
-    std::chrono::high_resolution_clock::time_point t1;
-    double span;
+    high_resolution_clock::time_point t0;
+    high_resolution_clock::time_point t1;
+    std::chrono::duration<double, std::milli> span;
 };

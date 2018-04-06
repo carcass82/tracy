@@ -113,7 +113,7 @@ public:
             reflect_prob = 1.0f;
         }
 
-        if (drand48() < reflect_prob) {
+        if (fastrand() < reflect_prob) {
             scattered = ray(rec.p, reflected);
         } else {
             scattered = ray(rec.p, refracted);

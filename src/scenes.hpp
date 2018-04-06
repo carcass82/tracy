@@ -11,14 +11,14 @@ hitable* random_scene()
     int i = 1;
     for (int a = -10; a < 10; ++a) {
         for (int b = -10; b < 10; ++b) {
-            float choose_mat = float(drand48());
-            glm::vec3 center(a + 0.9 * drand48(), 0.2, b + 0.9 * drand48());
+            float choose_mat = float(fastrand());
+            glm::vec3 center(a + 0.9 * fastrand(), 0.2, b + 0.9 * fastrand());
             if ((center - glm::vec3(4, 0.2, 0)).length() > 0.9) {
                 if (choose_mat < 0.8) {
-                    //list[i++] = new moving_sphere(center, center + vec3(0, 0.5 * drand48(), 0.0), 0.0, 1.0, 0.2, new lambertian(new constant_texture(vec3(drand48() * drand48(), drand48() * drand48(), drand48() * drand48())));
-                    list[i++] = new sphere(center, 0.2f, new lambertian(new constant_texture(glm::vec3(drand48() * drand48(), drand48() * drand48(), drand48() * drand48()))));
+                    //list[i++] = new moving_sphere(center, center + vec3(0, 0.5 * fastrand(), 0.0), 0.0, 1.0, 0.2, new lambertian(new constant_texture(vec3(fastrand() * fastrand(), fastrand() * fastrand(), fastrand() * fastrand())));
+                    list[i++] = new sphere(center, 0.2f, new lambertian(new constant_texture(glm::vec3(fastrand() * fastrand(), fastrand() * fastrand(), fastrand() * fastrand()))));
                 } else if (choose_mat < 0.95) {
-                    list[i++] = new sphere(center, 0.2f, new metal(glm::vec3(0.5f * (1.0f + float(drand48())), 0.5f * (1.0f + float(drand48())), 0.5f * (1.0f + float(drand48()))), 0.5f * float(drand48())));
+                    list[i++] = new sphere(center, 0.2f, new metal(glm::vec3(0.5f * (1.0f + float(fastrand())), 0.5f * (1.0f + float(fastrand())), 0.5f * (1.0f + float(fastrand()))), 0.5f * float(fastrand())));
                 } else {
                     list[i++] = new sphere(center, 0.2f, new dielectric(1.5));
                 }
@@ -98,7 +98,7 @@ hitable* final()
             float z0 = -1000 + j * w;
             float y0 = 0;
             float x1 = x0 + w;
-            float y1 = 100 * (float(drand48()) + 0.01f);
+            float y1 = 100 * (float(fastrand()) + 0.01f);
             float z1 = z0 + w;
 
             boxlist[b++] = new box(glm::vec3(x0, y0, z0), glm::vec3(x1, y1, z1), ground);
@@ -135,7 +135,7 @@ hitable* final()
 
     int ns = 1000;
     for (int i = 0; i < ns; ++i) {
-        boxlist2[i] = new sphere(glm::vec3(165 * drand48(), 165 * drand48(), 165 * drand48()), 10, white);
+        boxlist2[i] = new sphere(glm::vec3(165 * fastrand(), 165 * fastrand(), 165 * fastrand()), 10, white);
     }
 
     list[l++] = new translate(new rotate_y(new bvh_node(boxlist2, ns, 0.0, 1.0), 15), glm::vec3(-100, 270, 395));

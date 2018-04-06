@@ -100,7 +100,7 @@ class bvh_node : public hitable
 public:
     bvh_node(hitable **l, int n, float time0, float time1)
     {
-        int axis = int(3 * drand48());
+        int axis = int(3 * fastrand());
 
         auto x_comparer = [](const void* a, const void* b)
         {
