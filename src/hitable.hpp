@@ -8,14 +8,15 @@
 
 #include <iostream>
 #include <algorithm>
-
-#include "glm/glm.hpp"
-
+#include "tmath.h"
 #include "geom.hpp"
 #include "ray.hpp"
 #include "aabb.hpp"
 #include "material.hpp"
 #include "texture.hpp"
+
+using vmath::radians;
+using vmath::PI;
 
 class material;
 class isotropic;
@@ -30,7 +31,7 @@ public:
 class sphere : public hitable
 {
 public:
-    sphere(glm::vec3 c, float r, material* m)
+    sphere(vec3 c, float r, material* m)
         : center(c)
         , radius(r)
         , mat(m)
@@ -39,7 +40,7 @@ public:
 
     virtual bool hit(const ray& r, float t_min, float t_max, hit_record& rec) const override
     {
-        glm::vec3 oc = r.origin() - center;
+        vec3 oc = r.origin() - center;
         float a = dot(r.direction(), r.direction());
         float b = dot(oc, r.direction());
         float c = dot(oc, oc) - radius * radius;
@@ -76,21 +77,21 @@ public:
 
     virtual bool bounding_box(float t0, float t1, aabb& box) const override
     {
-        box = aabb(center - glm::vec3(radius), center + glm::vec3(radius));
+        box = aabb(center - vec3(radius), center + vec3(radius));
         return true;
     }
 
 private:
-    void get_uv_at(const glm::vec3& p, float& u, float& v) const
+    void get_uv_at(const vec3& p, float& u, float& v) const
     {
-        float phi = glm::atan(p.z, p.x);
-        float theta = glm::asin(p.y);
+        float phi = atan2f(p.z, p.x);
+        float theta = asinf(p.y);
 
-        u = 1.0f - (phi + glm::pi<float>()) / (2.0f * glm::pi<float>());
-        v = (theta + glm::pi<float>() / 2.0f) / glm::pi<float>();
+        u = 1.0f - (phi + PI) / (2.0f * PI);
+        v = (theta + PI / 2.0f) / PI;
     }
 
-    glm::vec3 center;
+    vec3 center;
     float radius;
     material* mat;
 };
@@ -241,13 +242,13 @@ public:
         rec.t = t;
         rec.mat_ptr = mp;
         rec.p = r.point_at_parameter(t);
-        rec.normal = glm::vec3(0, 0, 1);
+        rec.normal = vec3(0, 0, 1);
         return true;
     }
 
     virtual bool bounding_box(float t0, float t1, aabb& box) const override
     {
-        box = aabb(glm::vec3(x0, y0, k - 0.0001f), glm::vec3(x1, y1, k + 0.0001f));
+        box = aabb(vec3(x0, y0, k - 0.0001f), vec3(x1, y1, k + 0.0001f));
         return true;
     }
 
@@ -289,13 +290,13 @@ public:
         rec.t = t;
         rec.mat_ptr = mp;
         rec.p = r.point_at_parameter(t);
-        rec.normal = glm::vec3(0, 0, 1);
+        rec.normal = vec3(0, 0, 1);
         return true;
     }
 
     virtual bool bounding_box(float t0, float t1, aabb& box) const override
     {
-        box = aabb(glm::vec3(x0, k - 0.0001, z0), glm::vec3(x1, k + 0.0001, z1));
+        box = aabb(vec3(x0, k - 0.0001f, z0), vec3(x1, k + 0.0001f, z1));
         return true;
     }
 
@@ -337,13 +338,13 @@ public:
         rec.t = t;
         rec.mat_ptr = mp;
         rec.p = r.point_at_parameter(t);
-        rec.normal = glm::vec3(0, 0, 1);
+        rec.normal = vec3(0, 0, 1);
         return true;
     }
 
     virtual bool bounding_box(float t0, float t1, aabb& box) const override
     {
-        box = aabb(glm::vec3(k - 0.0001, y0, z0), glm::vec3(k + 0.0001, y1, z1));
+        box = aabb(vec3(k - 0.0001f, y0, z0), vec3(k + 0.0001f, y1, z1));
         return true;
     }
 
@@ -367,7 +368,7 @@ public:
     virtual bool hit(const ray& r, float t_min, float t_max, hit_record& rec) const override
     {
         if (ptr->hit(r, t_min, t_max, rec)) {
-            rec.normal = -rec.normal;
+            rec.normal = rec.normal * -1;
             return true;
         } else {
             return false;
@@ -386,7 +387,7 @@ public:
 class translate : public hitable
 {
 public:
-    translate(hitable* p, const glm::vec3& displacement)
+    translate(hitable* p, const vec3& displacement)
         : ptr(p)
         , offset(displacement)
     {
@@ -412,7 +413,7 @@ public:
     }
 
     hitable* ptr;
-    glm::vec3 offset;
+    vec3 offset;
 };
 
 
@@ -422,13 +423,13 @@ public:
     rotate_y(hitable* p, float angle)
         :ptr(p)
     {
-        float radians = glm::radians(angle);
-        sin_theta = sin(radians);
-        cos_theta = cos(radians);
+        float anglerad = radians(angle);
+        sin_theta = sin(anglerad);
+        cos_theta = cos(anglerad);
         hasbox = ptr->bounding_box(0, 1, bbox);
 
-        glm::vec3 min(FLT_MAX, FLT_MAX, FLT_MAX);
-        glm::vec3 max(-FLT_MAX, -FLT_MAX, -FLT_MAX);
+        vec3 min(FLT_MAX, FLT_MAX, FLT_MAX);
+        vec3 max(-FLT_MAX, -FLT_MAX, -FLT_MAX);
 
         for (int i = 0; i < 2; ++i) {
             for (int j = 0; j < 2; ++j) {
@@ -439,7 +440,7 @@ public:
                     float newx = cos_theta * x + sin_theta * z;
                     float newz = -sin_theta * x + cos_theta * z;
 
-                    glm::vec3 tester(newx, y, newz);
+                    vec3 tester(newx, y, newz);
                     for (int c = 0; c < 3; ++c) {
                         if (tester[c] > max[c]) max[c] = tester[c];
                         if (tester[c] < min[c]) min[c] = tester[c];
@@ -453,8 +454,8 @@ public:
 
     virtual bool hit(const ray& r, float t_min, float t_max, hit_record& rec) const override
     {
-        glm::vec3 origin = r.origin();
-        glm::vec3 direction = r.direction();
+        vec3 origin = r.origin();
+        vec3 direction = r.direction();
 
         origin[0] = cos_theta * r.origin()[0] - sin_theta * r.origin()[2];
         origin[2] = sin_theta * r.origin()[0] + cos_theta * r.origin()[2];
@@ -464,8 +465,8 @@ public:
         ray rotated_r(origin, direction);
 
         if (ptr->hit(rotated_r, t_min, t_max, rec)) {
-            glm::vec3 p = rec.p;
-            glm::vec3 normal = rec.normal;
+            vec3 p = rec.p;
+            vec3 normal = rec.normal;
 
             p[0] = cos_theta * rec.p[0] + sin_theta * rec.p[2];
             p[2] = -sin_theta * rec.p[0] + cos_theta * rec.p[2];
@@ -554,7 +555,7 @@ class box : public hitable
 {
 public:
     box() {}
-    box(const glm::vec3& p0, const glm::vec3& p1, material* ptr)
+    box(const vec3& p0, const vec3& p1, material* ptr)
         : pmin(p0), pmax(p1)
     {
         hitable** list = new hitable*[6];
@@ -580,7 +581,7 @@ public:
         return true;
     }
 
-    glm::vec3 pmin;
-    glm::vec3 pmax;
+    vec3 pmin;
+    vec3 pmax;
     hitable* list_ptr;
 };

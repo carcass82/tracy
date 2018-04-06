@@ -9,16 +9,13 @@
 #include <fstream>
 #include <iomanip>
 #include <vector>
-#include <cmath>
 #include <cfloat>
 #include <cassert>
-
-#include "glm/glm.hpp"
-#include "glm/gtx/norm.hpp"
 
 #define STB_IMAGE_IMPLEMENTATION
 #include "ext/stb_image.h"
 
+#include "tmath.h"
 #include "timer.hpp"
 #include "material.hpp"
 #include "camera.hpp"
@@ -27,31 +24,34 @@
 #include "geom.hpp"
 #include "scenes.hpp"
 
-glm::vec3 color(const ray& r, hitable* world, int depth)
+using vmath::vec3;
+using vutil::clamp;
+
+vec3 color(const ray& r, hitable* world, int depth)
 {
     hit_record rec;
     if (world->hit(r, 0.001f, FLT_MAX, rec)) {
 
         ray scattered;
-        glm::vec3 attenuation;
-        glm::vec3 emitted = rec.mat_ptr->emitted(rec.u, rec.v, rec.p);
+        vec3 attenuation;
+        vec3 emitted = rec.mat_ptr->emitted(rec.u, rec.v, rec.p);
 
-        if (depth < 50 && rec.mat_ptr->scatter(r, rec, attenuation, scattered)) {
+        if (depth < 30 && rec.mat_ptr->scatter(r, rec, attenuation, scattered)) {
             return emitted + attenuation * color(scattered, world, depth + 1);
         } else {
             return emitted;
         }
 
     } else {
-        return glm::vec3();
+        return vec3();
     }
 }
 
 int main(int argc, char** argv)
 {
-    const int nx = 512; // w
-    const int ny = 512; // h
-    const int ns = 100; // samples
+    const int nx = 256; // w
+    const int ny = 256; // h
+    const int ns = 50; // samples
     constexpr float inv_ns = 1.f / (float)ns;
 
     camera cam;
@@ -98,7 +98,7 @@ int main(int argc, char** argv)
 
         for (int i = 0; i < nx; ++i) {
 
-            glm::vec3 col;
+            vec3 col;
 
             #pragma omp parallel for
             for (int s = 0; s < ns; ++s) {
@@ -107,7 +107,7 @@ int main(int argc, char** argv)
                 float v = float(j + fastrand()) / float(ny);
 
                 ray r = cam.get_ray(u, v);
-                glm::vec3 temp = color(r, world, 0);
+                vec3 temp = color(r, world, 0);
 
                 #pragma omp atomic
                 col.r += temp.r;
@@ -119,14 +119,14 @@ int main(int argc, char** argv)
                 col.b += temp.b;
             }
 
-            glm::vec3 clamped_col = glm::clamp(255.99f * col * inv_ns, 0.0f, 255.0f);
+            vec3 clamped_col = { clamp(255.99f * col.r * inv_ns, 0.0f, 255.0f), clamp(255.99f * col.g * inv_ns, 0.0f, 255.0f), clamp(255.99f * col.b * inv_ns, 0.0f, 255.0f) };
 
             float progress = float(pixel_idx++) / float(nx * ny);
             const size_t progbarsize = 70;
 
             std::cout << "tracing... [";
             for (size_t p = 0; p < progbarsize; ++p) {
-                std::cout << ((p <= progress * progbarsize)? "=" : " ");
+                std::cout << ((p <= progress * progbarsize)? "#" : " ");
             }
             std::cout << "] " << std::fixed << std::setprecision(1) << progress * 100.0f << "%\r";
 

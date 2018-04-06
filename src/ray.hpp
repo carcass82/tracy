@@ -6,7 +6,8 @@
  */
 #pragma once
 
-#include "glm/glm.hpp"
+#include "tmath.h"
+using vmath::vec3;
 
 class ray
 {
@@ -17,28 +18,28 @@ public:
     {
     }
     
-    ray(const glm::vec3& origin, const glm::vec3& direction)
+    ray(const vec3& origin, const vec3& direction)
         : m_origin(origin)
         , m_direction(direction)
     {
     }
 
-    const glm::vec3& origin() const
+    const vec3& origin() const
     {
         return m_origin;
     }
     
-    const glm::vec3& direction() const
+    const vec3& direction() const
     {
         return m_direction;
     }
     
-    glm::vec3 point_at_parameter(float t) const
+    vec3 point_at_parameter(float t) const
     {
-        return m_origin + t * m_direction;
+        return m_origin + m_direction * t;
     }
 
 private:
-    glm::vec3 m_origin;
-    glm::vec3 m_direction;
+    vec3 m_origin;
+    vec3 m_direction;
 };

@@ -5,10 +5,11 @@
  * (c) Carlo Casta, 2017
  */
 #pragma once
-
-#include "glm/glm.hpp"
-
+#include "tmath.h"
 #include "ray.hpp"
+
+using vmath::vec3;
+
 
 class aabb
 {
@@ -19,7 +20,7 @@ public:
     {
     }
 
-    aabb(const glm::vec3& a, const glm::vec3& b)
+    aabb(const vec3& a, const vec3& b)
         : m_min(a)
         , m_max(b)
     {
@@ -27,16 +28,21 @@ public:
 
     void expand(const aabb& other_box)
     {
-        m_min = glm::min(m_min, other_box.min());
-        m_max = glm::max(m_max, other_box.max());
+        m_min.x = vutil::min(m_min.x, other_box.min().x);
+		m_min.y = vutil::min(m_min.y, other_box.min().y);
+		m_min.z = vutil::min(m_min.z, other_box.min().z);
+		
+        m_max.x = vutil::max(m_max.x, other_box.max().x);
+		m_max.y = vutil::max(m_max.y, other_box.max().y);
+		m_max.z = vutil::max(m_max.z, other_box.max().z);
     }
 
-    const glm::vec3& min() const 
+    const vec3& min() const 
     {
         return m_min;
     }
     
-    const glm::vec3& max() const
+    const vec3& max() const
     {
         return m_max;
     }
@@ -48,7 +54,7 @@ public:
             float a = (m_min[i] - r.origin()[i]) / r.direction()[i];
             float b = (m_max[i] - r.origin()[i]) / r.direction()[i];
             
-            if (glm::min(glm::max(a, b), tmax) <= glm::max(glm::min(a, b), tmin))
+            if (vutil::min(vutil::max(a, b), tmax) <= vutil::max(vutil::min(a, b), tmin))
                 return false;
         }
 
@@ -56,6 +62,6 @@ public:
     }
 
 private:
-    glm::vec3 m_min;
-    glm::vec3 m_max;
+    vec3 m_min;
+    vec3 m_max;
 };

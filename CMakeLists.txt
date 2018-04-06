@@ -5,17 +5,12 @@ cmake_minimum_required(VERSION 2.8)
 include_directories(.)
 include_directories(./src)
 
-if (WIN32)
- include_directories(../SharedLibs)
- include_directories(../_common)
-endif()
-
 file(GLOB_RECURSE INC_LIST "./src/*.hpp" "./src/*.h")
 aux_source_directory(./src SRC_LIST)
 
 if (MSVC)
     message(STATUS "Found MSVC: " ${CMAKE_CXX_COMPILER})
-    set(CMAKE_CXX_FLAGS "/nologo /W3")
+    set(CMAKE_CXX_FLAGS "/nologo /W3 /D_CRT_SECURE_NO_WARNINGS")
     set(CMAKE_CXX_FLAGS_DEBUG "/EHsc /W3 /Zi /Od /D_DEBUG /MTd")
     set(CMAKE_CXX_FLAGS_RELEASE "/EHsc- /GR- /GL /Ox /fp:fast /openmp /MT /DNDEBUG")
     set(CMAKE_EXE_LINKER_FLAGS_RELEASE "${CMAKE_EXE_LINKER_FLAGS} /LTCG /INCREMENTAL:NO /OPT:REF")

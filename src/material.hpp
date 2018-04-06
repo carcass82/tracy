@@ -5,13 +5,14 @@
  * (c) Carlo Casta, 2017
  */
 #pragma once
-
-#include "glm/glm.hpp"
-#include "glm/gtc/epsilon.hpp"
-
 #include "geom.hpp"
 #include "texture.hpp"
 #include "ray.hpp"
+
+using vmath::vec3;
+using vmath::normalize;
+using vmath::dot;
+using vutil::max;
 
 class material;
 
@@ -20,16 +21,16 @@ struct hit_record
     float t;
     float u;
     float v;
-    glm::vec3 p;
-    glm::vec3 normal;
+    vec3 p;
+    vec3 normal;
     material* mat_ptr;
 };
 
 class material
 {
 public:
-    virtual bool scatter(const ray& r_in, const hit_record& rec, glm::vec3& attenuation, ray& scattered) const = 0;
-    virtual glm::vec3 emitted(float u, float v, const glm::vec3& p) const { return glm::vec3(); }
+    virtual bool scatter(const ray& r_in, const hit_record& rec, vec3& attenuation, ray& scattered) const = 0;
+    virtual vec3 emitted(float u, float v, const vec3& p) const { return vec3(); }
 };
 
 class lambertian : public material
@@ -40,9 +41,9 @@ public:
     {
     }
 
-    virtual bool scatter(const ray& r_in, const hit_record& rec, glm::vec3& attenuation, ray& scattered) const override
+    virtual bool scatter(const ray& r_in, const hit_record& rec, vec3& attenuation, ray& scattered) const override
     {
-        glm::vec3 target = rec.p + rec.normal + random_in_unit_sphere();
+        vec3 target = rec.p + rec.normal + random_in_unit_sphere();
         scattered = ray(rec.p, target - rec.p);
         attenuation = albedo->value(rec.u, rec.v, rec.p);
 
@@ -56,23 +57,23 @@ private:
 class metal : public material
 {
 public:
-    metal(const glm::vec3& a, float f)
+    metal(const vec3& a, float f)
         : albedo(a)
     {
-        fuzz = glm::max(f, 1.0f);
+        fuzz = max(f, 1.0f);
     }
     
-    virtual bool scatter(const ray& r_in, const hit_record& rec, glm::vec3& attenuation, ray& scattered) const override
+    virtual bool scatter(const ray& r_in, const hit_record& rec, vec3& attenuation, ray& scattered) const override
     {
-        glm::vec3 reflected = reflect(glm::normalize(r_in.direction()), rec.normal);
-        scattered = ray(rec.p, reflected + fuzz * random_in_unit_sphere());
+        vec3 reflected = reflect(normalize(r_in.direction()), rec.normal);
+        scattered = ray(rec.p, reflected + random_in_unit_sphere() * fuzz);
         attenuation = albedo;
 
-        return (glm::dot(scattered.direction(), rec.normal) > 0.0f);
+        return (dot(scattered.direction(), rec.normal) > 0.0f);
     }
 
 private:
-    glm::vec3 albedo;
+    vec3 albedo;
     float fuzz;
 };
 
@@ -84,30 +85,31 @@ public:
     {
     }
 
-    virtual bool scatter(const ray& r_in, const hit_record& rec, glm::vec3& attenuation, ray& scattered) const override
+    virtual bool scatter(const ray& r_in, const hit_record& rec, vec3& attenuation, ray& scattered) const override
     {
-        glm::vec3 outward_normal;
-        glm::vec3 reflected = reflect(glm::normalize(r_in.direction()), rec.normal);
+        vec3 outward_normal;
+        vec3 reflected = reflect(normalize(r_in.direction()), rec.normal);
 
         float ni_over_nt;
-        attenuation = glm::vec3(1.0f, 1.0f, 1.0f);
-        glm::vec3 refracted;
+        attenuation = vec3(1.0f, 1.0f, 1.0f);
+        vec3 refracted;
 
         float reflect_prob;
         float cosine;
 
         if (dot(r_in.direction(), rec.normal) > 0.0f) {
-            outward_normal = -rec.normal;
+            outward_normal = rec.normal * -1;
             ni_over_nt = ref_idx;
-            cosine = ref_idx * dot(r_in.direction(), rec.normal) / r_in.direction().length();
+            cosine = ref_idx * dot(r_in.direction(), rec.normal) / length(r_in.direction());
         } else {
             outward_normal = rec.normal;
             ni_over_nt = 1.0f / ref_idx;
-            cosine = -dot(r_in.direction(), rec.normal) / r_in.direction().length();
+            cosine = (dot(r_in.direction(), rec.normal) * -1) / length(r_in.direction());
         }
 
+		const static vec3 ZERO;
         refracted = refract(normalize(r_in.direction()), normalize(outward_normal), ni_over_nt);
-        if (!(glm::epsilonEqual(refracted[0], 0.0f, FLT_EPSILON) && glm::epsilonEqual(refracted[1], 0.0f, FLT_EPSILON) && glm::epsilonEqual(refracted[1], 0.0f, FLT_EPSILON))) {
+		if (refracted != ZERO) {
             reflect_prob = schlick(cosine, ref_idx);
         } else {
             reflect_prob = 1.0f;
@@ -135,12 +137,12 @@ public:
     {
     }
 
-    virtual bool scatter(const ray& r_in, const hit_record& rec, glm::vec3& attenuation, ray& scattered) const override
+    virtual bool scatter(const ray& r_in, const hit_record& rec, vec3& attenuation, ray& scattered) const override
     {
         return false;
     }
 
-    virtual glm::vec3 emitted(float u, float v, const glm::vec3& p) const override
+    virtual vec3 emitted(float u, float v, const vec3& p) const override
     {
         return emit->value(u, v, p);
     }
@@ -158,7 +160,7 @@ public:
     {
     }
 
-    virtual bool scatter(const ray& r_in, const hit_record& rec, glm::vec3& attenuation, ray& scattered) const override	
+    virtual bool scatter(const ray& r_in, const hit_record& rec, vec3& attenuation, ray& scattered) const override	
     {
         scattered = ray(rec.p, random_in_unit_sphere());
         attenuation = albedo->value(rec.u, rec.v, rec.p);
