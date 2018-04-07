@@ -17,7 +17,7 @@ public:
         , m_direction()
     {
     }
-    
+
     ray(const vec3& origin, const vec3& direction)
         : m_origin(origin)
         , m_direction(direction)
@@ -28,15 +28,15 @@ public:
     {
         return m_origin;
     }
-    
+
     const vec3& direction() const
     {
         return m_direction;
     }
-    
+
     vec3 point_at_parameter(float t) const
     {
-        return m_origin + m_direction * t;
+        return m_origin + t * m_direction;
     }
 
 private:

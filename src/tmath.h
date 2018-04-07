@@ -42,6 +42,25 @@ namespace vmath
     constexpr float degrees(float rad)                { return rad * 180.0f / PI; }
     constexpr float lerp(float v0, float v1, float t) { return (1.0f - t) * v0 + t * v1; }
 
+    constexpr float fastsqrtf(float x)
+    {
+        assert(x >= .0f && x < std::numeric_limits<float>::infinity());
+
+        auto sqrtfimpl = [](float x, float curr, float prev) -> float
+        {
+            auto recursive = [](float x, float curr, float prev, const auto& lambda) -> float
+            {
+                return (curr == prev)? curr : lambda(x, 0.5 * (curr + x / curr), curr, lambda);
+            };
+
+            return recursive(x, curr, prev, recursive);
+        };
+
+        return sqrtfimpl(x, x, .0f);
+    }
+
+
+
 
     //
     // useful types
@@ -244,7 +263,7 @@ namespace vmath
 
     float length(const vec3& a)
     {
-        return sqrtf(length2(a));
+        return fastsqrtf(length2(a));
     }
 
     constexpr vec3 cross(const vec3& a, const vec3& b)
@@ -267,7 +286,7 @@ namespace vmath
         const float NdotI = dot(N, I);
         const float k = 1.f - eta * eta * (1.f - NdotI * NdotI);
 
-        return (k >= .0f)? vec3(eta * I - (eta * NdotI + sqrtf(k)) * N) : vec3();
+        return (k >= .0f)? vec3(eta * I - (eta * NdotI + fastsqrtf(k)) * N) : vec3();
     }
 
     constexpr mat4 translate(const mat4& m, const vec3& v)

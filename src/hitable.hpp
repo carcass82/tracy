@@ -15,6 +15,7 @@
 #include "material.hpp"
 #include "texture.hpp"
 
+using vutil::max;
 using vmath::radians;
 using vmath::PI;
 
@@ -34,42 +35,53 @@ public:
     sphere(vec3 c, float r, material* m)
         : center(c)
         , radius(r)
+        , radius2(r * r)
         , mat(m)
     {
     }
 
     virtual bool hit(const ray& r, float t_min, float t_max, hit_record& rec) const override
     {
-        vec3 oc = r.origin() - center;
-        float a = dot(r.direction(), r.direction());
-        float b = dot(oc, r.direction());
-        float c = dot(oc, oc) - radius * radius;
-        float discriminant = b * b - a * c;
+        const vec3 oc = r.origin() - center;
 
-        if (discriminant > 0) {
+        const float a = dot(r.direction(), r.direction());
+        const float b = dot(oc, r.direction());
+        const float c = dot(oc, oc) - radius2;
+        const float discriminant = b * b - a * c;
 
-            float temp = (-b - sqrtf(b * b - a * c)) / a;
-            if (temp < t_max && temp > t_min) {
-                rec.t = temp;
-                rec.p = r.point_at_parameter(temp);
-                rec.normal = (rec.p - center) / radius;
-                get_uv_at((rec.p - center) / radius, rec.u, rec.v);
-                rec.mat_ptr = mat;
+        //
+        // b > 0     - ray pointing away from sphere
+        // c > 0     - ray does not start inside sphere
+        //
+        if (c > .0f && b > .0f) return false;
 
-                return true;
-            }
+        //
+        // discr < 0 - ray does not hit the sphere
+        //
+        if (discriminant < .0f) return false;
 
-            temp = (-b + sqrtf(b * b - a * c)) / a;
-            if (temp < t_max && temp > t_min) {
-                rec.t = temp;
-                rec.p = r.point_at_parameter(temp);
-                rec.normal = (rec.p - center) / radius;
-                get_uv_at((rec.p - center) / radius, rec.u, rec.v);
-                rec.mat_ptr = mat;
+        const float sq_bac = vmath::fastsqrtf(b * b - a * c);
 
-                return true;
-            }
+        float temp = (-b - sq_bac) / a;
+        if (temp < t_max && temp > t_min) {
+            rec.t = temp;
+            rec.p = r.point_at_parameter(temp);
+            rec.normal = (rec.p - center) / radius;
+            get_uv_at((rec.p - center) / radius, rec.u, rec.v);
+            rec.mat_ptr = mat;
 
+            return true;
+        }
+
+        temp = (-b + sq_bac) / a;
+        if (temp < t_max && temp > t_min) {
+            rec.t = temp;
+            rec.p = r.point_at_parameter(temp);
+            rec.normal = (rec.p - center) / radius;
+            get_uv_at((rec.p - center) / radius, rec.u, rec.v);
+            rec.mat_ptr = mat;
+
+            return true;
         }
 
         return false;
@@ -93,6 +105,7 @@ private:
 
     vec3 center;
     float radius;
+    float radius2;
     material* mat;
 };
 
