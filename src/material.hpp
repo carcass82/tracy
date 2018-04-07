@@ -12,7 +12,7 @@
 using vmath::vec3;
 using vmath::normalize;
 using vmath::dot;
-using vutil::max;
+using vutil::min;
 
 class material;
 
@@ -67,7 +67,7 @@ public:
     metal(const vec3& a, float f)
         : albedo(a)
     {
-        fuzz = max(f, 1.0f);
+        fuzz = min(f, 1.0f);
     }
 
     virtual bool scatter(const Ray& r_in, const hit_record& rec, vec3& attenuation, Ray& scattered) const override

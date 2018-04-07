@@ -95,10 +95,11 @@ int main(int argc, char** argv)
 
     camera cam;
 
-    hitable* world = load_scene(eRANDOM, cam, float(nx) / float(ny));
+    //hitable* world = load_scene(eRANDOM, cam, float(nx) / float(ny));
     //hitable* world = load_scene(eCORNELLBOX, cam, float(nx) / float(ny));
     //hitable* world = load_scene(eFINAL, cam, float(nx) / float(ny));
     //hitable* world = load_scene(eTEST, cam, float(nx) / float(ny));
+    hitable* world = load_scene(eFIRST_SCENE, cam, float(nx) / float(ny));
 
     char filename[256] = { "output.ppm" };
     if (argc == 2) {

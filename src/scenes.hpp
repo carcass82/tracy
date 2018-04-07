@@ -175,8 +175,53 @@ hitable* test_scene()
     return new hitable_list(list, i);
 }
 
+hitable* first_scene()
+{
+    int n = 500;
+    hitable** list = new hitable*[n + 1];
 
-enum eScene { eRANDOM, eCORNELLBOX, eFINAL, eTEST, eFROMFILE, eNUM_SCENES };
+    list[0] = new xz_rect(-15, 15, -15, 15, 0, new lambertian(new checker_texture(new constant_texture(vec3(0.7f, 0.7f, 0.7f)), new constant_texture(vec3(0.2f, 0.2f, 0.2f)))));
+
+    int i = 1;
+    for (int a = -11; a < 11; ++a) {
+        for (int b = -11; b < 11; ++b) {
+            float choose_mat = fastrand();
+            vec3 center(a + .9f * fastrand(), .2, b + .9f * fastrand());
+            if (length(center - vec3(4.f, .2f, .0f)) > .9f) {
+                if (choose_mat < .8f) { // diffuse
+                    list[i++] = new sphere(center, .2f, new lambertian(new constant_texture(vec3(fastrand() * fastrand(), fastrand() * fastrand(), fastrand() * fastrand()))));
+                } else if (choose_mat < .9f) { // metal
+                    list[i++] = new sphere(center, .2f, new metal(vec3(.5f * (1 + fastrand()), .5f * (1 + fastrand()), .5f * (1 + fastrand())), .5f * fastrand()));
+                } else if (choose_mat < .95f) { // light
+                    list[i++] = new sphere(center, .2f, new diffuse_light(new constant_texture(vec3(5 * fastrand(), 5 * fastrand(), 5 * fastrand()))));
+                } else {
+                    list[i++] = new sphere(center, .2f, new dielectric(1.5f));
+                }
+            }
+        }
+    }
+
+    list[i++] = new sphere(vec3(.0f, 1.f, .0f), 1.f, new dielectric(1.5f));
+    list[i++] = new sphere(vec3(-4.f, 1.f, .0f), 1.f, new lambertian(new constant_texture(vec3(.4f, .2f, .1f))));
+    list[i++] = new sphere(vec3(4.f, 1.f, .0f), 1.f, new metal(vec3(.7f, .6f, .5f), .1f));
+
+    // light
+    list[i++] = new xz_rect(-5, 5, -5, 5, 10, new diffuse_light(new constant_texture(vec3(10, 15, 20))));
+
+    // sides
+    list[i++] = new xy_rect(-15, 15, -15, 15, -15, new lambertian(new constant_texture(vec3(0.9f, 0.0f, 0.0f))));
+    list[i++] = new rotate_y(new xy_rect(-15, 15, -15, 15, -15, new lambertian(new constant_texture(vec3(0.0f, 0.9f, 0.0f)))), 90);
+    list[i++] = new flip_normals(new xy_rect(-15, 15, -15, 15, 15, new lambertian(new constant_texture(vec3(0.0f, 0.0f, 0.9f)))));
+    list[i++] = new flip_normals(new rotate_y(new xy_rect(-15, 15, -15, 15, 15, new lambertian(new constant_texture(vec3(0.0f, 0.9f, 0.9f)))), 90));
+
+    // top
+    list[i++] = new xz_rect(-15, 15, -15, 15, 12, new lambertian(new constant_texture(vec3(0.9f, 0.0f, 0.9f))));
+
+    return new hitable_list(list, i);
+}
+
+
+enum eScene { eRANDOM, eCORNELLBOX, eFINAL, eTEST, eFROMFILE, eFIRST_SCENE, eNUM_SCENES };
 
 hitable* load_scene(eScene scene, camera& cam, float ratio)
 {
@@ -200,6 +245,11 @@ hitable* load_scene(eScene scene, camera& cam, float ratio)
         std::cerr << "'test' scene selected\n";
         cam.setup(vec3(0, 0, 5), vec3(0, 0, 0), vec3(0, 1, 0), 45.0f, ratio, 0.0f, 10.0f);
         return test_scene();
+
+    case eFIRST_SCENE:
+        std::cerr << "'first' scene selected\n";
+        cam.setup(vec3(17, 2, 7), vec3(0, 0, -1), vec3(0, 1, 0), 20.0f, ratio, 2.0f, 20.0f);
+        return first_scene();
 
     default:
         std::cerr << "tracing NULL, i'm going to crash...\n";
