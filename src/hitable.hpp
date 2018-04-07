@@ -18,6 +18,7 @@
 using vutil::max;
 using vmath::radians;
 using vmath::PI;
+using vmath::fastsqrt;
 
 class material;
 class isotropic;
@@ -60,12 +61,12 @@ public:
         //
         if (discriminant < .0f) return false;
 
-        const float sq_bac = vmath::fastsqrtf(b * b - a * c);
+        const float sq_bac = fastsqrt(b * b - a * c);
 
         float temp = (-b - sq_bac) / a;
         if (temp < t_max && temp > t_min) {
             rec.t = temp;
-            rec.p = r.point_at_parameter(temp);
+            rec.p = r.pt(temp);
             rec.normal = (rec.p - center) / radius;
             get_uv_at((rec.p - center) / radius, rec.u, rec.v);
             rec.mat_ptr = mat;
@@ -76,7 +77,7 @@ public:
         temp = (-b + sq_bac) / a;
         if (temp < t_max && temp > t_min) {
             rec.t = temp;
-            rec.p = r.point_at_parameter(temp);
+            rec.p = r.pt(temp);
             rec.normal = (rec.p - center) / radius;
             get_uv_at((rec.p - center) / radius, rec.u, rec.v);
             rec.mat_ptr = mat;
@@ -254,7 +255,7 @@ public:
         rec.v = (y - y0) / (y1 - y0);
         rec.t = t;
         rec.mat_ptr = mp;
-        rec.p = r.point_at_parameter(t);
+        rec.p = r.pt(t);
         rec.normal = vec3(0, 0, 1);
         return true;
     }
@@ -302,7 +303,7 @@ public:
         rec.v = (z - z0) / (z1 - z0);
         rec.t = t;
         rec.mat_ptr = mp;
-        rec.p = r.point_at_parameter(t);
+        rec.p = r.pt(t);
         rec.normal = vec3(0, 0, 1);
         return true;
     }
@@ -350,7 +351,7 @@ public:
         rec.v = (z - z0) / (z1 - z0);
         rec.t = t;
         rec.mat_ptr = mp;
-        rec.p = r.point_at_parameter(t);
+        rec.p = r.pt(t);
         rec.normal = vec3(0, 0, 1);
         return true;
     }

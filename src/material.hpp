@@ -31,6 +31,7 @@ class material
 public:
     virtual bool scatter(const ray& r_in, const hit_record& rec, vec3& attenuation, ray& scattered) const = 0;
     virtual vec3 emitted(float u, float v, const vec3& p) const { return vec3(); }
+    virtual bool islambertian() const { return false; }
 };
 
 class lambertian : public material
@@ -43,12 +44,18 @@ public:
 
     virtual bool scatter(const ray& r_in, const hit_record& rec, vec3& attenuation, ray& scattered) const override
     {
-        vec3 target = rec.p + rec.normal + random_in_unit_sphere();
+        //
+        // random_in_unit_sphere is not good for lambertian materials
+        // see: http://aras-p.info/blog/2018/03/31/Daily-Pathtracer-Part-4-Fixes--Mitsuba/
+        //
+        vec3 target = rec.p + rec.normal + random_unit_vector();
         scattered = ray(rec.p, target - rec.p);
         attenuation = albedo->value(rec.u, rec.v, rec.p);
 
         return true;
     }
+
+    virtual bool islambertian() const override { return true; }
 
 private:
     texture* albedo;
@@ -62,7 +69,7 @@ public:
     {
         fuzz = max(f, 1.0f);
     }
-    
+
     virtual bool scatter(const ray& r_in, const hit_record& rec, vec3& attenuation, ray& scattered) const override
     {
         vec3 reflected = reflect(normalize(r_in.direction()), rec.normal);
@@ -107,9 +114,9 @@ public:
             cosine = (dot(r_in.direction(), rec.normal) * -1) / length(r_in.direction());
         }
 
-		const static vec3 ZERO;
+        const static vec3 ZERO;
         refracted = refract(normalize(r_in.direction()), normalize(outward_normal), ni_over_nt);
-		if (refracted != ZERO) {
+        if (refracted != ZERO) {
             reflect_prob = schlick(cosine, ref_idx);
         } else {
             reflect_prob = 1.0f;
@@ -160,7 +167,7 @@ public:
     {
     }
 
-    virtual bool scatter(const ray& r_in, const hit_record& rec, vec3& attenuation, ray& scattered) const override	
+    virtual bool scatter(const ray& r_in, const hit_record& rec, vec3& attenuation, ray& scattered) const override
     {
         scattered = ray(rec.p, random_in_unit_sphere());
         attenuation = albedo->value(rec.u, rec.v, rec.p);

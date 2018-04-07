@@ -9,8 +9,10 @@
 #include <vector>
 #include <algorithm>
 #include "tmath.h"
+using vmath::PI;
 using vmath::vec3;
 using vmath::length2;
+using vmath::fastsqrt;
 
 float fastrand()
 {
@@ -38,6 +40,18 @@ vec3 random_in_unit_disk()
     while (length2(p) >= 1.0f);
 
     return p;
+}
+
+vec3 random_unit_vector()
+{
+    float z = fastrand() * 2.0f - 1.0f;
+    float a = fastrand() * 2.0f * PI;
+
+    float r = fastsqrt(1.0f - z * z);
+    float x = r * cosf(a);
+    float y = r * sinf(a);
+
+    return { x, y, z };
 }
 
 float schlick(float cos, float ref_idx)

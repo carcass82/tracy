@@ -30,7 +30,7 @@ using vmath::vec2;
 using vmath::vec3;
 using vutil::clamp;
 
-vec3 color(const ray& r, hitable* world, int depth)
+vec3 color(const ray& r, hitable* world, int depth, bool do_emissive)
 {
     hit_record rec;
     if (world->hit(r, 0.01f, std::numeric_limits<float>::max(), rec)) {
@@ -41,13 +41,31 @@ vec3 color(const ray& r, hitable* world, int depth)
         vec3 emitted = rec.mat_ptr->emitted(rec.u, rec.v, rec.p);
 
         if (depth < 30 && rec.mat_ptr->scatter(r, rec, attenuation, scattered)) {
-            return emitted + attenuation * color(scattered, world, depth + 1);
+
+            // for Lambert materials, we just did explicit light (emissive) sampling and already
+            // for their contribution, so if next ray bounce hits the light again, don't add
+            // emission
+            //
+            // see https://github.com/aras-p/ToyPathTracer/commit/5b7607b89d4510623700751edb5f0837da2af23a#diff-a51e0aea7aae9c8c455717cc7d8f957bL183
+            if (!do_emissive) emitted = {0, 0, 0};
+            do_emissive = !rec.mat_ptr->islambertian();
+
+            return emitted + attenuation * color(scattered, world, depth + 1, do_emissive);
         } else {
             return emitted;
         }
 
     } else {
-        return {0, 0, 0};
+
+        //
+        // sky-ish gradient
+        //
+        //vec3 unit_direction = normalize(r.direction());
+        //float t = (unit_direction.y + 1.f) * .5;
+        //return (1.f - t) * vec3{1.f, 1.f, 1.f} + t * vec3{.5f, .7f, 1.f};
+
+        return {.0f, .0f, .0f};
+
     }
 }
 
@@ -117,6 +135,11 @@ int main(int argc, char** argv)
     Timer t;
     t.begin();
 
+    //
+    // OpenMP: collapse all 3 loops and distribute work to threads
+    //         scheduling must be dynamic to avoid work imbalance
+    //         since rays could hit nothing or bounce "forever"
+    //
     #pragma omp parallel for collapse(3) schedule(dynamic)
     for (int j = 0; j < ny; ++j) {
 
@@ -124,10 +147,9 @@ int main(int argc, char** argv)
 
             for (int s = 0; s < ns; ++s) {
 
-                vec2 uv = { (i + fastrand()) / float(nx), (j + fastrand()) / float(ny) };
-
-                ray r = cam.get_ray(uv.x, uv.y);
-                vec3 sampled_col = color(r, world, 0);
+                vec2 uv{ (i + fastrand()) / float(nx), (j + fastrand()) / float(ny) };
+                ray r = std::move(cam.get_ray(uv.x, uv.y));
+                vec3 sampled_col = std::move(color(r, world, 0, true));
 
                 #pragma omp atomic
                 output[ny * j + i].r += sampled_col.r;
@@ -157,7 +179,10 @@ int main(int argc, char** argv)
     ppm_stream << "P6\n" << nx << " " << ny << " " << 0xff << "\n";
     for (int j = ny - 1; j >= 0; --j) {
         for (int i = 0; i < nx; ++i) {
-            vec3 clamped_col = { clamp(255.99f * output[ny * j + i].r * inv_ns, 0.0f, 255.0f), clamp(255.99f * output[ny * j + i].g * inv_ns, 0.0f, 255.0f), clamp(255.99f * output[ny * j + i].b * inv_ns, 0.0f, 255.0f) };
+            vec3 clamped_col = { clamp(255.99f * fastsqrt(output[ny * j + i].r * inv_ns), 0.0f, 255.0f),
+                                 clamp(255.99f * fastsqrt(output[ny * j + i].g * inv_ns), 0.0f, 255.0f),
+                                 clamp(255.99f * fastsqrt(output[ny * j + i].b * inv_ns), 0.0f, 255.0f) };
+
             ppm_stream << uint8_t(clamped_col.r) << uint8_t(clamped_col.g) << uint8_t(clamped_col.b);
         }
     }

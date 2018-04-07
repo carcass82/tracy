@@ -42,24 +42,54 @@ namespace vmath
     constexpr float degrees(float rad)                { return rad * 180.0f / PI; }
     constexpr float lerp(float v0, float v1, float t) { return (1.0f - t) * v0 + t * v1; }
 
-    constexpr float fastsqrtf(float x)
+#if 1
+    //
+    // rcp square root intrinsic(x) * x
+    // + 1 iteration of Newton–Raphson
+    //
+    inline float fastsqrt(float x)
     {
-        assert(x >= .0f && x < std::numeric_limits<float>::infinity());
+        //
+        // avoid doing 1/sqrt(x) if x is 0
+        //
+        if (fabsf(x) < EPS) return .0f;
 
+        float f_in = x;
+        float f_out = 0;
+
+        __m128 in = _mm_load_ss(&f_in);
+
+        // case 1: only rsqrt intrinsic, then mul by x to have sqrt()
+        //_mm_store_ss(&f_out, _mm_rsqrt_ss(in));
+        //f_out *= x;
+
+        // case 2: everything with intrinsics
+        _mm_store_ss(&f_out, _mm_mul_ss(in, _mm_rsqrt_ss(in)));
+
+        f_out = .5f * (f_out + x / f_out);
+
+        return f_out;
+    }
+#elif USE_FASTSQRT_RECURSIVE
+    //
+    // Newton iterations
+    //
+    constexpr inline float fastsqrt(float x)
+    {
         auto sqrtfimpl = [](float x, float curr, float prev) -> float
         {
             auto recursive = [](float x, float curr, float prev, const auto& lambda) -> float
             {
-                return (curr == prev)? curr : lambda(x, 0.5 * (curr + x / curr), curr, lambda);
+                return (fabsf(curr - prev) < EPS)? curr : lambda(x, 0.5f * (curr + x / curr), curr, lambda);
             };
-
             return recursive(x, curr, prev, recursive);
         };
 
         return sqrtfimpl(x, x, .0f);
     }
-
-
+#else
+    float fastsqrt(x) { return sqrtf(x); }
+#endif
 
 
     //
@@ -263,7 +293,7 @@ namespace vmath
 
     float length(const vec3& a)
     {
-        return fastsqrtf(length2(a));
+        return fastsqrt(length2(a));
     }
 
     constexpr vec3 cross(const vec3& a, const vec3& b)
@@ -286,7 +316,7 @@ namespace vmath
         const float NdotI = dot(N, I);
         const float k = 1.f - eta * eta * (1.f - NdotI * NdotI);
 
-        return (k >= .0f)? vec3(eta * I - (eta * NdotI + fastsqrtf(k)) * N) : vec3();
+        return (k >= .0f)? vec3(eta * I - (eta * NdotI + fastsqrt(k)) * N) : vec3();
     }
 
     constexpr mat4 translate(const mat4& m, const vec3& v)

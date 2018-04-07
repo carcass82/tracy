@@ -9,37 +9,20 @@
 #include "tmath.h"
 using vmath::vec3;
 
-class ray
+//
+// a ray represented in its parametric form
+// A - ray origin
+// B - ray direction
+//
+struct ray
 {
-public:
-    ray()
-        : m_origin()
-        , m_direction()
-    {
-    }
+    vec3 A;
+    vec3 B;
 
-    ray(const vec3& origin, const vec3& direction)
-        : m_origin(origin)
-        , m_direction(direction)
-    {
-    }
+    ray() {}
+    ray(const vec3& a, const vec3& b) : A(a), B(b) {}
 
-    const vec3& origin() const
-    {
-        return m_origin;
-    }
-
-    const vec3& direction() const
-    {
-        return m_direction;
-    }
-
-    vec3 point_at_parameter(float t) const
-    {
-        return m_origin + t * m_direction;
-    }
-
-private:
-    vec3 m_origin;
-    vec3 m_direction;
+    const vec3& origin() const    { return A; }
+    const vec3& direction() const { return B; }
+    vec3 pt(float t) const        { return A + t * B; }
 };
