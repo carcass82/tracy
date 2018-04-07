@@ -49,9 +49,9 @@ vec3 color(const ray& r, hitable* world, int depth)
 
 int main(int argc, char** argv)
 {
-    const int nx = 256; // w
-    const int ny = 256; // h
-    const int ns = 50; // samples
+    const int nx = 512; // w
+    const int ny = 512; // h
+    const int ns = 100; // samples
     constexpr float inv_ns = 1.f / (float)ns;
 
     camera cam;
@@ -138,5 +138,5 @@ int main(int argc, char** argv)
     ppm_stream.close();
 
     t.end();
-    std::cerr << "\nfinished in " << std::fixed << std::setprecision(3) << t.duration() << " secs\n";
+    std::cerr << "\nfinished in " << std::fixed << std::setprecision(1) << t.duration() << " secs\n";
 }
