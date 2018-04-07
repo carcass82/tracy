@@ -212,7 +212,7 @@ hitable* first_scene()
     list[i++] = new xy_rect(-15, 15, -15, 15, -15, new lambertian(new constant_texture(vec3(0.9f, 0.0f, 0.0f))));
     list[i++] = new rotate_y(new xy_rect(-15, 15, -15, 15, -15, new lambertian(new constant_texture(vec3(0.0f, 0.9f, 0.0f)))), 90);
     list[i++] = new flip_normals(new xy_rect(-15, 15, -15, 15, 15, new lambertian(new constant_texture(vec3(0.0f, 0.0f, 0.9f)))));
-    list[i++] = new flip_normals(new rotate_y(new xy_rect(-15, 15, -15, 15, 15, new lambertian(new constant_texture(vec3(0.0f, 0.9f, 0.9f)))), 90));
+    list[i++] = new flip_normals(new rotate_y(new xy_rect(-15, 15, -15, 15, 20, new lambertian(new constant_texture(vec3(0.0f, 0.9f, 0.9f)))), 90));
 
     // top
     list[i++] = new xz_rect(-15, 15, -15, 15, 12, new lambertian(new constant_texture(vec3(0.9f, 0.0f, 0.9f))));

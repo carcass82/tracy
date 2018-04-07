@@ -5,6 +5,14 @@
 #include <cassert>
 #include <cmath>
 
+#if defined(_MSC_VER)
+ //
+ // ah, microsoft...
+ //
+ constexpr inline float fabsf_vs(float x) { return (x >= .0f)? x : -x; }
+ #define fabsf(x) fabsf_vs(x)
+#endif
+
 namespace vutil
 {
     //
@@ -32,6 +40,7 @@ namespace vmath
     // math constants
     //
     constexpr float PI = 3.14159265f;
+    constexpr float PI_2 = PI / 2.0f;
     constexpr float EPS = std::numeric_limits<float>::epsilon();
 
 
@@ -91,6 +100,17 @@ namespace vmath
 #else
     float fastsqrt(x) { return sqrtf(x); }
 #endif
+
+    // cotangent
+#if !defined(_MSC_VER)
+    constexpr inline float cot(float x) { return tanf(PI_2) - x; }
+#else
+    //
+    // ah, microsoft...
+    //
+    inline float cot(float x) { return tanf(PI_2) - x; }
+#endif
+
 
 
     //
@@ -412,9 +432,9 @@ namespace vmath
         };
     }
 
-    constexpr mat4 perspective(float fovy, float aspect, float znear, float zfar)
+    mat4 perspective(float fovy, float aspect, float znear, float zfar)
     {
-        const float F = 1.0f / tanf(fovy / 2.0f);
+        const float F = cot(fovy / 2.0f);
         const float delta = zfar - znear;
 
         return

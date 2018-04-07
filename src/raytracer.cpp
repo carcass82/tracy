@@ -141,7 +141,14 @@ int main(int argc, char** argv)
     //         scheduling must be dynamic to avoid work imbalance
     //         since rays could hit nothing or bounce "forever"
     //
+#if !defined(_MSC_VER)
     #pragma omp parallel for collapse(3) schedule(dynamic)
+#else
+    //
+    // ah, microsoft...
+    //
+    #pragma omp parallel for schedule(dynamic)
+#endif
     for (int j = 0; j < ny; ++j) {
 
         for (int i = 0; i < nx; ++i) {
