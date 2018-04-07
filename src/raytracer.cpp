@@ -30,12 +30,12 @@ using vmath::vec2;
 using vmath::vec3;
 using vutil::clamp;
 
-vec3 color(const ray& r, hitable* world, int depth, bool do_emissive)
+vec3 color(const Ray& r, hitable* world, int depth, bool do_emissive)
 {
     hit_record rec;
     if (world->hit(r, 0.01f, std::numeric_limits<float>::max(), rec)) {
 
-        ray scattered;
+        Ray scattered;
         vec3 attenuation;
 
         vec3 emitted = rec.mat_ptr->emitted(rec.u, rec.v, rec.p);
@@ -148,7 +148,7 @@ int main(int argc, char** argv)
             for (int s = 0; s < ns; ++s) {
 
                 vec2 uv{ (i + fastrand()) / float(nx), (j + fastrand()) / float(ny) };
-                ray r = std::move(cam.get_ray(uv.x, uv.y));
+                Ray r = std::move(cam.get_ray(uv.x, uv.y));
                 vec3 sampled_col = std::move(color(r, world, 0, true));
 
                 #pragma omp atomic

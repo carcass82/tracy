@@ -18,12 +18,12 @@ public:
     camera()
     {
     }
-    
+
     camera(const vec3& lookfrom, const vec3& lookat, const vec3& vup, float vfov, float aspect, float aperture, float focus_dist)
     {
         setup(lookfrom, lookat, vup, vfov, aspect, aperture, focus_dist);
     }
-    
+
     void setup(const vec3& lookfrom, const vec3& lookat, const vec3& vup, float vfov, float aspect, float aperture, float focus_dist)
     {
         lens_radius = aperture / 2.0f;
@@ -42,11 +42,11 @@ public:
         vertical = 2.0f * half_height * focus_dist * v;
     }
 
-    ray get_ray(float s, float t)
+    Ray get_ray(float s, float t)
     {
         vec3 rd = lens_radius * random_in_unit_disk();
         vec3 offset = u * rd.x + v * rd.y;
-        return ray(origin + offset, lower_left_corner + s * horizontal + t * vertical - origin - offset);
+        return Ray(origin + offset, lower_left_corner + s * horizontal + t * vertical - origin - offset);
     }
 
     vec3 origin;

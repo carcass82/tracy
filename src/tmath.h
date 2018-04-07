@@ -42,6 +42,7 @@ namespace vmath
     constexpr float degrees(float rad)                { return rad * 180.0f / PI; }
     constexpr float lerp(float v0, float v1, float t) { return (1.0f - t) * v0 + t * v1; }
 
+
 #if 1
     //
     // rcp square root intrinsic(x) * x
@@ -70,17 +71,17 @@ namespace vmath
 
         return f_out;
     }
-#elif USE_FASTSQRT_RECURSIVE
+#elif FASTSQRT_ITERATIVE
     //
     // Newton iterations
     //
-    constexpr inline float fastsqrt(float x)
+    constexpr inline float fastsqrt(float x, float precision = EPS)
     {
-        auto sqrtfimpl = [](float x, float curr, float prev) -> float
+        auto sqrtfimpl = [precision](float x, float curr, float prev) -> float
         {
-            auto recursive = [](float x, float curr, float prev, const auto& lambda) -> float
+            auto recursive = [precision](float x, float curr, float prev, const auto& lambda) -> float
             {
-                return (fabsf(curr - prev) < EPS)? curr : lambda(x, 0.5f * (curr + x / curr), curr, lambda);
+                return (fabsf(curr - prev) < precision)? curr : lambda(x, 0.5f * (curr + x / curr), curr, lambda);
             };
             return recursive(x, curr, prev, recursive);
         };

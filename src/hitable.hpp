@@ -26,88 +26,8 @@ class isotropic;
 class hitable
 {
 public:
-    virtual bool hit(const ray& r, float t_min, float t_max, hit_record& rec) const = 0;
+    virtual bool hit(const Ray& r, float t_min, float t_max, hit_record& rec) const = 0;
     virtual bool bounding_box(float t0, float t1, aabb& box) const = 0;
-};
-
-class sphere : public hitable
-{
-public:
-    sphere(vec3 c, float r, material* m)
-        : center(c)
-        , radius(r)
-        , radius2(r * r)
-        , mat(m)
-    {
-    }
-
-    virtual bool hit(const ray& r, float t_min, float t_max, hit_record& rec) const override
-    {
-        const vec3 oc = r.origin() - center;
-
-        const float a = dot(r.direction(), r.direction());
-        const float b = dot(oc, r.direction());
-        const float c = dot(oc, oc) - radius2;
-        const float discriminant = b * b - a * c;
-
-        //
-        // b > 0     - ray pointing away from sphere
-        // c > 0     - ray does not start inside sphere
-        //
-        if (c > .0f && b > .0f) return false;
-
-        //
-        // discr < 0 - ray does not hit the sphere
-        //
-        if (discriminant < .0f) return false;
-
-        const float sq_bac = fastsqrt(b * b - a * c);
-
-        float temp = (-b - sq_bac) / a;
-        if (temp < t_max && temp > t_min) {
-            rec.t = temp;
-            rec.p = r.pt(temp);
-            rec.normal = (rec.p - center) / radius;
-            get_uv_at((rec.p - center) / radius, rec.u, rec.v);
-            rec.mat_ptr = mat;
-
-            return true;
-        }
-
-        temp = (-b + sq_bac) / a;
-        if (temp < t_max && temp > t_min) {
-            rec.t = temp;
-            rec.p = r.pt(temp);
-            rec.normal = (rec.p - center) / radius;
-            get_uv_at((rec.p - center) / radius, rec.u, rec.v);
-            rec.mat_ptr = mat;
-
-            return true;
-        }
-
-        return false;
-    }
-
-    virtual bool bounding_box(float t0, float t1, aabb& box) const override
-    {
-        box = aabb(center - vec3(radius), center + vec3(radius));
-        return true;
-    }
-
-private:
-    void get_uv_at(const vec3& p, float& u, float& v) const
-    {
-        float phi = atan2f(p.z, p.x);
-        float theta = asinf(p.y);
-
-        u = 1.0f - (phi + PI) / (2.0f * PI);
-        v = (theta + PI / 2.0f) / PI;
-    }
-
-    vec3 center;
-    float radius;
-    float radius2;
-    material* mat;
 };
 
 class bvh_node : public hitable
@@ -185,7 +105,7 @@ public:
         box.expand(box_right);
     }
 
-    virtual bool hit(const ray& r, float t_min, float t_max, hit_record& rec) const override
+    virtual bool hit(const Ray& r, float t_min, float t_max, hit_record& rec) const override
     {
         if (box.hit(r, t_min, t_max)) {
             hit_record left_rec;
@@ -240,7 +160,7 @@ public:
     {
     }
 
-    virtual bool hit(const ray& r, float t_min, float t_max, hit_record& rec) const override
+    virtual bool hit(const Ray& r, float t_min, float t_max, hit_record& rec) const override
     {
         float t = (k - r.origin().z) / r.direction().z;
         if (t < t_min || t > t_max)
@@ -288,7 +208,7 @@ public:
     {
     }
 
-    virtual bool hit(const ray& r, float t_min, float t_max, hit_record& rec) const override
+    virtual bool hit(const Ray& r, float t_min, float t_max, hit_record& rec) const override
     {
         float t = (k - r.origin().y) / r.direction().y;
         if (t < t_min || t > t_max)
@@ -336,7 +256,7 @@ public:
     {
     }
 
-    virtual bool hit(const ray& r, float t_min, float t_max, hit_record& rec) const override
+    virtual bool hit(const Ray& r, float t_min, float t_max, hit_record& rec) const override
     {
         float t = (k - r.origin().x) / r.direction().x;
         if (t < t_min || t > t_max)
@@ -379,7 +299,7 @@ public:
     {
     }
 
-    virtual bool hit(const ray& r, float t_min, float t_max, hit_record& rec) const override
+    virtual bool hit(const Ray& r, float t_min, float t_max, hit_record& rec) const override
     {
         if (ptr->hit(r, t_min, t_max, rec)) {
             rec.normal = rec.normal * -1;
@@ -407,9 +327,9 @@ public:
     {
     }
 
-    virtual bool hit(const ray& r, float t_min, float t_max, hit_record& rec) const override
+    virtual bool hit(const Ray& r, float t_min, float t_max, hit_record& rec) const override
     {
-        ray moved_r(r.origin() - offset, r.direction());
+        Ray moved_r(r.origin() - offset, r.direction());
         if (ptr->hit(moved_r, t_min, t_max, rec)) {
             rec.p += offset;
             return true;
@@ -466,7 +386,7 @@ public:
         bbox = aabb(min, max);
     }
 
-    virtual bool hit(const ray& r, float t_min, float t_max, hit_record& rec) const override
+    virtual bool hit(const Ray& r, float t_min, float t_max, hit_record& rec) const override
     {
         vec3 origin = r.origin();
         vec3 direction = r.direction();
@@ -476,7 +396,7 @@ public:
         direction[0] = cos_theta * r.direction()[0] - sin_theta * r.direction()[2];
         direction[2] = sin_theta * r.direction()[0] + cos_theta * r.direction()[2];
 
-        ray rotated_r(origin, direction);
+        Ray rotated_r(origin, direction);
 
         if (ptr->hit(rotated_r, t_min, t_max, rec)) {
             vec3 p = rec.p;
@@ -520,7 +440,7 @@ public:
     {
     }
 
-    virtual bool hit(const ray& r, float t_min, float t_max, hit_record& rec) const override
+    virtual bool hit(const Ray& r, float t_min, float t_max, hit_record& rec) const override
     {
         hit_record temp_rec;
         bool hit_anything = false;
@@ -561,41 +481,4 @@ public:
 
     hitable** list;
     int list_size;
-};
-
-
-
-class box : public hitable
-{
-public:
-    box() {}
-    box(const vec3& p0, const vec3& p1, material* ptr)
-        : pmin(p0), pmax(p1)
-    {
-        hitable** list = new hitable*[6];
-
-        list[0] = new xy_rect(p0.x, p1.x, p0.y, p1.y, p1.z, ptr);
-        list[1] = new flip_normals(new xy_rect(p0.x, p1.x, p0.y, p1.y, p0.z, ptr));
-        list[2] = new xz_rect(p0.x, p1.x, p0.z, p1.z, p1.y, ptr);
-        list[3] = new flip_normals(new xz_rect(p0.x, p1.x, p0.z, p1.z, p0.y, ptr));
-        list[4] = new yz_rect(p0.y, p1.y, p0.z, p1.z, p1.x, ptr);
-        list[5] = new flip_normals(new yz_rect(p0.y, p1.y, p0.z, p1.z, p0.x, ptr));
-
-        list_ptr = new hitable_list(list, 6);
-    }
-
-    virtual bool hit(const ray& r, float t_min, float t_max, hit_record& rec) const override
-    {
-        return list_ptr->hit(r, t_min, t_max, rec);
-    }
-
-    virtual bool bounding_box(float t0, float t1, aabb& box) const override
-    {
-        box = aabb(pmin, pmax);
-        return true;
-    }
-
-    vec3 pmin;
-    vec3 pmax;
-    hitable* list_ptr;
 };

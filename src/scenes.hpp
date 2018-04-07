@@ -3,6 +3,9 @@
 #include "tmath.h"
 using vmath::vec3;
 
+#include "box.hpp"
+#include "sphere.hpp"
+
 hitable* random_scene()
 {
     const int n = 500;
@@ -155,11 +158,11 @@ hitable* test_scene()
     //material* _lambertian = new lambertian(ground);
     //material* red = new lambertian(new constant_texture(vec3(0.65, 0.05, 0.05)));
     material* _light = new diffuse_light(new constant_texture(vec3(15, 15, 10)));
-    
+
     // lambertian textured
     int nx, ny, nn;
     unsigned char* tex_data = stbi_load("data/earth.jpg", &nx, &ny, &nn, 0);
-    
+
     int i = 0;
 
     list[i++] = new sphere(vec3(1, 0.6, 0), 0.3f, _light);
@@ -182,12 +185,12 @@ hitable* load_scene(eScene scene, camera& cam, float ratio)
         std::cerr << "'random' scene selected\n";
         cam.setup(vec3(9.0f, 1.5f, 6.0f), vec3(2.0f, 0.5f, -2.0f), vec3(0.0f, 1.0f, 0.0f), 45.0f, ratio, 2.0f, 5.0f);
         return random_scene();
-        
+
     case eCORNELLBOX:
         std::cerr << "'cornell' scene selected\n";
         cam.setup(vec3(278, 278, -800), vec3(278, 278, 0), vec3(0.0f, 1.0f, 0.0f), 40.0f, ratio, 0.0f, 10.0f);
         return cornellbox_scene();
-        
+
     case eFINAL:
         std::cerr << "'final' scene selected\n";
         cam.setup(vec3(278, 278, -800), vec3(278, 278, 0), vec3(0.0f, 1.0f, 0.0f), 40.0f, ratio, 0.0f, 10.0f);
@@ -197,7 +200,7 @@ hitable* load_scene(eScene scene, camera& cam, float ratio)
         std::cerr << "'test' scene selected\n";
         cam.setup(vec3(0, 0, 5), vec3(0, 0, 0), vec3(0, 1, 0), 45.0f, ratio, 0.0f, 10.0f);
         return test_scene();
-        
+
     default:
         std::cerr << "tracing NULL, i'm going to crash...\n";
         return nullptr;

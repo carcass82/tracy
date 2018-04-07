@@ -4,8 +4,11 @@ cmake_minimum_required(VERSION 2.8)
 
 include_directories(.)
 include_directories(./src)
+include_directories(./src/shapes)
+include_directories(./src/materials)
+include_directories(./src/textures)
 
-file(GLOB_RECURSE INC_LIST "./src/*.hpp" "./src/*.h")
+file(GLOB_RECURSE INC_LIST "./src/*.hpp" "./src/*.h" "./src/shapes/*.hpp" "./src/materials/*.hpp" "./src/textures/*.hpp")
 aux_source_directory(./src SRC_LIST)
 
 if (MSVC)
