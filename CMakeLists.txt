@@ -20,7 +20,7 @@ if (MSVC)
 else()
     message(STATUS "Found C++ Compiler: " ${CMAKE_CXX_COMPILER})
     set(CMAKE_CXX_FLAGS_DEBUG "-Wall -O0 -g -fopenmp -std=c++1z")
-    set(CMAKE_CXX_FLAGS_RELEASE "-Wall -O2 -g -fopenmp -ffast-math -march=native -std=c++1z")
+    set(CMAKE_CXX_FLAGS_RELEASE "-Wall -O2 -g -no-pie -fopenmp -ffast-math -march=native -flto -std=c++1z")
 endif()
 
 if (${CMAKE_BUILD_TYPE} MATCHES "Release")

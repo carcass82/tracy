@@ -7,13 +7,14 @@
 #pragma once
 
 #include "tmath.h"
+using vmath::vec2;
 using vmath::vec3;
 using vutil::clamp;
 
 class texture
 {
 public:
-    virtual vec3 value(float u, float v, const vec3& p) const = 0;
+    virtual vec3 value(const vec2& uv, const vec3& p) const = 0;
 };
 
 
@@ -23,7 +24,7 @@ public:
     constant_texture() {}
     constant_texture(const vec3& c) : color(c) {}
 
-    virtual vec3 value(float u, float v, const vec3& p) const override
+    virtual vec3 value(const vec2& uv, const vec3& p) const override
     {
         return color;
     }
@@ -39,10 +40,10 @@ public:
     checker_texture() {}
     checker_texture(texture* t0, texture* t1): even(t0), odd(t1) {}
 
-    virtual vec3 value(float u, float v, const vec3& p) const override
+    virtual vec3 value(const vec2& uv, const vec3& p) const override
     {
         float sines = sinf(10.0f * p.x) * sinf(10.0f * p.y) * sinf(10.0f * p.z);
-        return (sines < 0.0f)? odd->value(u, v, p) : even->value(u, v, p);
+        return (sines < 0.0f)? odd->value(uv, p) : even->value(uv, p);
     }
 
 private:
@@ -62,10 +63,10 @@ public:
     {
     }
 
-    virtual vec3 value(float u, float v, const vec3& p) const override
+    virtual vec3 value(const vec2& uv, const vec3& p) const override
     {
-        int i = clamp(static_cast<int>((u) * nx),                 0, nx - 1);
-        int j = clamp(static_cast<int>((1.0f - v) * ny - 0.001f), 0, ny - 1);
+        int i = clamp(static_cast<int>((uv.s) * nx),                 0, nx - 1);
+        int j = clamp(static_cast<int>((1.0f - uv.t) * ny - 0.001f), 0, ny - 1);
 
         float r = data[3 * i + 3 * nx * j + 0] / 255.0f;
         float g = data[3 * i + 3 * nx * j + 1] / 255.0f;

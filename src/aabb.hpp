@@ -47,6 +47,25 @@ public:
         return m_max;
     }
 
+    vec3 center() const
+    {
+         return (m_max + m_min) / 2.f;
+    }
+
+    float distance(const vec3& p) const
+    {
+        float res = .0f;
+
+        if (p.x < m_min.x) res += (m_min.x - p.x) * (m_min.x - p.x);
+        if (p.x > m_max.x) res += (p.x - m_max.x) * (p.x - m_max.x);
+        if (p.y < m_min.y) res += (m_min.y - p.y) * (m_min.y - p.y);
+        if (p.y > m_max.y) res += (p.y - m_max.y) * (p.y - m_max.y);
+        if (p.z < m_min.z) res += (m_min.z - p.z) * (m_min.z - p.z);
+        if (p.z > m_max.z) res += (p.z - m_max.z) * (p.z - m_max.z);
+
+        return res;
+    }
+
     bool hit(const Ray& r, float tmin, float tmax) const
     {
         for (int i = 0; i < 3; ++i) {

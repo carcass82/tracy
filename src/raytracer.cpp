@@ -38,7 +38,7 @@ vec3 color(const Ray& r, hitable* world, int depth, bool do_emissive)
         Ray scattered;
         vec3 attenuation;
 
-        vec3 emitted = rec.mat_ptr->emitted(rec.u, rec.v, rec.p);
+        vec3 emitted = rec.mat_ptr->emitted(rec.uv, rec.p);
 
         if (depth < 30 && rec.mat_ptr->scatter(r, rec, attenuation, scattered)) {
 
@@ -47,7 +47,9 @@ vec3 color(const Ray& r, hitable* world, int depth, bool do_emissive)
             // emission
             //
             // see https://github.com/aras-p/ToyPathTracer/commit/5b7607b89d4510623700751edb5f0837da2af23a#diff-a51e0aea7aae9c8c455717cc7d8f957bL183
-            if (!do_emissive) emitted = {0, 0, 0};
+            if (!do_emissive) {
+                emitted = {.0f, .0f, .0f};
+            }
             do_emissive = !rec.mat_ptr->islambertian();
 
             return emitted + attenuation * color(scattered, world, depth + 1, do_emissive);
@@ -58,7 +60,7 @@ vec3 color(const Ray& r, hitable* world, int depth, bool do_emissive)
     } else {
 
         //
-        // sky-ish gradient
+        // fake sky-ish gradient
         //
         //vec3 unit_direction = normalize(r.direction());
         //float t = (unit_direction.y + 1.f) * .5;
@@ -137,7 +139,7 @@ int main(int argc, char** argv)
     t.begin();
 
     //
-    // OpenMP: collapse all 3 loops and distribute work to threads
+    // OpenMP: collapse all 3 loops and distribute work to threads.
     //         scheduling must be dynamic to avoid work imbalance
     //         since rays could hit nothing or bounce "forever"
     //
@@ -168,7 +170,6 @@ int main(int argc, char** argv)
                 #pragma omp atomic
                 output[ny * j + i].b += sampled_col.b;
 
-                #pragma omp atomic
                 pixel_idx++;
             }
 

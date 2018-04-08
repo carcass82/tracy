@@ -10,6 +10,7 @@
 #include "ray.hpp"
 
 using vmath::vec3;
+using vmath::vec2;
 using vmath::normalize;
 using vmath::dot;
 using vutil::min;
@@ -19,8 +20,7 @@ class material;
 struct hit_record
 {
     float t;
-    float u;
-    float v;
+    vec2 uv;
     vec3 p;
     vec3 normal;
     material* mat_ptr;
@@ -30,7 +30,7 @@ class material
 {
 public:
     virtual bool scatter(const Ray& r_in, const hit_record& rec, vec3& attenuation, Ray& scattered) const = 0;
-    virtual vec3 emitted(float u, float v, const vec3& p) const { return vec3(); }
+    virtual vec3 emitted(const vec2& uv, const vec3& p) const { return vec3(); }
     virtual bool islambertian() const { return false; }
 };
 
@@ -50,7 +50,7 @@ public:
         //
         vec3 target = rec.p + rec.normal + random_unit_vector();
         scattered = Ray(rec.p, target - rec.p);
-        attenuation = albedo->value(rec.u, rec.v, rec.p);
+        attenuation = albedo->value(rec.uv, rec.p);
 
         return true;
     }
@@ -149,9 +149,9 @@ public:
         return false;
     }
 
-    virtual vec3 emitted(float u, float v, const vec3& p) const override
+    virtual vec3 emitted(const vec2& uv, const vec3& p) const override
     {
-        return emit->value(u, v, p);
+        return emit->value(uv, p);
     }
 
 private:
@@ -170,7 +170,7 @@ public:
     virtual bool scatter(const Ray& r_in, const hit_record& rec, vec3& attenuation, Ray& scattered) const override
     {
         scattered = Ray(rec.p, random_in_unit_sphere());
-        attenuation = albedo->value(rec.u, rec.v, rec.p);
+        attenuation = albedo->value(rec.uv, rec.p);
         return true;
     }
 

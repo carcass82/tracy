@@ -1,4 +1,6 @@
+#pragma once
 #include "hitable.hpp"
+#include "rect.hpp"
 
 class box : public hitable
 {

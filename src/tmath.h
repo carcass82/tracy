@@ -128,10 +128,10 @@ namespace vmath
         constexpr inline float& operator[](size_t i)             { assert(i < 2); return v[i]; }
         constexpr inline const float& operator[](size_t i) const { assert(i < 2); return v[i]; }
 
-        constexpr vec2() : v{} {}
-        constexpr vec2(float _v) : v{_v, _v} {}
-        constexpr vec2(float _v1, float _v2) : v{ _v1, _v2 } {}
-        constexpr vec2(std::initializer_list<float> _v) : v{*_v.begin(), *(_v.begin() + 1)} { assert(_v.size() == 2); }
+        constexpr inline vec2() : v{} {}
+        constexpr inline vec2(float _v) : v{_v, _v} {}
+        constexpr inline vec2(float _v1, float _v2) : v{ _v1, _v2 } {}
+        constexpr inline vec2(std::initializer_list<float> _v) : v{*_v.begin(), *(_v.begin() + 1)} { assert(_v.size() == 2); }
     };
 
     struct vec3
@@ -145,10 +145,10 @@ namespace vmath
         constexpr inline float& operator[](size_t i)             { assert(i < 3); return v[i]; }
         constexpr inline const float& operator[](size_t i) const { assert(i < 3); return v[i]; }
 
-        constexpr vec3() : v{} {}
-        constexpr vec3(float _v) : v{_v, _v, _v} {}
-        constexpr vec3(float _v1, float _v2, float _v3) : v{ _v1, _v2, _v3 } {}
-        constexpr vec3(std::initializer_list<float> _v) : v{*_v.begin(), *(_v.begin() + 1), *(_v.begin() + 2)} { assert(_v.size() == 3); }
+        constexpr inline vec3() : v{} {}
+        constexpr inline vec3(float _v) : v{_v, _v, _v} {}
+        constexpr inline vec3(float _v1, float _v2, float _v3) : v{ _v1, _v2, _v3 } {}
+        constexpr inline vec3(std::initializer_list<float> _v) : v{*_v.begin(), *(_v.begin() + 1), *(_v.begin() + 2)} { assert(_v.size() == 3); }
     };
 
     struct vec4
@@ -162,10 +162,10 @@ namespace vmath
         constexpr inline float& operator[](size_t i)             { assert(i < 4); return v[i]; }
         constexpr inline const float& operator[](size_t i) const { assert(i < 4); return v[i]; }
 
-        constexpr vec4() : v{} {}
-        constexpr vec4(float _v) : v{_v, _v, _v, _v} {}
-        constexpr vec4(float _v1, float _v2, float _v3, float _v4) : v{ _v1, _v2, _v3, _v4 } {}
-        constexpr vec4(std::initializer_list<float> _v) : v{*_v.begin(), *(_v.begin() + 1), *(_v.begin() + 2), *(_v.begin() + 3)} { assert(_v.size() == 4); }
+        constexpr inline vec4() : v{} {}
+        constexpr inline vec4(float _v) : v{_v, _v, _v, _v} {}
+        constexpr inline vec4(float _v1, float _v2, float _v3, float _v4) : v{ _v1, _v2, _v3, _v4 } {}
+        constexpr inline vec4(std::initializer_list<float> _v) : v{*_v.begin(), *(_v.begin() + 1), *(_v.begin() + 2), *(_v.begin() + 3)} { assert(_v.size() == 4); }
     };
 
     struct mat4
@@ -315,6 +315,16 @@ namespace vmath
     float length(const vec3& a)
     {
         return fastsqrt(length2(a));
+    }
+
+    constexpr float distance2(const vec3& a, const vec3& b)
+    {
+        return (a.x - b.x) * (a.x - b.x) - (a.y - b.y) * (a.y - b.y) - (a.z - b.z) * (a.z - b.z);
+    }
+
+    float distance(const vec3& a, const vec3& b)
+    {
+        return fastsqrt(distance2(a, b));
     }
 
     constexpr vec3 cross(const vec3& a, const vec3& b)

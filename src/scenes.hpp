@@ -5,6 +5,7 @@ using vmath::vec3;
 
 #include "box.hpp"
 #include "sphere.hpp"
+#include "bvh_node.hpp"
 
 hitable* random_scene()
 {
@@ -180,33 +181,41 @@ hitable* first_scene()
     int n = 500;
     hitable** list = new hitable*[n + 1];
 
-    list[0] = new xz_rect(-15, 15, -15, 15, 0, new lambertian(new checker_texture(new constant_texture(vec3(0.7f, 0.7f, 0.7f)), new constant_texture(vec3(0.2f, 0.2f, 0.2f)))));
+    int i = 0;
+    list[i++] = new xz_rect(-15, 15, -15, 15, 0, new lambertian(new checker_texture(new constant_texture(vec3(0.7f, 0.7f, 0.7f)), new constant_texture(vec3(0.2f, 0.2f, 0.2f)))));
 
-    int i = 1;
+    int s = 0;
+    hitable** spheres = new hitable*[1024];
     for (int a = -11; a < 11; ++a) {
         for (int b = -11; b < 11; ++b) {
             float choose_mat = fastrand();
             vec3 center(a + .9f * fastrand(), .2, b + .9f * fastrand());
             if (length(center - vec3(4.f, .2f, .0f)) > .9f) {
                 if (choose_mat < .8f) { // diffuse
-                    list[i++] = new sphere(center, .2f, new lambertian(new constant_texture(vec3(fastrand() * fastrand(), fastrand() * fastrand(), fastrand() * fastrand()))));
+                    spheres[s++] = new sphere(center, .2f, new lambertian(new constant_texture(vec3(fastrand() * fastrand(), fastrand() * fastrand(), fastrand() * fastrand()))));
                 } else if (choose_mat < .9f) { // metal
-                    list[i++] = new sphere(center, .2f, new metal(vec3(.5f * (1 + fastrand()), .5f * (1 + fastrand()), .5f * (1 + fastrand())), .5f * fastrand()));
+                    spheres[s++] = new sphere(center, .2f, new metal(vec3(.5f * (1 + fastrand()), .5f * (1 + fastrand()), .5f * (1 + fastrand())), .5f * fastrand()));
                 } else if (choose_mat < .95f) { // light
-                    list[i++] = new sphere(center, .2f, new diffuse_light(new constant_texture(vec3(5 * fastrand(), 5 * fastrand(), 5 * fastrand()))));
+                    spheres[s++] = new sphere(center, .2f, new diffuse_light(new constant_texture(vec3(5 * fastrand(), 5 * fastrand(), 5 * fastrand()))));
                 } else {
-                    list[i++] = new sphere(center, .2f, new dielectric(1.5f));
+                    spheres[s++] = new sphere(center, .2f, new dielectric(1.5f));
                 }
             }
         }
     }
+    list[i++] = new bvh_node(spheres, s, 0.0, 1.0);
 
     list[i++] = new sphere(vec3(.0f, 1.f, .0f), 1.f, new dielectric(1.5f));
     list[i++] = new sphere(vec3(-4.f, 1.f, .0f), 1.f, new lambertian(new constant_texture(vec3(.4f, .2f, .1f))));
     list[i++] = new sphere(vec3(4.f, 1.f, .0f), 1.f, new metal(vec3(.7f, .6f, .5f), .1f));
 
-    // light
-    list[i++] = new xz_rect(-5, 5, -5, 5, 10, new diffuse_light(new constant_texture(vec3(10, 15, 20))));
+    // lights
+    list[i++] = new xz_rect(-8, 8, -8, 8, 10, new diffuse_light(new constant_texture(vec3(20, 20, 20))));
+
+    list[i++] = new xy_rect(-15, 15, 8, 10, -14, new diffuse_light(new constant_texture(vec3(10, 10, 10))));
+    list[i++] = new rotate_y(new xy_rect(-15, 15, 8, 10, -14, new diffuse_light(new constant_texture(vec3(10, 10, 10)))), 90);
+    list[i++] = new flip_normals(new xy_rect(-15, 15, 8, 10, 14, new diffuse_light(new constant_texture(vec3(10, 10, 10)))));
+    list[i++] = new flip_normals(new rotate_y(new xy_rect(-15, 15, 8, 10, 19, new diffuse_light(new constant_texture(vec3(10, 10, 10)))), 90));
 
     // sides
     list[i++] = new xy_rect(-15, 15, -15, 15, -15, new lambertian(new constant_texture(vec3(0.9f, 0.0f, 0.0f))));
@@ -220,6 +229,29 @@ hitable* first_scene()
     return new hitable_list(list, i);
 }
 
+hitable* sort_by_distance(hitable* list, const vec3& point)
+{
+    hitable_list* scene = (hitable_list*)list;
+
+    for (int i = 0; i < scene->list_size; ++i) {
+
+        for (int j = scene->list_size - 1; j > i; --j) {
+
+            aabb bbox1, bbox2;
+            scene->list[j - 1]->bounding_box(0.001f, FLT_MAX, bbox1);
+            scene->list[j]->bounding_box(0.001f, FLT_MAX, bbox2);
+            float dist1 = bbox1.distance(point);
+            float dist2 = bbox2.distance(point);
+
+            if (dist2 < dist1)
+            {
+                std::swap(scene->list[j], scene->list[j - 1]);
+            }
+        }
+    }
+
+    return list;
+}
 
 enum eScene { eRANDOM, eCORNELLBOX, eFINAL, eTEST, eFROMFILE, eFIRST_SCENE, eNUM_SCENES };
 
