@@ -1,6 +1,8 @@
 #pragma once
 #include "hitable.hpp"
+#include "hitablelist.hpp"
 #include "rect.hpp"
+#include "modifiers/flipnormals.hpp"
 
 class box : public hitable
 {

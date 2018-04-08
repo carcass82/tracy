@@ -17,7 +17,7 @@ public:
             if (!ah->bounding_box(0, 0, box_left) || !bh->bounding_box(0, 0, box_right))
                 std::cerr << "no bbox in bvh_node constructor!\n";
 
-            return (box_left.min().x - box_right.min().x < 0.0f)? -1 : 1;
+            return (box_left.vmin.x - box_right.vmin.x < 0.0f)? -1 : 1;
         };
 
         auto y_comparer = [](const void* a, const void* b)
@@ -29,7 +29,7 @@ public:
             if (!ah->bounding_box(0, 0, box_left) || !bh->bounding_box(0, 0, box_right))
                 std::cerr << "no bbox in bvh_node constructor!\n";
 
-            return (box_left.min().y - box_right.min().y < 0.0f)? -1 : 1;
+            return (box_left.vmin.y - box_right.vmin.y < 0.0f)? -1 : 1;
         };
 
         auto z_comparer = [](const void* a, const void* b)
@@ -41,7 +41,7 @@ public:
             if (!ah->bounding_box(0, 0, box_left) || !bh->bounding_box(0, 0, box_right))
                 std::cerr << "no bbox in bvh_node constructor!\n";
 
-            return (box_left.min().z - box_right.min().z < 0.0f)? -1 : 1;
+            return (box_left.vmin.z - box_right.vmin.z < 0.0f)? -1 : 1;
         };
 
         switch (axis) {

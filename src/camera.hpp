@@ -12,13 +12,19 @@ using vmath::radians;
 using vmath::cross;
 using vmath::normalize;
 
-class camera
+struct camera
 {
-public:
-    camera()
-    {
-    }
+    vec3 origin;
+    vec3 lower_left_corner;
+    vec3 horizontal;
+    vec3 vertical;
+    vec3 u;
+    vec3 v;
+    vec3 w;
+    float lens_radius;
 
+
+    camera() {}
     camera(const vec3& lookfrom, const vec3& lookat, const vec3& vup, float vfov, float aspect, float aperture, float focus_dist)
     {
         setup(lookfrom, lookat, vup, vfov, aspect, aperture, focus_dist);
@@ -42,19 +48,10 @@ public:
         vertical = 2.0f * half_height * focus_dist * v;
     }
 
-    Ray get_ray(float s, float t)
+    Ray get_ray(float s, float t) const
     {
         vec3 rd = lens_radius * random_in_unit_disk();
         vec3 offset = u * rd.x + v * rd.y;
         return Ray(origin + offset, lower_left_corner + s * horizontal + t * vertical - origin - offset);
     }
-
-    vec3 origin;
-    vec3 lower_left_corner;
-    vec3 horizontal;
-    vec3 vertical;
-    vec3 u;
-    vec3 v;
-    vec3 w;
-    float lens_radius;
 };

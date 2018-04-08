@@ -3,9 +3,18 @@
 #include "tmath.h"
 using vmath::vec3;
 
-#include "box.hpp"
-#include "sphere.hpp"
-#include "bvh_node.hpp"
+#include "shapes/box.hpp"
+#include "shapes/sphere.hpp"
+#include "shapes/bvh_node.hpp"
+#include "shapes/modifiers/translate.hpp"
+#include "shapes/modifiers/rotate.hpp"
+#include "materials/lambertian.hpp"
+#include "materials/metal.hpp"
+#include "materials/dielectric.hpp"
+#include "materials/emissive.hpp"
+#include "textures/image.hpp"
+#include "textures/color.hpp"
+#include "textures/checker.hpp"
 
 hitable* random_scene()
 {
@@ -35,8 +44,8 @@ hitable* random_scene()
     }
 
     // area light
-    //list[i++] = new xy_rect(-2, 6, 0, 3, -3, new diffuse_light(new constant_texture(vec3(4,4,4))));
-    list[i++] = new xz_rect(-20, 20, -20, 20, 10, new diffuse_light(new constant_texture(vec3(2,2,2))));
+    //list[i++] = new xy_rect(-2, 6, 0, 3, -3, new emissive(new constant_texture(vec3(4,4,4))));
+    list[i++] = new xz_rect(-20, 20, -20, 20, 10, new emissive(new constant_texture(vec3(2,2,2))));
 
     // lambertian
     list[i++] = new sphere(vec3(-2, 1, 0), 1.0, new lambertian(new constant_texture(vec3(0.4, 0.2, 0.1))));
@@ -66,7 +75,7 @@ hitable* cornellbox_scene()
     material* red = new lambertian(new constant_texture(vec3(0.65, 0.05, 0.05)));
     material* white = new lambertian(new constant_texture(vec3(0.73, 0.73, 0.73)));
     material* green = new lambertian(new constant_texture(vec3(0.12, 0.45, 0.15)));
-    material* light = new diffuse_light(new constant_texture(vec3(15, 15, 15)));
+    material* light = new emissive(new constant_texture(vec3(15, 15, 15)));
     //material* glass = new dielectric(1.5);
 
     int i = 0;
@@ -95,7 +104,7 @@ hitable* final()
 
     material* white = new lambertian(new constant_texture(vec3(0.73, 0.73, 0.73)));
     material* ground = new lambertian(new constant_texture(vec3(0.48, 0.83, 0.53)));
-    material* light = new diffuse_light(new constant_texture(vec3(15, 15, 15)));
+    material* light = new emissive(new constant_texture(vec3(15, 15, 15)));
 
     int b = 0;
     for (int i = 0; i < nb; ++i) {
@@ -158,7 +167,7 @@ hitable* test_scene()
     //texture* ground = new checker_texture(new constant_texture(vec3(0.2, 0.2, 0.4)), new constant_texture(vec3(0.8, 0.8, 1.0)));
     //material* _lambertian = new lambertian(ground);
     //material* red = new lambertian(new constant_texture(vec3(0.65, 0.05, 0.05)));
-    material* _light = new diffuse_light(new constant_texture(vec3(15, 15, 10)));
+    material* _light = new emissive(new constant_texture(vec3(15, 15, 10)));
 
     // lambertian textured
     int nx, ny, nn;
@@ -196,7 +205,7 @@ hitable* first_scene()
                 } else if (choose_mat < .9f) { // metal
                     spheres[s++] = new sphere(center, .2f, new metal(vec3(.5f * (1 + fastrand()), .5f * (1 + fastrand()), .5f * (1 + fastrand())), .5f * fastrand()));
                 } else if (choose_mat < .95f) { // light
-                    spheres[s++] = new sphere(center, .2f, new diffuse_light(new constant_texture(vec3(5 * fastrand(), 5 * fastrand(), 5 * fastrand()))));
+                    spheres[s++] = new sphere(center, .2f, new emissive(new constant_texture(vec3(5 * fastrand(), 5 * fastrand(), 5 * fastrand()))));
                 } else {
                     spheres[s++] = new sphere(center, .2f, new dielectric(1.5f));
                 }
@@ -210,12 +219,12 @@ hitable* first_scene()
     list[i++] = new sphere(vec3(4.f, 1.f, .0f), 1.f, new metal(vec3(.7f, .6f, .5f), .1f));
 
     // lights
-    list[i++] = new xz_rect(-8, 8, -8, 8, 10, new diffuse_light(new constant_texture(vec3(20, 20, 20))));
+    list[i++] = new xz_rect(-8, 8, -8, 8, 10, new emissive(new constant_texture(vec3(20, 20, 20))));
 
-    list[i++] = new xy_rect(-15, 15, 8, 10, -14, new diffuse_light(new constant_texture(vec3(10, 10, 10))));
-    list[i++] = new rotate_y(new xy_rect(-15, 15, 8, 10, -14, new diffuse_light(new constant_texture(vec3(10, 10, 10)))), 90);
-    list[i++] = new flip_normals(new xy_rect(-15, 15, 8, 10, 14, new diffuse_light(new constant_texture(vec3(10, 10, 10)))));
-    list[i++] = new flip_normals(new rotate_y(new xy_rect(-15, 15, 8, 10, 19, new diffuse_light(new constant_texture(vec3(10, 10, 10)))), 90));
+    list[i++] = new xy_rect(-15, 15, 8, 10, -14, new emissive(new constant_texture(vec3(10, 10, 10))));
+    list[i++] = new rotate_y(new xy_rect(-15, 15, 8, 10, -14, new emissive(new constant_texture(vec3(10, 10, 10)))), 90);
+    list[i++] = new flip_normals(new xy_rect(-15, 15, 8, 10, 14, new emissive(new constant_texture(vec3(10, 10, 10)))));
+    list[i++] = new flip_normals(new rotate_y(new xy_rect(-15, 15, 8, 10, 19, new emissive(new constant_texture(vec3(10, 10, 10)))), 90));
 
     // sides
     list[i++] = new xy_rect(-15, 15, -15, 15, -15, new lambertian(new constant_texture(vec3(0.9f, 0.0f, 0.0f))));
