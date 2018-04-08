@@ -14,7 +14,7 @@ public:
     {
     }
 
-    virtual bool hit(const Ray& r, float t_min, float t_max, hit_record& rec) const override
+    virtual bool hit(const Ray& r, float t_min, float t_max, hit_record& rec) const override final
     {
         vec3 oc = r.origin() - center;
 
@@ -61,10 +61,30 @@ public:
         return false;
     }
 
-    virtual bool bounding_box(float t0, float t1, aabb& box) const override
+    virtual bool bounding_box(float t0, float t1, aabb& box) const override final
     {
         box = aabb(center - vec3(radius), center + vec3(radius));
         return true;
+    }
+
+    virtual float pdf_value(const vmath::vec3 &o, const vmath::vec3 &v) const override final
+    {
+        hit_record rec;
+        if (hit(Ray(o, v), 0.001f, FLT_MAX, rec)) {
+            float cos_theta_max = fastsqrt(1.f - radius2 / length2(center - o));
+            float solid_angle = 2.f * PI * (1.f - cos_theta_max);
+            return 1.f / solid_angle;
+        }
+        return .0f;
+    }
+
+    virtual vec3 random(const vmath::vec3 &o) const override final
+    {
+        vec3 direction = center - o;
+        float d2 = length2(direction);
+
+        mat3 onb = build_orthonormal_basis(direction);
+        return random_to_sphere(radius, d2) * onb;
     }
 
 private:

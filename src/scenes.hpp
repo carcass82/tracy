@@ -76,21 +76,21 @@ hitable* cornellbox_scene()
     material* white = new lambertian(new constant_texture(vec3(0.73, 0.73, 0.73)));
     material* green = new lambertian(new constant_texture(vec3(0.12, 0.45, 0.15)));
     material* light = new emissive(new constant_texture(vec3(15, 15, 15)));
-    //material* glass = new dielectric(1.5);
 
     int i = 0;
     list[i++] = new flip_normals(new yz_rect(0, 555, 0, 555, 555, green));
     list[i++] = new yz_rect(0, 555, 0, 555, 0, red);
-    list[i++] = new xz_rect(203, 353, 237, 322, 548, light);
+    list[i++] = new flip_normals(new xz_rect(213, 343, 227, 332, 554, light));
     list[i++] = new flip_normals(new xz_rect(0, 555, 0, 555, 555, white));
     list[i++] = new xz_rect(0, 555, 0, 555, 0, white);
     list[i++] = new flip_normals(new xy_rect(0, 555, 0, 555, 555, white));
 
-    list[i++] = new translate(new rotate_y(new box(vec3(0, 0, 0), vec3(165, 165, 165), white), -18), vec3(130, 0, 65));
+    //material* alluminium = new metal(vec3(.8f, .85f, .88f), .0f);
+    //list[i++] = new translate(new rotate_y(new box(vec3(0, 0, 0), vec3(165, 330, 165), alluminium), 15), vec3(265, 0, 295));
     list[i++] = new translate(new rotate_y(new box(vec3(0, 0, 0), vec3(165, 330, 165), white), 15), vec3(265, 0, 295));
-    list[i++] = new sphere(vec3(190, 50, 100), 50.0, new dielectric(1.5));
 
-    //list[i++] = new flip_normals(new xz_rect(203, 353, 237, 322, 1, light));
+    //list[i++] = new translate(new rotate_y(new box(vec3(0, 0, 0), vec3(165, 165, 165), white), -18), vec3(130, 0, 65));
+    list[i++] = new sphere(vec3(190, 90, 190), 90.0, new dielectric(1.5));
 
     return new hitable_list(list, i);
 }
@@ -167,7 +167,7 @@ hitable* test_scene()
     //texture* ground = new checker_texture(new constant_texture(vec3(0.2, 0.2, 0.4)), new constant_texture(vec3(0.8, 0.8, 1.0)));
     //material* _lambertian = new lambertian(ground);
     //material* red = new lambertian(new constant_texture(vec3(0.65, 0.05, 0.05)));
-    material* _light = new emissive(new constant_texture(vec3(15, 15, 10)));
+    material* _light = new emissive(new constant_texture(vec3(50, 50, 50)));
 
     // lambertian textured
     int nx, ny, nn;
@@ -220,7 +220,6 @@ hitable* first_scene()
 
     // lights
     list[i++] = new xz_rect(-8, 8, -8, 8, 10, new emissive(new constant_texture(vec3(20, 20, 20))));
-
     list[i++] = new xy_rect(-15, 15, 8, 10, -14, new emissive(new constant_texture(vec3(10, 10, 10))));
     list[i++] = new rotate_y(new xy_rect(-15, 15, 8, 10, -14, new emissive(new constant_texture(vec3(10, 10, 10)))), 90);
     list[i++] = new flip_normals(new xy_rect(-15, 15, 8, 10, 14, new emissive(new constant_texture(vec3(10, 10, 10)))));

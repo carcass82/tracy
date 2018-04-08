@@ -9,13 +9,15 @@ public:
     {
     }
 
-    virtual bool scatter(const Ray& r_in, const hit_record& rec, vec3& attenuation, Ray& scattered) const override
+    virtual bool scatter(const Ray& r_in, const hit_record& rec, scatter_record& s_rec) const override
     {
+        s_rec.is_specular = true;
+        s_rec.attenuation = vec3(1.0f, 1.0f, 1.0f);
+
         vec3 outward_normal;
         vec3 reflected = reflect(normalize(r_in.direction()), rec.normal);
 
         float ni_over_nt;
-        attenuation = vec3(1.0f, 1.0f, 1.0f);
         vec3 refracted;
 
         float reflect_prob;
@@ -40,9 +42,9 @@ public:
         }
 
         if (fastrand() < reflect_prob) {
-            scattered = Ray(rec.p, reflected);
+            s_rec.specular = Ray(rec.p, reflected);
         } else {
-            scattered = Ray(rec.p, refracted);
+            s_rec.specular = Ray(rec.p, refracted);
         }
 
         return true;

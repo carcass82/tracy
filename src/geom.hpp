@@ -11,6 +11,7 @@
 #include "tmath.h"
 using vmath::PI;
 using vmath::vec3;
+using vmath::mat3;
 using vmath::length2;
 using vmath::fastsqrt;
 
@@ -32,6 +33,16 @@ vec3 random_in_unit_sphere()
     return p;
 }
 
+vec3 random_on_unit_sphere()
+{
+    vec3 p;
+    do {
+        p = vec3(fastrand(), fastrand(), fastrand()) * 2.0f - vec3(1.0f, 1.0f, 1.0f);
+    } while (length2(p) >= 1.0f);
+
+    return normalize(p);
+}
+
 vec3 random_in_unit_disk()
 {
     vec3 p;
@@ -42,16 +53,38 @@ vec3 random_in_unit_disk()
     return p;
 }
 
-vec3 random_unit_vector()
+vec3 random_cosine_direction()
 {
-    float z = fastrand() * 2.0f - 1.0f;
-    float a = fastrand() * 2.0f * PI;
+    float r1 = fastrand();
+    float r2 = fastrand();
+    float phi = PI * 2.f * r1;
 
-    float r = fastsqrt(1.0f - z * z);
-    float x = r * cosf(a);
-    float y = r * sinf(a);
+    return { cosf(phi) * 2.f * fastsqrt(r2), sinf(phi) * 2.f * fastsqrt(r2), fastsqrt(1.f - r2) };
+}
+
+vec3 random_to_sphere(float radius, float distance2)
+{
+    float r1 = fastrand();
+    float r2 = fastrand();
+    float phi = PI * 2.f * r1;
+
+    float z = 1.f + r2 * (fastsqrt(1.f - radius * radius / distance2) - 1.f);
+    float x = cosf(phi) * fastsqrt(1.f - z * z);
+    float y = sinf(phi) * fastsqrt(1.f - z * z);
 
     return { x, y, z };
+}
+
+mat3 build_orthonormal_basis(const vec3& w)
+{
+    vec3 axis = (fabsf(w.x) > .9f)? vec3{0, 1, 0} : vec3{1, 0, 0};
+
+    mat3 res;
+    res[2] = normalize(w);
+    res[1] = normalize(cross(res[2], axis));
+    res[0] = normalize(cross(res[2], res[1]));
+
+    return res;
 }
 
 float schlick(float cos, float ref_idx)

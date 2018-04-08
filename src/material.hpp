@@ -25,10 +25,19 @@ struct hit_record
     material* mat_ptr;
 };
 
+class pdf;
+struct scatter_record
+{
+    Ray specular;
+    bool is_specular;
+    vec3 attenuation;
+};
+
 class material
 {
 public:
-    virtual bool scatter(const Ray& r_in, const hit_record& rec, vec3& attenuation, Ray& scattered) const = 0;
-    virtual vec3 emitted(const vec2& uv, const vec3& p) const { return { 0, 0, 0 }; }
+    virtual bool scatter(const Ray& r_in, const hit_record& rec, scatter_record& s_rec) const { return false; }
+    virtual float scattering_pdf(const Ray& r_in, const hit_record& rec, const Ray& scattered) const { return .0f; }
+    virtual vec3 emitted(const Ray& r_in, const hit_record& rec, const vec2& uv, const vec3& p) const { return { 0, 0, 0 }; }
     virtual bool islambertian() const { return false; }
 };

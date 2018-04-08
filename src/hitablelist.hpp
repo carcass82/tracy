@@ -50,6 +50,25 @@ public:
         return true;
     }
 
+    virtual float pdf_value(const vmath::vec3 &o, const vmath::vec3 &v) const override final
+    {
+        float w = 1.f / list_size;
+        float sum = .0f;
+        for (int i = 0; i < list_size; ++i) {
+            sum += w * list[i]->pdf_value(o, v);
+        }
+        return sum;
+
+        //return list[int(fastrand() * list_size)]->pdf_value(o, v);
+        //return list[0]->pdf_value(o, v);;
+    }
+
+    virtual vec3 random(const vmath::vec3 &o) const override final
+    {
+        return list[int(fastrand() * list_size)]->random(o);
+        //return list[0]->random(o);
+    }
+
     hitable** list;
     int list_size;
 };

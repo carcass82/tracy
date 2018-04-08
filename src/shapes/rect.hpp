@@ -77,7 +77,7 @@ public:
         rec.t = t;
         rec.mat_ptr = mp;
         rec.p = r.pt(t);
-        rec.normal = vec3(0, 0, 1);
+        rec.normal = vec3(0, 1, 0);
         return true;
     }
 
@@ -85,6 +85,24 @@ public:
     {
         box = aabb(vec3(x0, k - 0.0001f, z0), vec3(x1, k + 0.0001f, z1));
         return true;
+    }
+
+    virtual float pdf_value(const vmath::vec3 &o, const vmath::vec3 &v) const
+    {
+        hit_record rec;
+        if (this->hit(Ray(o,v), 0.001f, FLT_MAX, rec)) {
+            float area = (x1 - x0) * (z1 - z0);
+            float d2 = rec.t * rec.t * length2(v);
+            float cosine = fabsf(dot(v, rec.normal) / length(v));
+            return d2 / (cosine * area);
+        }
+        return .0f;
+    }
+
+    virtual vec3 random(const vmath::vec3 &o) const
+    {
+        vec3 random_point = vec3(x0 + fastrand() * (x1 - x0), k, z0 + fastrand() * (z1 - z0));
+        return random_point - o;
     }
 
     float x0;
@@ -124,7 +142,7 @@ public:
         rec.t = t;
         rec.mat_ptr = mp;
         rec.p = r.pt(t);
-        rec.normal = vec3(0, 0, 1);
+        rec.normal = vec3(1, 0, 0);
         return true;
     }
 
@@ -141,4 +159,3 @@ public:
     float k;
     material* mp;
 };
-

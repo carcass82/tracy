@@ -9,14 +9,12 @@ public:
     {
     }
 
-    virtual bool scatter(const Ray& r_in, const hit_record& rec, vec3& attenuation, Ray& scattered) const override
+    virtual vec3 emitted(const Ray& r_in, const hit_record& rec, const vec2& uv, const vec3& p) const override
     {
-        return false;
-    }
-
-    virtual vec3 emitted(const vec2& uv, const vec3& p) const override
-    {
-        return emit->value(uv, p);
+        if (dot(rec.normal, r_in.direction()) < .0f)
+            return emit->value(uv, p);
+        else
+            return {0, 0, 0};
     }
 
 private:

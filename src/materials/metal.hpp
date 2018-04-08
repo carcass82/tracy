@@ -10,13 +10,15 @@ public:
         fuzz = min(f, 1.0f);
     }
 
-    virtual bool scatter(const Ray& r_in, const hit_record& rec, vec3& attenuation, Ray& scattered) const override
+    virtual bool scatter(const Ray& r_in, const hit_record& rec, scatter_record& s_rec) const override
     {
         vec3 reflected = reflect(normalize(r_in.direction()), rec.normal);
-        scattered = Ray(rec.p, reflected + random_in_unit_sphere() * fuzz);
-        attenuation = albedo;
 
-        return (dot(scattered.direction(), rec.normal) > 0.0f);
+        s_rec.is_specular = true;
+        s_rec.specular = Ray(rec.p, reflected + random_in_unit_sphere() * fuzz);
+        s_rec.attenuation = albedo;
+
+        return true;
     }
 
 private:

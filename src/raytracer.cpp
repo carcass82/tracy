@@ -24,41 +24,42 @@
 #include "hitable.hpp"
 #include "ray.hpp"
 #include "geom.hpp"
+#include "pdf.hpp"
 #include "scenes.hpp"
 
 using vmath::vec2;
 using vmath::vec3;
 using vutil::clamp;
 
-vec3 color(const Ray& r, hitable* world, int depth, bool do_emissive)
+vec3 color(const Ray& r, hitable* world, int depth, hitable* light_shape)
 {
     hit_record rec;
-    if (world->hit(r, 0.01f, std::numeric_limits<float>::max(), rec)) {
+    if (world->hit(r, 0.01f, std::numeric_limits<float>::max(), rec))
+    {
+        scatter_record srec;
+        vec3 emitted = rec.mat_ptr->emitted(r, rec, rec.uv, rec.p);
 
-        Ray scattered;
-        vec3 attenuation;
-
-        vec3 emitted = rec.mat_ptr->emitted(rec.uv, rec.p);
-
-        if (depth < 30 && rec.mat_ptr->scatter(r, rec, attenuation, scattered)) {
-
-            // for Lambert materials, we just did explicit light (emissive) sampling and already
-            // for their contribution, so if next ray bounce hits the light again, don't add
-            // emission
-            //
-            // see https://github.com/aras-p/ToyPathTracer/commit/5b7607b89d4510623700751edb5f0837da2af23a#diff-a51e0aea7aae9c8c455717cc7d8f957bL183
-            if (!do_emissive) {
-                emitted = {.0f, .0f, .0f};
+        if (depth < 50 && rec.mat_ptr->scatter(r, rec, srec))
+        {
+            if (srec.is_specular)
+            {
+                return srec.attenuation * color(srec.specular, world, depth + 1, light_shape);
             }
-            do_emissive = !rec.mat_ptr->islambertian();
 
-            return emitted + attenuation * color(scattered, world, depth + 1, do_emissive);
-        } else {
+            Ray scattered;
+            float pdf_val;
+            custom_pdf::generate_all(light_shape, rec.p, rec.normal, scattered, pdf_val);
+
+            return emitted + srec.attenuation * rec.mat_ptr->scattering_pdf(r, rec, scattered) * color(scattered, world, depth + 1, light_shape) / pdf_val;
+        }
+        else
+        {
             return emitted;
         }
 
-    } else {
-
+    }
+    else
+    {
         //
         // fake sky-ish gradient
         //
@@ -66,26 +67,29 @@ vec3 color(const Ray& r, hitable* world, int depth, bool do_emissive)
         //float t = (unit_direction.y + 1.f) * .5;
         //return (1.f - t) * vec3{1.f, 1.f, 1.f} + t * vec3{.5f, .7f, 1.f};
 
-        return {.0f, .0f, .0f};
-
+        return { .0f, .0f, .0f };
     }
 }
 
 void progbar(size_t total, size_t samples, size_t* value, bool* quit)
 {
+    const size_t progbarsize = 78;
+
     while (!(*quit))
     {
-        float progress = float(*value / samples) / float(total);
-        const size_t progbarsize = 70;
+        float progress = min(1.f, float(*value / samples) / float(total));
+        int progbar = progress * progbarsize;
 
-        std::cout << "tracing... [";
-        for (size_t p = 0; p < progbarsize; ++p) {
-            std::cout << ((p <= progress * progbarsize)? "#" : " ");
-        }
-        std::cout << "] " << std::fixed << std::setprecision(1) << progress * 100.0f << "%\r";
+        std::cout << "tracing... ["
+                  << std::string(progbar, '#')
+                  << std::string(progbarsize - progbar, ' ')
+                  << "] "
+                  << std::fixed << std::setprecision(1) << progress * 100.f << "%\r";
 
-        std::this_thread::sleep_for(10ms);
+        std::this_thread::sleep_for(16ms);
     }
+
+    std::cout << "tracing... [" << std::string(progbarsize, '#') << "] 100.0%\n";
 }
 
 int main(int argc, char** argv)
@@ -98,27 +102,49 @@ int main(int argc, char** argv)
     camera cam;
 
     //hitable* world = load_scene(eRANDOM, cam, float(nx) / float(ny));
-    //hitable* world = load_scene(eCORNELLBOX, cam, float(nx) / float(ny));
+
+    hitable* world = load_scene(eCORNELLBOX, cam, float(nx) / float(ny));
+    hitable* list[] =
+    {
+        new xz_rect(213, 343, 227, 332, 554, nullptr),
+        new sphere(vec3(190, 90, 190), 90.0, nullptr)
+    };
+    hitable_list* hlist = new hitable_list(list, vutil::array_size(list));
+
     //hitable* world = load_scene(eFINAL, cam, float(nx) / float(ny));
     //hitable* world = load_scene(eTEST, cam, float(nx) / float(ny));
-    hitable* world = load_scene(eFIRST_SCENE, cam, float(nx) / float(ny));
+
+    //
+    // first book, scene with 3 different big spheres
+    //
+    //hitable* world = load_scene(eFIRST_SCENE, cam, float(nx) / float(ny));
+    //hitable* list[] =
+    //{
+    //    new xz_rect(-8, 8, -8, 8, 10, nullptr),
+    //    new sphere(vec3(-4.f, 1.f, .0f), 1.f, nullptr)
+    //};
+    //hitable_list* hlist = new hitable_list(list, vutil::array_size(list));
 
     char filename[256] = { "output.ppm" };
-    if (argc == 2) {
+    if (argc == 2)
+    {
         memset(filename, 0, 256);
         strncpy(filename, argv[1], strlen(argv[1]));
     }
 
     std::ofstream ppm_stream(filename, std::ios::binary);
-    if (!ppm_stream.good()) {
+    if (!ppm_stream.good())
+    {
         std::cerr << "unable to open " << filename << " for writing, abort\n";
         return -1;
     }
 
 #if defined(TEST_PRNG)
     ppm_stream << "P6\n" << nx << " " << ny << " " << 0xff << "\n";
-    for (int j = 0; j < ny; ++j) {
-        for (int i = 0; i < nx; ++i) {
+    for (int j = 0; j < ny; ++j)
+    {
+        for (int i = 0; i < nx; ++i)
+        {
             uint8_t pixel = fastrand() * 255.99f;
             ppm_stream << pixel << pixel << pixel;
         }
@@ -151,15 +177,15 @@ int main(int argc, char** argv)
     //
     #pragma omp parallel for schedule(dynamic)
 #endif
-    for (int j = 0; j < ny; ++j) {
-
-        for (int i = 0; i < nx; ++i) {
-
-            for (int s = 0; s < ns; ++s) {
-
+    for (int j = 0; j < ny; ++j)
+    {
+        for (int i = 0; i < nx; ++i)
+        {
+            for (int s = 0; s < ns; ++s)
+            {
                 vec2 uv{ (i + fastrand()) / float(nx), (j + fastrand()) / float(ny) };
-                Ray r = std::move(cam.get_ray(uv.x, uv.y));
-                vec3 sampled_col = std::move(color(r, world, 0, true));
+                Ray r = cam.get_ray(uv.x, uv.y);
+                vec3 sampled_col = color(r, world, 0, hlist);
 
                 #pragma omp atomic
                 output[ny * j + i].r += sampled_col.r;
@@ -170,13 +196,11 @@ int main(int argc, char** argv)
                 #pragma omp atomic
                 output[ny * j + i].b += sampled_col.b;
 
+                // not really interested in correctness
                 pixel_idx++;
             }
-
         }
-
     }
-
     t.end();
 
     quit = true;
@@ -184,10 +208,13 @@ int main(int argc, char** argv)
 
     //
     // output to ppm (y inverted)
+    // gamma 2.0
     //
     ppm_stream << "P6\n" << nx << " " << ny << " " << 0xff << "\n";
-    for (int j = ny - 1; j >= 0; --j) {
-        for (int i = 0; i < nx; ++i) {
+    for (int j = ny - 1; j >= 0; --j)
+    {
+        for (int i = 0; i < nx; ++i)
+        {
             vec3 clamped_col = { clamp(255.99f * fastsqrt(output[ny * j + i].r * inv_ns), 0.0f, 255.0f),
                                  clamp(255.99f * fastsqrt(output[ny * j + i].g * inv_ns), 0.0f, 255.0f),
                                  clamp(255.99f * fastsqrt(output[ny * j + i].b * inv_ns), 0.0f, 255.0f) };
@@ -197,5 +224,5 @@ int main(int argc, char** argv)
     }
     ppm_stream.close();
 
-    std::cerr << "\nfinished in " << std::fixed << std::setprecision(1) << t.duration() << " secs\n";
+    std::cerr << "finished in " << std::fixed << std::setprecision(1) << t.duration() << " secs\n";
 }

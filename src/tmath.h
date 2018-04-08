@@ -287,6 +287,26 @@ namespace vmath
         };
     }
 
+    inline constexpr vec3 operator*(const mat3& a, const vec3& b)
+    {
+        return
+        {
+            a[0].x * b.x + a[0].y * b.y + a[0].z * b.z,
+            a[1].x * b.x + a[1].y * b.y + a[1].z * b.z,
+            a[2].x * b.x + a[2].y * b.y + a[2].z * b.z
+        };
+    }
+
+    inline constexpr vec3 operator*(const vec3& a, const mat3& b)
+    {
+        return
+        {
+            a.x * b[0].x + a.y * b[1].x + a.z * b[2].x,
+            a.x * b[0].y + a.y * b[1].y + a.z * b[2].y,
+            a.x * b[0].z + a.y * b[1].z + a.z * b[2].z
+        };
+    }
+
     inline constexpr mat4 operator*(const mat4& a, const mat4& b)
     {
         return
