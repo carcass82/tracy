@@ -7,6 +7,7 @@
 
 #include <iostream>
 #include <fstream>
+#include <string>
 #include <iomanip>
 #include <vector>
 #include <cfloat>
@@ -78,7 +79,7 @@ void progbar(size_t total, size_t samples, size_t* value, bool* quit)
     while (!(*quit))
     {
         float progress = min(1.f, float(*value / samples) / float(total));
-        int progbar = progress * progbarsize;
+        int progbar = int(progress * progbarsize);
 
         std::cout << "tracing... ["
                   << std::string(progbar, '#')

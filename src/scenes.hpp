@@ -21,7 +21,7 @@ hitable* random_scene()
     const int n = 500;
     hitable** list = new hitable*[n + 1];
 
-    texture* terrain_texture = new checker_texture(new constant_texture(vec3(0.2, 0.3, 0.1)), new constant_texture(vec3(0.9, 0.9, 0.9)));
+    texture* terrain_texture = new checker_texture(new constant_texture(vec3(0.2f, 0.3f, 0.1f)), new constant_texture(vec3(0.9f, 0.9f, 0.9f)));
     list[0] = new sphere(vec3(0, -1000, 0), 1000, new lambertian(terrain_texture));
 
     int i = 1;
@@ -29,7 +29,7 @@ hitable* random_scene()
         for (int b = -10; b < 10; ++b) {
             float choose_mat = float(fastrand());
             vec3 center(a + 0.9f * fastrand(), 0.2f, b + 0.9f * fastrand());
-            if (length(center - vec3(4, 0.2, 0)) > 0.9) {
+            if (length(center - vec3(4.f, 0.2f, 0.f)) > 0.9f) {
                 if (choose_mat < 0.8) {
                     //list[i++] = new moving_sphere(center, center + vec3(0, 0.5 * fastrand(), 0.0), 0.0, 1.0, 0.2, new lambertian(new constant_texture(vec3(fastrand() * fastrand(), fastrand() * fastrand(), fastrand() * fastrand())));
                     list[i++] = new sphere(center, 0.2f, new lambertian(new constant_texture(vec3(fastrand() * fastrand(), fastrand() * fastrand(), fastrand() * fastrand()))));
@@ -48,13 +48,13 @@ hitable* random_scene()
     list[i++] = new xz_rect(-20, 20, -20, 20, 10, new emissive(new constant_texture(vec3(2,2,2))));
 
     // lambertian
-    list[i++] = new sphere(vec3(-2, 1, 0), 1.0, new lambertian(new constant_texture(vec3(0.4, 0.2, 0.1))));
+    list[i++] = new sphere(vec3(-2.f, 1.f, 0.f), 1.0f, new lambertian(new constant_texture(vec3(0.4f, 0.2f, 0.1f))));
 
     // dielectric
-    list[i++] = new sphere(vec3(0, 1, 0), 1.0, new dielectric(1.5));
+    list[i++] = new sphere(vec3(0.f, 1.f, 0.f), 1.0f, new dielectric(1.5f));
 
     // metal
-    list[i++] = new sphere(vec3(2, 1, 0), 1.0, new metal(vec3(0.7, 0.6, 0.5), 0.0f));
+    list[i++] = new sphere(vec3(2.f, 1.f, 0.f), 1.0f, new metal(vec3(0.7f, 0.6f, 0.5f), 0.0f));
 
     // lambertian noise ("marble like")
     //list[i++] = new sphere(vec3(4, 1, 0), 1.0, new lambertian(new noise_texture(5.0f)));
@@ -72,10 +72,10 @@ hitable* cornellbox_scene()
     const int n = 50;
     hitable** list = new hitable*[n + 1];
 
-    material* red = new lambertian(new constant_texture(vec3(0.65, 0.05, 0.05)));
-    material* white = new lambertian(new constant_texture(vec3(0.73, 0.73, 0.73)));
-    material* green = new lambertian(new constant_texture(vec3(0.12, 0.45, 0.15)));
-    material* light = new emissive(new constant_texture(vec3(15, 15, 15)));
+    material* red = new lambertian(new constant_texture(vec3(0.65f, 0.05f, 0.05f)));
+    material* white = new lambertian(new constant_texture(vec3(0.73f, 0.73f, 0.73f)));
+    material* green = new lambertian(new constant_texture(vec3(0.12f, 0.45f, 0.15f)));
+    material* light = new emissive(new constant_texture(vec3(15.f, 15.f, 15.f)));
 
     int i = 0;
     list[i++] = new flip_normals(new yz_rect(0, 555, 0, 555, 555, green));
@@ -102,9 +102,9 @@ hitable* final()
     hitable** boxlist = new hitable*[10000];
     hitable** boxlist2 = new hitable*[10000];
 
-    material* white = new lambertian(new constant_texture(vec3(0.73, 0.73, 0.73)));
-    material* ground = new lambertian(new constant_texture(vec3(0.48, 0.83, 0.53)));
-    material* light = new emissive(new constant_texture(vec3(15, 15, 15)));
+    material* white = new lambertian(new constant_texture(vec3(0.73f, 0.73f, 0.73f)));
+    material* ground = new lambertian(new constant_texture(vec3(0.48f, 0.83f, 0.53f)));
+    material* light = new emissive(new constant_texture(vec3(15.f, 15.f, 15.f)));
 
     int b = 0;
     for (int i = 0; i < nb; ++i) {
@@ -122,8 +122,8 @@ hitable* final()
     }
 
     //material* _lambertian = new lambertian(new constant_texture(vec3(0.7, 0.3, 0.1)));
-    material* _dielectric = new dielectric(1.5);
-    material* _metal = new metal(vec3(0.8, 0.8, 0.9), 10.0);
+    material* _dielectric = new dielectric(1.5f);
+    material* _metal = new metal(vec3(0.8f, 0.8f, 0.9f), 10.0f);
 
     int nx, ny, nn;
     unsigned char* tex_data = stbi_load("data/earth.jpg", &nx, &ny, &nn, 0);
@@ -175,12 +175,12 @@ hitable* test_scene()
 
     int i = 0;
 
-    list[i++] = new sphere(vec3(1, 0.6, 0), 0.3f, _light);
+    list[i++] = new sphere(vec3(1.f, 0.6f, 0.f), 0.3f, _light);
     //list[i++] = new sphere(vec3(0, -1, -1), 1, _lambertian);
     //list[i++] = new sphere(vec3(0, -1, -1), 1.0, new lambertian(new noise_texture(5.0f)));
     //list[i++] = new xz_rect(-50, 50, -50, 50, 0, red);
     //list[i++] = new yz_rect(0, 50, 0, 50, 0, red);
-    list[i++] = new sphere(vec3(0, -1, -1), 1.0f, new lambertian(new image_texture(tex_data, nx, ny)));
+    list[i++] = new sphere(vec3(0.f, -1.f, -1.f), 1.0f, new lambertian(new image_texture(tex_data, nx, ny)));
 
     return new hitable_list(list, i);
 }
@@ -198,7 +198,7 @@ hitable* first_scene()
     for (int a = -11; a < 11; ++a) {
         for (int b = -11; b < 11; ++b) {
             float choose_mat = fastrand();
-            vec3 center(a + .9f * fastrand(), .2, b + .9f * fastrand());
+            vec3 center(a + .9f * fastrand(), .2f, b + .9f * fastrand());
             if (length(center - vec3(4.f, .2f, .0f)) > .9f) {
                 if (choose_mat < .8f) { // diffuse
                     spheres[s++] = new sphere(center, .2f, new lambertian(new constant_texture(vec3(fastrand() * fastrand(), fastrand() * fastrand(), fastrand() * fastrand()))));

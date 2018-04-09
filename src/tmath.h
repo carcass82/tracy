@@ -11,6 +11,10 @@
  //
  constexpr inline float fabsf_vs(float x) { return (x >= .0f)? x : -x; }
  #define fabsf(x) fabsf_vs(x)
+
+#if _MSC_VER <= 1900
+ #define constexpr 
+#endif
 #endif
 
 namespace vutil
@@ -98,7 +102,7 @@ namespace vmath
         return sqrtfimpl(x, x, .0f);
     }
 #else
-    float fastsqrt(x) { return sqrtf(x); }
+    float fastsqrt(float x) { return sqrtf(x); }
 #endif
 
     // cotangent
