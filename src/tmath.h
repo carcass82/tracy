@@ -41,9 +41,9 @@ namespace vmath
     //
     // math constants
     //
-    constexpr float PI = 3.14159265f;
-    constexpr float PI_2 = PI / 2.0f;
-    constexpr float EPS = std::numeric_limits<float>::epsilon();
+    constexpr float PI = 3.1415926535897932f;
+    constexpr float PI_2 = 1.57079632679f;
+    constexpr float EPS = 1.e-8f;
 
 
     //
@@ -71,9 +71,9 @@ namespace vmath
 
         __m128 const in = _mm_load_ss(&f_in);
 		f_out = _mm_cvtss_f32(_mm_mul_ss(in, _mm_rsqrt_ss(in)));
-		
-        f_out = f_out + x / f_out;
-        return .5f * f_out;
+        f_out = .5f * (f_out + x / f_out);
+
+        return f_out;
     }
 #elif FASTSQRT_ITERATIVE
     //
