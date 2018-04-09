@@ -4,17 +4,15 @@
 #include <limits>
 #include <cassert>
 #include <cmath>
+#include <intrin.h>
 
 #if defined(_MSC_VER)
- //
- // ah, microsoft...
- //
- constexpr inline float fabsf_vs(float x) { return (x >= .0f)? x : -x; }
- #define fabsf(x) fabsf_vs(x)
-
-#if _MSC_VER <= 1900
- #define constexpr 
-#endif
+ #if _MSC_VER <= 1900
+  #define constexpr 
+ #else
+  constexpr inline float fabsf_vs(float x) { return (x >= .0f) ? x : -x; }
+  #define fabsf(x) fabsf_vs(x)
+ #endif
 #endif
 
 namespace vutil
@@ -56,9 +54,9 @@ namespace vmath
     constexpr float lerp(float v0, float v1, float t) { return (1.0f - t) * v0 + t * v1; }
 
 
-#if 1
+#if FASTSQRT_INTRINSICS
     //
-    // rcp square root intrinsic(x) * x
+    // rcp square root w/ intrinsic(x) * x
     // + 1 iteration of Newton–Raphson
     //
     inline float fastsqrt(float x)
@@ -69,20 +67,13 @@ namespace vmath
         if (fabsf(x) < EPS) return .0f;
 
         float f_in = x;
-        float f_out = 0;
+        float f_out = 0.f;
 
-        __m128 in = _mm_load_ss(&f_in);
-
-        // case 1: only rsqrt intrinsic, then mul by x to have sqrt()
-        //_mm_store_ss(&f_out, _mm_rsqrt_ss(in));
-        //f_out *= x;
-
-        // case 2: everything with intrinsics
-        _mm_store_ss(&f_out, _mm_mul_ss(in, _mm_rsqrt_ss(in)));
-
-        f_out = .5f * (f_out + x / f_out);
-
-        return f_out;
+        __m128 const in = _mm_load_ss(&f_in);
+		f_out = _mm_cvtss_f32(_mm_mul_ss(in, _mm_rsqrt_ss(in)));
+		
+        f_out = f_out + x / f_out;
+        return .5f * f_out;
     }
 #elif FASTSQRT_ITERATIVE
     //
@@ -106,16 +97,7 @@ namespace vmath
 #endif
 
     // cotangent
-#if !defined(_MSC_VER)
     constexpr inline float cot(float x) { return tanf(PI_2) - x; }
-#else
-    //
-    // ah, microsoft...
-    //
-    inline float cot(float x) { return tanf(PI_2) - x; }
-#endif
-
-
 
     //
     // useful types
