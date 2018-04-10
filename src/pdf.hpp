@@ -72,7 +72,7 @@ class custom_pdf : public pdf
 {
 public:
     float value(const vmath::vec3 &direction) const override final { return .5f; }
-    vec3 generate() const override final { return {1, 0, 0}; }
+    vec3 generate() const override final { return vec3{1, 0, 0}; }
 
     //
     // avoid memleaks or simply out-of-memory for too much new PDFs

@@ -14,7 +14,7 @@ public:
         if (dot(rec.normal, r_in.direction()) < .0f)
             return emit->value(uv, p);
         else
-            return {0, 0, 0};
+            return vec3{0, 0, 0};
     }
 
 private:

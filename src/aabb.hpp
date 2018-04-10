@@ -27,8 +27,8 @@ struct aabb
 
     void expand(const aabb& other_box)
     {
-        vmin = { min(vmin.x, other_box.vmin.x), min(vmin.y, other_box.vmin.y), min(vmin.z, other_box.vmin.z) };
-        vmax = { max(vmax.x, other_box.vmax.x), max(vmax.y, other_box.vmax.y), max(vmax.z, other_box.vmax.z) };
+        vmin = vec3{ min(vmin.x, other_box.vmin.x), min(vmin.y, other_box.vmin.y), min(vmin.z, other_box.vmin.z) };
+        vmax = vec3{ max(vmax.x, other_box.vmax.x), max(vmax.y, other_box.vmax.y), max(vmax.z, other_box.vmax.z) };
     }
 
     float distance(const vec3& p) const

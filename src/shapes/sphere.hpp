@@ -93,7 +93,7 @@ private:
         float phi = atan2f(p.z, p.x);
         float theta = asinf(p.y);
 
-        return { 1.0f - (phi + PI) / (2.0f * PI), (theta + PI / 2.0f) / PI };
+        return vec2{ 1.0f - (phi + PI) / (2.0f * PI), (theta + PI / 2.0f) / PI };
     }
 
     vec3 center;

@@ -115,9 +115,9 @@ namespace vmath
         constexpr inline const float& operator[](size_t i) const { assert(i < 2); return v[i]; }
 
         constexpr inline vec2() : v{} {}
-        constexpr inline vec2(float _v) : v{_v, _v} {}
-        constexpr inline vec2(float _v1, float _v2) : v{ _v1, _v2 } {}
-        constexpr inline vec2(std::initializer_list<float> _v) : v{*_v.begin(), *(_v.begin() + 1)} { assert(_v.size() == 2); }
+        constexpr inline explicit vec2(float _v) : v{_v, _v} {}
+        constexpr inline explicit vec2(float _v1, float _v2) : v{ _v1, _v2 } {}
+        constexpr inline explicit vec2(std::initializer_list<float> _v) : v{*_v.begin(), *(_v.begin() + 1)} { assert(_v.size() == 2); }
     };
 
     struct vec3
@@ -132,9 +132,9 @@ namespace vmath
         constexpr inline const float& operator[](size_t i) const { assert(i < 3); return v[i]; }
 
         constexpr inline vec3() : v{} {}
-        constexpr inline vec3(float _v) : v{_v, _v, _v} {}
-        constexpr inline vec3(float _v1, float _v2, float _v3) : v{ _v1, _v2, _v3 } {}
-        constexpr inline vec3(std::initializer_list<float> _v) : v{*_v.begin(), *(_v.begin() + 1), *(_v.begin() + 2)} { assert(_v.size() == 3); }
+        constexpr inline explicit vec3(float _v) : v{_v, _v, _v} {}
+        constexpr inline explicit vec3(float _v1, float _v2, float _v3) : v{ _v1, _v2, _v3 } {}
+        constexpr inline explicit vec3(std::initializer_list<float> _v) : v{*_v.begin(), *(_v.begin() + 1), *(_v.begin() + 2)} { assert(_v.size() == 3); }
     };
 
     struct vec4
@@ -149,9 +149,9 @@ namespace vmath
         constexpr inline const float& operator[](size_t i) const { assert(i < 4); return v[i]; }
 
         constexpr inline vec4() : v{} {}
-        constexpr inline vec4(float _v) : v{_v, _v, _v, _v} {}
-        constexpr inline vec4(float _v1, float _v2, float _v3, float _v4) : v{ _v1, _v2, _v3, _v4 } {}
-        constexpr inline vec4(std::initializer_list<float> _v) : v{*_v.begin(), *(_v.begin() + 1), *(_v.begin() + 2), *(_v.begin() + 3)} { assert(_v.size() == 4); }
+        constexpr inline explicit vec4(float _v) : v{_v, _v, _v, _v} {}
+        constexpr inline explicit vec4(float _v1, float _v2, float _v3, float _v4) : v{ _v1, _v2, _v3, _v4 } {}
+        constexpr inline explicit vec4(std::initializer_list<float> _v) : v{*_v.begin(), *(_v.begin() + 1), *(_v.begin() + 2), *(_v.begin() + 3)} { assert(_v.size() == 4); }
     };
 
     struct mat4
@@ -169,9 +169,9 @@ namespace vmath
         constexpr vec4& operator[](size_t i)             { assert(i < 4); return m[i]; }
         constexpr const vec4& operator[](size_t i) const { assert(i < 4); return m[i]; }
 
-        constexpr mat4() : m{} {}
-        constexpr mat4(float _i) : m{} { _m00 = _m11 =_m22 = _m33 = _i; }
-        constexpr mat4(std::initializer_list<vec4> _m) : m{*_m.begin(), *(_m.begin() + 1), *(_m.begin() + 2), *(_m.begin() + 3)} { assert(_m.size() == 4); }
+        constexpr inline mat4() : m{} {}
+        constexpr inline explicit mat4(float _i) : m{} { _m00 = _m11 =_m22 = _m33 = _i; }
+        constexpr inline explicit mat4(std::initializer_list<vec4> _m) : m{*_m.begin(), *(_m.begin() + 1), *(_m.begin() + 2), *(_m.begin() + 3)} { assert(_m.size() == 4); }
     };
 
     struct mat3
@@ -188,28 +188,28 @@ namespace vmath
         constexpr vec3& operator[](size_t i)             { assert(i < 3); return m[i]; }
         constexpr const vec3& operator[](size_t i) const { assert(i < 3); return m[i]; }
 
-        constexpr mat3() : m{} {}
-        constexpr mat3(float _i) : m{} { _m00 = _m11 =_m22 = _i; }
-        constexpr mat3(const mat4& _m) : _m00(_m._m00), _m10(_m._m10), _m20(_m._m20), _m01(_m._m01), _m11(_m._m11), _m21(_m._m21), _m02(_m._m02), _m12(_m._m12), _m22(_m._m22) {}
-        constexpr mat3(std::initializer_list<vec3> _m) : m{*_m.begin(), *(_m.begin() + 1), *(_m.begin() + 2)} { assert(_m.size() == 3); }
+        constexpr inline mat3() : m{} {}
+        constexpr inline explicit mat3(float _i) : m{} { _m00 = _m11 =_m22 = _i; }
+        constexpr inline explicit mat3(const mat4& _m) : _m00(_m._m00), _m10(_m._m10), _m20(_m._m20), _m01(_m._m01), _m11(_m._m11), _m21(_m._m21), _m02(_m._m02), _m12(_m._m12), _m22(_m._m22) {}
+        constexpr inline explicit mat3(std::initializer_list<vec3> _m) : m{*_m.begin(), *(_m.begin() + 1), *(_m.begin() + 2)} { assert(_m.size() == 3); }
     };
 
 
     //
     // operators
     //
-    inline constexpr vec2 operator+(const vec2& a, float b)         { return { a.x + b, a.y + b }; }
-    inline constexpr vec2 operator+(float b, const vec2& a)         { return { a.x + b, a.y + b }; }
-    inline constexpr vec2 operator+(const vec2& a, const vec2& b)   { return { a.x + b.x, a.y + b.y }; }
-    inline constexpr vec2 operator-(const vec2& a, float b)         { return { a.x - b, a.y - b }; }
-    inline constexpr vec2 operator-(float b, const vec2& a)         { return { a.x - b, a.y - b }; }
-    inline constexpr vec2 operator-(const vec2& a, const vec2& b)   { return { a.x - b.x, a.y - b.y }; }
-    inline constexpr vec2 operator*(const vec2& a, float b)         { return { a.x * b, a.y * b }; }
-    inline constexpr vec2 operator*(float b, const vec2& a)         { return { a.x * b, a.y * b }; }
-    inline constexpr vec2 operator*(const vec2& a, const vec2& b)   { return { a.x * b.x, a.y * b.y }; }
-    inline constexpr vec2 operator/(const vec2& a, float b)         { return { a.x / b, a.y / b }; }
-    inline constexpr vec2 operator/(float b, const vec2& a)         { return { a.x / b, a.y / b }; }
-    inline constexpr vec2 operator/(const vec2& a, const vec2& b)   { return { a.x / b.x, a.y / b.y }; }
+    inline constexpr vec2 operator+(const vec2& a, float b)         { return vec2{ a.x + b, a.y + b }; }
+    inline constexpr vec2 operator+(float b, const vec2& a)         { return vec2{ a.x + b, a.y + b }; }
+    inline constexpr vec2 operator+(const vec2& a, const vec2& b)   { return vec2{ a.x + b.x, a.y + b.y }; }
+    inline constexpr vec2 operator-(const vec2& a, float b)         { return vec2{ a.x - b, a.y - b }; }
+    inline constexpr vec2 operator-(float b, const vec2& a)         { return vec2{ a.x - b, a.y - b }; }
+    inline constexpr vec2 operator-(const vec2& a, const vec2& b)   { return vec2{ a.x - b.x, a.y - b.y }; }
+    inline constexpr vec2 operator*(const vec2& a, float b)         { return vec2{ a.x * b, a.y * b }; }
+    inline constexpr vec2 operator*(float b, const vec2& a)         { return vec2{ a.x * b, a.y * b }; }
+    inline constexpr vec2 operator*(const vec2& a, const vec2& b)   { return vec2{ a.x * b.x, a.y * b.y }; }
+    inline constexpr vec2 operator/(const vec2& a, float b)         { return vec2{ a.x / b, a.y / b }; }
+    inline constexpr vec2 operator/(float b, const vec2& a)         { return vec2{ a.x / b, a.y / b }; }
+    inline constexpr vec2 operator/(const vec2& a, const vec2& b)   { return vec2{ a.x / b.x, a.y / b.y }; }
     inline constexpr vec2& operator+=(vec2& a, float b)             { a.x += b; a.y += b; return a; }
     inline constexpr vec2& operator-=(vec2& a, float b)             { a.x -= b; a.y -= b; return a; }
     inline constexpr vec2& operator*=(vec2& a, float b)             { a.x *= b; a.y *= b; return a; }
@@ -217,18 +217,18 @@ namespace vmath
     inline constexpr bool operator==(const vec2& a, const vec2& b)  { return fabsf(a.x - b.x) < EPS && fabsf(a.y - b.y) < EPS; }
     inline constexpr bool operator!=(const vec2& a, const vec2& b)  { return !(a == b); }
 
-    inline constexpr vec3 operator+(const vec3& a, float b)         { return { a.x + b, a.y + b, a.z + b }; }
-    inline constexpr vec3 operator+(float b, const vec3& a)         { return { a.x + b, a.y + b, a.z + b }; }
-    inline constexpr vec3 operator+(const vec3& a, const vec3& b)   { return { a.x + b.x, a.y + b.y, a.z + b.z }; }
-    inline constexpr vec3 operator-(const vec3& a, float b)         { return { a.x - b, a.y - b, a.z - b }; }
-    inline constexpr vec3 operator-(float b, const vec3& a)         { return { a.x - b, a.y - b, a.z - b }; }
-    inline constexpr vec3 operator-(const vec3& a, const vec3& b)   { return { a.x - b.x, a.y - b.y, a.z - b.z }; }
-    inline constexpr vec3 operator*(const vec3& a, float b)         { return { a.x * b, a.y * b, a.z * b }; }
-    inline constexpr vec3 operator*(float b, const vec3& a)         { return { a.x * b, a.y * b, a.z * b }; }
-    inline constexpr vec3 operator*(const vec3& a, const vec3& b)   { return { a.x * b.x, a.y * b.y, a.z * b.z }; }
-    inline constexpr vec3 operator/(const vec3& a, float b)         { return { a.x / b, a.y / b, a.z / b }; }
-    inline constexpr vec3 operator/(float b, const vec3& a)         { return { a.x / b, a.y / b, a.z / b }; }
-    inline constexpr vec3 operator/(const vec3& a, const vec3& b)   { return { a.x / b.x, a.y / b.y, a.z / b.z }; }
+    inline constexpr vec3 operator+(const vec3& a, float b)         { return vec3{ a.x + b, a.y + b, a.z + b }; }
+    inline constexpr vec3 operator+(float b, const vec3& a)         { return vec3{ a.x + b, a.y + b, a.z + b }; }
+    inline constexpr vec3 operator+(const vec3& a, const vec3& b)   { return vec3{ a.x + b.x, a.y + b.y, a.z + b.z }; }
+    inline constexpr vec3 operator-(const vec3& a, float b)         { return vec3{ a.x - b, a.y - b, a.z - b }; }
+    inline constexpr vec3 operator-(float b, const vec3& a)         { return vec3{ a.x - b, a.y - b, a.z - b }; }
+    inline constexpr vec3 operator-(const vec3& a, const vec3& b)   { return vec3{ a.x - b.x, a.y - b.y, a.z - b.z }; }
+    inline constexpr vec3 operator*(const vec3& a, float b)         { return vec3{ a.x * b, a.y * b, a.z * b }; }
+    inline constexpr vec3 operator*(float b, const vec3& a)         { return vec3{ a.x * b, a.y * b, a.z * b }; }
+    inline constexpr vec3 operator*(const vec3& a, const vec3& b)   { return vec3{ a.x * b.x, a.y * b.y, a.z * b.z }; }
+    inline constexpr vec3 operator/(const vec3& a, float b)         { return vec3{ a.x / b, a.y / b, a.z / b }; }
+    inline constexpr vec3 operator/(float b, const vec3& a)         { return vec3{ a.x / b, a.y / b, a.z / b }; }
+    inline constexpr vec3 operator/(const vec3& a, const vec3& b)   { return vec3{ a.x / b.x, a.y / b.y, a.z / b.z }; }
     inline constexpr vec3& operator+=(vec3& a, const vec3& b)       { a.x += b.x; a.y += b.y; a.z += b.z; return a; }
     inline constexpr vec3& operator-=(vec3& a, const vec3& b)       { a.x -= b.x; a.y -= b.y; a.z -= b.z; return a; }
     inline constexpr vec3& operator*=(vec3& a, const vec3& b)       { a.x *= b.x; a.y *= b.y; a.z *= b.z; return a; }
@@ -240,18 +240,18 @@ namespace vmath
     inline constexpr bool operator==(const vec3& a, const vec3& b)  { return fabsf(a.x - b.x) < EPS && fabsf(a.y - b.y) < EPS && fabsf(a.z - b.z) < EPS; }
     inline constexpr bool operator!=(const vec3& a, const vec3& b)  { return !(a == b); }
 
-    inline constexpr vec4 operator+(const vec4& a, float b)         { return { a.x + b, a.y + b, a.z + b, a.w + b }; }
-    inline constexpr vec4 operator+(float b, const vec4& a)         { return { a.x + b, a.y + b, a.z + b, a.w + b }; }
-    inline constexpr vec4 operator+(const vec4& a, const vec4& b)   { return { a.x + b.x, a.y + b.y, a.z + b.z, a.w + b.w }; }
-    inline constexpr vec4 operator-(const vec4& a, float b)         { return { a.x - b, a.y - b, a.z - b, a.w - b }; }
-    inline constexpr vec4 operator-(float b, const vec4& a)         { return { a.x - b, a.y - b, a.z - b, a.w - b }; }
-    inline constexpr vec4 operator-(const vec4& a, const vec4& b)   { return { a.x - b.x, a.y - b.y, a.z - b.z, a.w - b.w }; }
-    inline constexpr vec4 operator*(const vec4& a, float b)         { return { a.x * b, a.y * b, a.z * b, a.w * b }; }
-    inline constexpr vec4 operator*(float b, const vec4& a)         { return { a.x * b, a.y * b, a.z * b, a.w * b }; }
-    inline constexpr vec4 operator*(const vec4& a, const vec4& b)   { return { a.x * b.x, a.y * b.y, a.z * b.z, a.w * b.w }; }
-    inline constexpr vec4 operator/(const vec4& a, float b)         { return { a.x / b, a.y / b, a.z / b, a.w / b }; }
-    inline constexpr vec4 operator/(float b, const vec4& a)         { return { a.x / b, a.y / b, a.z / b, a.w / b }; }
-    inline constexpr vec4 operator/(const vec4& a, const vec4& b)   { return { a.x / b.x, a.y / b.y, a.z / b.z, a.w / b.w }; }
+    inline constexpr vec4 operator+(const vec4& a, float b)         { return vec4{ a.x + b, a.y + b, a.z + b, a.w + b }; }
+    inline constexpr vec4 operator+(float b, const vec4& a)         { return vec4{ a.x + b, a.y + b, a.z + b, a.w + b }; }
+    inline constexpr vec4 operator+(const vec4& a, const vec4& b)   { return vec4{ a.x + b.x, a.y + b.y, a.z + b.z, a.w + b.w }; }
+    inline constexpr vec4 operator-(const vec4& a, float b)         { return vec4{ a.x - b, a.y - b, a.z - b, a.w - b }; }
+    inline constexpr vec4 operator-(float b, const vec4& a)         { return vec4{ a.x - b, a.y - b, a.z - b, a.w - b }; }
+    inline constexpr vec4 operator-(const vec4& a, const vec4& b)   { return vec4{ a.x - b.x, a.y - b.y, a.z - b.z, a.w - b.w }; }
+    inline constexpr vec4 operator*(const vec4& a, float b)         { return vec4{ a.x * b, a.y * b, a.z * b, a.w * b }; }
+    inline constexpr vec4 operator*(float b, const vec4& a)         { return vec4{ a.x * b, a.y * b, a.z * b, a.w * b }; }
+    inline constexpr vec4 operator*(const vec4& a, const vec4& b)   { return vec4{ a.x * b.x, a.y * b.y, a.z * b.z, a.w * b.w }; }
+    inline constexpr vec4 operator/(const vec4& a, float b)         { return vec4{ a.x / b, a.y / b, a.z / b, a.w / b }; }
+    inline constexpr vec4 operator/(float b, const vec4& a)         { return vec4{ a.x / b, a.y / b, a.z / b, a.w / b }; }
+    inline constexpr vec4 operator/(const vec4& a, const vec4& b)   { return vec4{ a.x / b.x, a.y / b.y, a.z / b.z, a.w / b.w }; }
     inline constexpr vec4& operator+=(vec4& a, const vec4& b)       { a.x += b.x; a.y += b.y; a.z += b.z; a.w += b.w; return a; }
     inline constexpr vec4& operator-=(vec4& a, const vec4& b)       { a.x -= b.x; a.y -= b.y; a.z -= b.z; a.w -= b.w; return a; }
     inline constexpr vec4& operator*=(vec4& a, const vec4& b)       { a.x *= b.x; a.y *= b.y; a.z *= b.z; a.w *= b.w; return a; }
@@ -265,7 +265,7 @@ namespace vmath
 
     inline constexpr mat3 operator*(const mat3& a, const mat3& b)
     {
-        return
+        return mat3
         {
             { a[0] * b[0].x + a[1] * b[0].y + a[2] * b[0].z },
             { a[0] * b[1].x + a[1] * b[1].y + a[2] * b[1].z },
@@ -275,7 +275,7 @@ namespace vmath
 
     inline constexpr vec3 operator*(const mat3& a, const vec3& b)
     {
-        return
+        return vec3
         {
             a[0].x * b.x + a[0].y * b.y + a[0].z * b.z,
             a[1].x * b.x + a[1].y * b.y + a[1].z * b.z,
@@ -285,7 +285,7 @@ namespace vmath
 
     inline constexpr vec3 operator*(const vec3& a, const mat3& b)
     {
-        return
+        return vec3
         {
             a.x * b[0].x + a.y * b[1].x + a.z * b[2].x,
             a.x * b[0].y + a.y * b[1].y + a.z * b[2].y,
@@ -295,7 +295,7 @@ namespace vmath
 
     inline constexpr mat4 operator*(const mat4& a, const mat4& b)
     {
-        return
+        return mat4
         {
             { a[0] * b[0].x + a[1] * b[0].y + a[2] * b[0].z + a[3] * b[0].w },
             { a[0] * b[1].x + a[1] * b[1].y + a[2] * b[1].z + a[3] * b[1].w },
@@ -335,7 +335,7 @@ namespace vmath
 
     constexpr vec3 cross(const vec3& a, const vec3& b)
     {
-        return { a.y * b.z - a.z * b.y, a.z * b.x - a.x * b.z, a.x * b.y - a.y * b.x };
+        return vec3{ a.y * b.z - a.z * b.y, a.z * b.x - a.x * b.z, a.x * b.y - a.y * b.x };
     }
 
     vec3 normalize(const vec3& a)
@@ -358,7 +358,7 @@ namespace vmath
 
     constexpr mat4 translate(const mat4& m, const vec3& v)
     {
-        return
+        return mat4
         {
             m[0],
             m[1],
@@ -381,10 +381,10 @@ namespace vmath
         const float sx = sinf(angle * axis_n.x);
         mat4 rotX
         {
-            { 1,   0,   0,  0 },
-            { 0,  cx,  sx,  0 },
-            { 0, -sx,  cx,  0 },
-            { 0,   0,   0,  1 }
+            vec4{ 1,   0,   0,  0 },
+            vec4{ 0,  cx,  sx,  0 },
+            vec4{ 0, -sx,  cx,  0 },
+            vec4{ 0,   0,   0,  1 }
         };
 
         /*
@@ -397,10 +397,10 @@ namespace vmath
         const float sy = sinf(angle * axis_n.y);
         mat4 rotY
         {
-            { cy,  0, -sy,  0 },
-            {  0,  1,   0,  0 },
-            { sy,  0,  cy,  0 },
-            {  0,  0,   0,  1 }
+            vec4{ cy,  0, -sy,  0 },
+            vec4{  0,  1,   0,  0 },
+            vec4{ sy,  0,  cy,  0 },
+            vec4{  0,  0,   0,  1 }
         };
 
         /*
@@ -413,10 +413,10 @@ namespace vmath
         const float sz = sinf(angle * axis_n.z);
         mat4 rotZ
         {
-            {  cz,  sz,  0,  0 },
-            { -sz,  cz,  0,  0 },
-            {   0,   0,  1,  0 },
-            {   0,   0,  0,  1 }
+            vec4{  cz,  sz,  0,  0 },
+            vec4{ -sz,  cz,  0,  0 },
+            vec4{   0,   0,  1,  0 },
+            vec4{   0,   0,  0,  1 }
         };
 
         return m * rotX * rotY * rotZ;
@@ -424,7 +424,7 @@ namespace vmath
 
     constexpr mat4 scale(const mat4& m, const vec3& v)
     {
-        return
+        return mat4
         {
             m[0] * v.x,
             m[1] * v.y,
@@ -439,12 +439,12 @@ namespace vmath
         const vec3 s(normalize(cross(up, f)));
         const vec3 u(cross(f, s));
 
-        return
+        return mat4
         {
-            {          s.x,          u.x,          f.x,  0.0f },
-            {          s.y,          u.y,          f.y,  0.0f },
-            {          s.z,          u.z,          f.z,  0.0f },
-            { -dot(s, eye), -dot(u, eye), -dot(f, eye),  1.0f }
+            vec4{          s.x,          u.x,          f.x,  0.0f },
+            vec4{          s.y,          u.y,          f.y,  0.0f },
+            vec4{          s.z,          u.z,          f.z,  0.0f },
+            vec4{ -dot(s, eye), -dot(u, eye), -dot(f, eye),  1.0f }
         };
     }
 
@@ -453,12 +453,12 @@ namespace vmath
         const float F = cot(fovy / 2.0f);
         const float delta = zfar - znear;
 
-        return
+        return mat4
         {
-            { F / aspect,   0.0f,                           0.0f,  0.0f },
-            {       0.0f,      F,                           0.0f,  0.0f },
-            {       0.0f,   0.0f,         (zfar + znear) / delta,  1.0f },
-            {       0.0f,   0.0f, -(2.0f * zfar * znear) / delta,  0.0f }
+            vec4{ F / aspect,   0.0f,                           0.0f,  0.0f },
+            vec4{       0.0f,      F,                           0.0f,  0.0f },
+            vec4{       0.0f,   0.0f,         (zfar + znear) / delta,  1.0f },
+            vec4{       0.0f,   0.0f, -(2.0f * zfar * znear) / delta,  0.0f }
         };
     }
 }
@@ -482,7 +482,7 @@ namespace vgfx
             vmax.y = vutil::max(vmax.y, v.y);
             vmax.z = vutil::max(vmax.z, v.z);
         }
-        vmath::vec3 Size() const   { return { vmax.x - vmin.x, vmax.y - vmin.y, vmax.z - vmin.z };  }
-        vmath::vec3 Center() const { return { (vmax.x + vmin.x) / 2.f, (vmax.y + vmin.y) / 2.f, (vmax.z + vmin.z) / 2.f }; }
+        vmath::vec3 Size() const   { return vmath::vec3{ vmax.x - vmin.x, vmax.y - vmin.y, vmax.z - vmin.z };  }
+        vmath::vec3 Center() const { return vmath::vec3{ (vmax.x + vmin.x) / 2.f, (vmax.y + vmin.y) / 2.f, (vmax.z + vmin.z) / 2.f }; }
     };
 }

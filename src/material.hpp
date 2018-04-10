@@ -38,6 +38,6 @@ class material
 public:
     virtual bool scatter(const Ray& r_in, const hit_record& rec, scatter_record& s_rec) const { return false; }
     virtual float scattering_pdf(const Ray& r_in, const hit_record& rec, const Ray& scattered) const { return .0f; }
-    virtual vec3 emitted(const Ray& r_in, const hit_record& rec, const vec2& uv, const vec3& p) const { return { 0, 0, 0 }; }
+    virtual vec3 emitted(const Ray& r_in, const hit_record& rec, const vec2& uv, const vec3& p) const { return vec3{ 0, 0, 0 }; }
     virtual bool islambertian() const { return false; }
 };

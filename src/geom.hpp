@@ -59,7 +59,7 @@ vec3 random_cosine_direction()
     float r2 = fastrand();
     float phi = PI * 2.f * r1;
 
-    return { cosf(phi) * 2.f * fastsqrt(r2), sinf(phi) * 2.f * fastsqrt(r2), fastsqrt(1.f - r2) };
+    return vec3{ cosf(phi) * 2.f * fastsqrt(r2), sinf(phi) * 2.f * fastsqrt(r2), fastsqrt(1.f - r2) };
 }
 
 vec3 random_to_sphere(float radius, float distance2)
@@ -72,7 +72,7 @@ vec3 random_to_sphere(float radius, float distance2)
     float x = cosf(phi) * fastsqrt(1.f - z * z);
     float y = sinf(phi) * fastsqrt(1.f - z * z);
 
-    return { x, y, z };
+    return vec3{ x, y, z };
 }
 
 mat3 build_orthonormal_basis(const vec3& w)

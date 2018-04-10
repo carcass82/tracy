@@ -27,7 +27,7 @@ public:
             return false;
 
         rec.t = t;
-        rec.uv = { (x - x0) / (x1 - x0), (y - y0) / (y1 - y0) };
+        rec.uv = vec2{ (x - x0) / (x1 - x0), (y - y0) / (y1 - y0) };
         rec.mat_ptr = mp;
         rec.p = r.pt(t);
         rec.normal = vec3(0, 0, 1);
@@ -73,7 +73,7 @@ public:
         if (x < x0 || x > x1 || z < z0 || z > z1)
             return false;
 
-        rec.uv = { (x - x0) / (x1 - x0), (z - z0) / (z1 - z0) };
+        rec.uv = vec2{ (x - x0) / (x1 - x0), (z - z0) / (z1 - z0) };
         rec.t = t;
         rec.mat_ptr = mp;
         rec.p = r.pt(t);
@@ -138,7 +138,7 @@ public:
         if (y < y0 || y > y1 || z < z0 || z > z1)
             return false;
 
-        rec.uv = { (y - y0) / (y1 - y0), (z - z0) / (z1 - z0) };
+        rec.uv = vec2{ (y - y0) / (y1 - y0), (z - z0) / (z1 - z0) };
         rec.t = t;
         rec.mat_ptr = mp;
         rec.p = r.pt(t);

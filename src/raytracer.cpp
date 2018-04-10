@@ -32,6 +32,12 @@ using vmath::vec2;
 using vmath::vec3;
 using vutil::clamp;
 
+#if defined(_MSC_VER)
+ #define MAINCALLCONV __cdecl
+#else
+ #define MAINCALLCONV
+#endif
+
 vec3 color(const Ray& r, hitable* world, int depth, hitable* light_shape)
 {
     hit_record rec;
@@ -68,7 +74,7 @@ vec3 color(const Ray& r, hitable* world, int depth, hitable* light_shape)
         //float t = (unit_direction.y + 1.f) * .5;
         //return (1.f - t) * vec3{1.f, 1.f, 1.f} + t * vec3{.5f, .7f, 1.f};
 
-        return { .0f, .0f, .0f };
+        return vec3{ .0f, .0f, .0f };
     }
 }
 
@@ -93,7 +99,7 @@ void progbar(size_t total, size_t samples, size_t* value, bool* quit)
     std::cout << "tracing... [" << std::string(progbarsize, '#') << "] 100.0%\n";
 }
 
-int main(int argc, char** argv)
+int MAINCALLCONV main(int argc, char** argv)
 {
     const int nx = 512; // w
     const int ny = 512; // h
@@ -216,9 +222,9 @@ int main(int argc, char** argv)
     {
         for (int i = 0; i < nx; ++i)
         {
-            vec3 clamped_col = { clamp(255.99f * fastsqrt(output[ny * j + i].r * inv_ns), 0.0f, 255.0f),
-                                 clamp(255.99f * fastsqrt(output[ny * j + i].g * inv_ns), 0.0f, 255.0f),
-                                 clamp(255.99f * fastsqrt(output[ny * j + i].b * inv_ns), 0.0f, 255.0f) };
+            vec3 clamped_col = vec3{ clamp(255.99f * fastsqrt(output[ny * j + i].r * inv_ns), 0.0f, 255.0f),
+                                     clamp(255.99f * fastsqrt(output[ny * j + i].g * inv_ns), 0.0f, 255.0f),
+                                     clamp(255.99f * fastsqrt(output[ny * j + i].b * inv_ns), 0.0f, 255.0f) };
 
             ppm_stream << uint8_t(clamped_col.r) << uint8_t(clamped_col.g) << uint8_t(clamped_col.b);
         }
