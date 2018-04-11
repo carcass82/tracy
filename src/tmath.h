@@ -4,11 +4,10 @@
 #include <limits>
 #include <cassert>
 #include <cmath>
-#include <intrin.h>
 
 #if defined(_MSC_VER)
  #if _MSC_VER <= 1900
-  #define constexpr 
+  #define constexpr
  #else
   constexpr inline float fabsf_vs(float x) { return (x >= .0f) ? x : -x; }
   #define fabsf(x) fabsf_vs(x)
@@ -70,7 +69,7 @@ namespace vmath
         float f_out = 0.f;
 
         __m128 const in = _mm_load_ss(&f_in);
-		f_out = _mm_cvtss_f32(_mm_mul_ss(in, _mm_rsqrt_ss(in)));
+        f_out = _mm_cvtss_f32(_mm_mul_ss(in, _mm_rsqrt_ss(in)));
         f_out = .5f * (f_out + x / f_out);
 
         return f_out;
@@ -93,7 +92,7 @@ namespace vmath
         return sqrtfimpl(x, x, .0f);
     }
 #else
-    float fastsqrt(float x) { return sqrtf(x); }
+    inline float fastsqrt(float x) { return sqrtf(x); }
 #endif
 
     // cotangent

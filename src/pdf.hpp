@@ -75,7 +75,7 @@ public:
     vec3 generate() const override final { return vec3{1, 0, 0}; }
 
     //
-    // avoid memleaks or simply out-of-memory for too much new PDFs
+    // avoid memleaks or simply out-of-memory for too many new PDFs
     // (at the cost of objects created and destoyed each loop - profiler does seem happy though!)
     //
     static void generate_all(hitable* shape, const vec3& o, const vec3& w, Ray& out_scattered, float& out_pdf)
