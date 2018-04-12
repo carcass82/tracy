@@ -20,19 +20,19 @@ namespace vutil
     // useful functions
     //
     template<typename T>
-    constexpr const T& min(const T& a, const T& b) { return !(b < a)? a : b; }
+    constexpr inline const T& min(const T& a, const T& b) { return !(b < a)? a : b; }
 
     template<typename T>
-    constexpr const T& max(const T& a, const T& b) { return (a < b)? b : a; }
+    constexpr inline const T& max(const T& a, const T& b) { return (a < b)? b : a; }
 
     template<typename T>
-    constexpr const T& clamp(const T& a, T lower, T upper) { return min(max(a, lower), upper); }
+    constexpr inline const T& clamp(const T& a, T lower, T upper) { return min(max(a, lower), upper); }
 
     template<typename T>
-    constexpr const T& saturate(const T& a) { return clamp(a, T(0), T(1)); }
+    constexpr inline const T& saturate(const T& a) { return clamp(a, T(0), T(1)); }
 
     template<typename T, size_t N>
-    constexpr uint32_t array_size(const T(&)[N]) { return N; }
+    constexpr inline uint32_t array_size(const T(&)[N]) { return N; }
 }
 
 namespace vmath
@@ -48,55 +48,14 @@ namespace vmath
     //
     // conversion utils
     //
-    constexpr float radians(float deg)                { return deg * PI / 180.0f; }
-    constexpr float degrees(float rad)                { return rad * 180.0f / PI; }
-    constexpr float lerp(float v0, float v1, float t) { return (1.0f - t) * v0 + t * v1; }
+    constexpr inline float radians(float deg)                { return deg * PI / 180.0f; }
+    constexpr inline float degrees(float rad)                { return rad * 180.0f / PI; }
+    constexpr inline float lerp(float v0, float v1, float t) { return (1.0f - t) * v0 + t * v1; }
 
-
-#if FASTSQRT_INTRINSICS
-    //
-    // rcp square root w/ intrinsic(x) * x
-    // + 1 iteration of Newton–Raphson
-    //
-    inline float fastsqrt(float x)
-    {
-        //
-        // avoid doing 1/sqrt(x) if x is 0
-        //
-        if (fabsf(x) < EPS) return .0f;
-
-        float f_in = x;
-        float f_out = 0.f;
-
-        __m128 const in = _mm_load_ss(&f_in);
-        f_out = _mm_cvtss_f32(_mm_mul_ss(in, _mm_rsqrt_ss(in)));
-        f_out = .5f * (f_out + x / f_out);
-
-        return f_out;
-    }
-#elif FASTSQRT_ITERATIVE
-    //
-    // Newton iterations
-    //
-    constexpr inline float fastsqrt(float x, float precision = EPS)
-    {
-        auto sqrtfimpl = [precision](float x, float curr, float prev) -> float
-        {
-            auto recursive = [precision](float x, float curr, float prev, const auto& lambda) -> float
-            {
-                return (fabsf(curr - prev) < precision)? curr : lambda(x, 0.5f * (curr + x / curr), curr, lambda);
-            };
-            return recursive(x, curr, prev, recursive);
-        };
-
-        return sqrtfimpl(x, x, .0f);
-    }
-#else
-    inline float fastsqrt(float x) { return sqrtf(x); }
-#endif
 
     // cotangent
-    constexpr inline float cot(float x) { return tanf(PI_2) - x; }
+    constexpr inline float cot(float x) { return cosf(x) / sinf(x); }
+
 
     //
     // useful types
@@ -319,7 +278,7 @@ namespace vmath
 
     float length(const vec3& a)
     {
-        return fastsqrt(length2(a));
+        return sqrtf(length2(a));
     }
 
     constexpr float distance2(const vec3& a, const vec3& b)
@@ -329,7 +288,7 @@ namespace vmath
 
     float distance(const vec3& a, const vec3& b)
     {
-        return fastsqrt(distance2(a, b));
+        return sqrtf(distance2(a, b));
     }
 
     constexpr vec3 cross(const vec3& a, const vec3& b)
@@ -352,7 +311,7 @@ namespace vmath
         const float NdotI = dot(N, I);
         const float k = 1.f - eta * eta * (1.f - NdotI * NdotI);
 
-        return (k >= .0f)? vec3(eta * I - (eta * NdotI + fastsqrt(k)) * N) : vec3();
+        return (k >= .0f)? vec3(eta * I - (eta * NdotI + sqrtf(k)) * N) : vec3();
     }
 
     constexpr mat4 translate(const mat4& m, const vec3& v)

@@ -30,7 +30,7 @@ public:
         //
         if (!(discriminant < .0f)) {
 
-            float sq_bac = fastsqrt(discriminant);
+            float sq_bac = sqrtf(discriminant);
 
             float temp = (-b - sq_bac) / a;
             if (temp < t_max && temp > t_min) {
@@ -71,7 +71,7 @@ public:
     {
         hit_record rec;
         if (hit(Ray(o, v), 0.001f, FLT_MAX, rec)) {
-            float cos_theta_max = fastsqrt(1.f - radius2 / length2(center - o));
+            float cos_theta_max = sqrtf(1.f - radius2 / length2(center - o));
             float solid_angle = 2.f * PI * (1.f - cos_theta_max);
             return 1.f / solid_angle;
         }

@@ -13,7 +13,6 @@ using vmath::PI;
 using vmath::vec3;
 using vmath::mat3;
 using vmath::length2;
-using vmath::fastsqrt;
 
 float fastrand()
 {
@@ -59,7 +58,7 @@ vec3 random_cosine_direction()
     float r2 = fastrand();
     float phi = PI * 2.f * r1;
 
-    return vec3{ cosf(phi) * 2.f * fastsqrt(r2), sinf(phi) * 2.f * fastsqrt(r2), fastsqrt(1.f - r2) };
+    return vec3{ cosf(phi) * 2.f * sqrtf(r2), sinf(phi) * 2.f * sqrtf(r2), sqrtf(1.f - r2) };
 }
 
 vec3 random_to_sphere(float radius, float distance2)
@@ -68,9 +67,9 @@ vec3 random_to_sphere(float radius, float distance2)
     float r2 = fastrand();
     float phi = PI * 2.f * r1;
 
-    float z = 1.f + r2 * (fastsqrt(1.f - radius * radius / distance2) - 1.f);
-    float x = cosf(phi) * fastsqrt(1.f - z * z);
-    float y = sinf(phi) * fastsqrt(1.f - z * z);
+    float z = 1.f + r2 * (sqrtf(1.f - radius * radius / distance2) - 1.f);
+    float x = cosf(phi) * sqrtf(1.f - z * z);
+    float y = sinf(phi) * sqrtf(1.f - z * z);
 
     return vec3{ x, y, z };
 }

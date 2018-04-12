@@ -18,7 +18,6 @@
 using vutil::max;
 using vmath::radians;
 using vmath::PI;
-using vmath::fastsqrt;
 
 class material;
 class isotropic;
