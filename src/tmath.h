@@ -5,13 +5,8 @@
 #include <cassert>
 #include <cmath>
 
-#if defined(_MSC_VER)
- #if _MSC_VER <= 1900
-  #define constexpr
- #else
-  constexpr inline float fabsf_vs(float x) { return (x >= .0f) ? x : -x; }
-  #define fabsf(x) fabsf_vs(x)
- #endif
+#if _MSC_VER <= 3000
+ #define constexpr
 #endif
 
 namespace vutil
@@ -26,13 +21,16 @@ namespace vutil
     constexpr inline const T& max(const T& a, const T& b) { return (a < b)? b : a; }
 
     template<typename T>
-    constexpr inline const T& clamp(const T& a, T lower, T upper) { return min(max(a, lower), upper); }
+    constexpr inline const T& clamp(const T& a, const T& lower, const T& upper) { return min(max(a, lower), upper); }
 
     template<typename T>
     constexpr inline const T& saturate(const T& a) { return clamp(a, T(0), T(1)); }
 
     template<typename T, size_t N>
     constexpr inline uint32_t array_size(const T(&)[N]) { return N; }
+
+    template<typename T>
+    constexpr inline T sign(const T& x) { return T((x > T(0)) - (x < T(0))); }
 }
 
 namespace vmath

@@ -88,8 +88,7 @@ mat3 build_orthonormal_basis(const vec3& w)
 
 float schlick(float cos, float ref_idx)
 {
-    float r0 = (1.0f - ref_idx) / (1.0f + ref_idx);
-    r0 *= r0;
+    float r0 = powf((1.0f - ref_idx) / (1.0f + ref_idx), 2.0f);
 
     return r0 + (1.0f - r0) * pow((1 - cos), 5);
 }

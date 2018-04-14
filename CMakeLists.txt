@@ -5,10 +5,27 @@ project(Tracy)
 set(CMAKE_VERBOSE_MAKEFILE ON)
 set(CMAKE_RUNTIME_OUTPUT_DIRECTORY ${Tracy_SOURCE_DIR}/bin/)
 
-include_directories(. ./src)
+#
+# sources + headers (grouped)
+#
+file(GLOB INC_LIST "./src/*.hpp" "./src/*.h")
+source_group("Includes" FILES ${INC_LIST})
 
-file(GLOB_RECURSE INC_LIST "./src/*.hpp" "./src/*.h" "./src/shapes/*.hpp" "./src/shapes/modifiers/*.hpp" "./src/materials/*.hpp" "./src/textures/*.hpp")
-aux_source_directory(./src SRC_LIST)
+file(GLOB INC_SHAPES "./src/shapes/*.hpp")
+source_group("Includes\\Shapes" FILES ${INC_SHAPES})
+
+file(GLOB INC_SHAPES_MOD "./src/shapes/modifiers/*.hpp")
+source_group("Includes\\Shapes\\modifiers" FILES ${INC_SHAPES_MOD})
+
+file(GLOB INC_MATERIALS "./src/materials/*.hpp")
+source_group("Includes\\Materials" FILES ${INC_MATERIALS})
+
+file(GLOB INC_TEXTURES "./src/textures/*.hpp")
+source_group("Includes\\Textures" FILES ${INC_TEXTURES})
+
+file(GLOB SRC_MAIN "./src/*.cpp")
+
+include_directories(. ./src)
 
 if (MSVC)
     message(STATUS "Found MSVC: " ${CMAKE_CXX_COMPILER})
@@ -30,4 +47,4 @@ elseif (${CMAKE_BUILD_TYPE} MATCHES "Debug")
 else()
     message(STATUS "Current CMAKE_CXX_FLAGS: " ${CMAKE_CXX_FLAGS})
 endif()
-add_executable(${PROJECT_NAME} ${SRC_LIST} ${INC_LIST})
+add_executable(${PROJECT_NAME} ${SRC_MAIN} ${INC_LIST} ${INC_SHAPES} ${INC_SHAPES_MOD} ${INC_MATERIALS} ${INC_TEXTURES})
