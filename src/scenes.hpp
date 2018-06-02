@@ -100,7 +100,7 @@ hitable* cornellbox_scene()
 
     material* alluminium = new metal(vec3(.8f, .85f, .88f), .05f);
     material* glass = new dielectric(1.5);
-    material* gold = new metal(vec3(1., .71, .29), .05f);
+    material* gold = new metal(vec3(1.f, .71f, .29f), .05f);
 
     list[i++] = new sphere(vec3(130 + 82.5 - 25, 215, 65 + 82.5 - 25), 50.0, glass);
     list[i++] = new sphere(vec3(265 + 82.5 + 35, 400, 295 + 82.5 - 35), 70.0, alluminium);
