@@ -1,7 +1,14 @@
+/*
+ * Tracy, a simple raytracer
+ * inspired by "Ray Tracing in One Weekend" minibooks
+ *
+ * (c) Carlo Casta, 2018
+ */
+
 #pragma once
 
-#include "tmath.h"
-using vmath::vec3;
+#include "ext/cclib/cclib.h"
+using cc::math::vec3;
 
 #include "shapes/box.hpp"
 #include "shapes/sphere.hpp"
@@ -85,12 +92,19 @@ hitable* cornellbox_scene()
     list[i++] = new xz_rect(0, 555, 0, 555, 0, white);
     list[i++] = new flip_normals(new xy_rect(0, 555, 0, 555, 555, white));
 
-    //material* alluminium = new metal(vec3(.8f, .85f, .88f), .0f);
-    //list[i++] = new translate(new rotate_y(new box(vec3(0, 0, 0), vec3(165, 330, 165), alluminium), 15), vec3(265, 0, 295));
+    // large box
     list[i++] = new translate(new rotate_y(new box(vec3(0, 0, 0), vec3(165, 330, 165), white), 15), vec3(265, 0, 295));
 
-    //list[i++] = new translate(new rotate_y(new box(vec3(0, 0, 0), vec3(165, 165, 165), white), -18), vec3(130, 0, 65));
-    list[i++] = new sphere(vec3(190, 90, 190), 90.0, new dielectric(1.5));
+    // small box
+    list[i++] = new translate(new rotate_y(new box(vec3(0, 0, 0), vec3(165, 165, 165), white), -18), vec3(130, 0, 65));
+
+    material* alluminium = new metal(vec3(.8f, .85f, .88f), .05f);
+    material* glass = new dielectric(1.5);
+    material* gold = new metal(vec3(1., .71, .29), .05f);
+
+    list[i++] = new sphere(vec3(130 + 82.5 - 25, 215, 65 + 82.5 - 25), 50.0, glass);
+    list[i++] = new sphere(vec3(265 + 82.5 + 35, 400, 295 + 82.5 - 35), 70.0, alluminium);
+    list[i++] = new sphere(vec3(265 + 82.5 + 15, 30, 80), 30.0, gold);
 
     return new hitable_list(list, i);
 }

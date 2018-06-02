@@ -1,23 +1,23 @@
 /*
  * Tracy, a simple raytracer
- * inspired by "Ray Tracing in One Weekend" minibook
+ * inspired by "Ray Tracing in One Weekend" minibooks
  *
- * (c) Carlo Casta, 2017
+ * (c) Carlo Casta, 2018
  */
+
 #pragma once
 
 #include <iostream>
-#include <algorithm>
-#include "tmath.h"
+#include "ext/cclib/cclib.h"
 #include "geom.hpp"
 #include "ray.hpp"
 #include "aabb.hpp"
 #include "material.hpp"
 #include "texture.hpp"
 
-using vutil::max;
-using vmath::radians;
-using vmath::PI;
+using cc::util::max;
+using cc::math::radians;
+using cc::math::PI;
 
 class material;
 class isotropic;

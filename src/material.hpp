@@ -1,19 +1,20 @@
 /*
  * Tracy, a simple raytracer
- * inspired by "Ray Tracing in One Weekend" minibook
+ * inspired by "Ray Tracing in One Weekend" minibooks
  *
- * (c) Carlo Casta, 2017
+ * (c) Carlo Casta, 2018
  */
+
 #pragma once
 #include "geom.hpp"
 #include "texture.hpp"
 #include "ray.hpp"
 
-using vmath::vec3;
-using vmath::vec2;
-using vmath::normalize;
-using vmath::dot;
-using vutil::min;
+using cc::math::vec3;
+using cc::math::vec2;
+using cc::math::normalize;
+using cc::math::dot;
+using cc::util::min;
 
 class material;
 struct hit_record

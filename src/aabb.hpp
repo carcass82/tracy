@@ -1,15 +1,16 @@
 /*
  * Tracy, a simple raytracer
- * inspired by "Ray Tracing in One Weekend" minibook
+ * inspired by "Ray Tracing in One Weekend" minibooks
  *
- * (c) Carlo Casta, 2017
+ * (c) Carlo Casta, 2018
  */
+
 #pragma once
-#include "tmath.h"
+#include "ext/cclib/cclib.h"
 #include "ray.hpp"
-using vutil::min;
-using vutil::max;
-using vmath::vec3;
+using cc::util::min;
+using cc::util::max;
+using cc::math::vec3;
 
 //
 // simple AABB

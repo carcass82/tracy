@@ -1,8 +1,8 @@
 /*
  * Tracy, a simple raytracer
- * inspired by "Ray Tracing in One Weekend" minibook
+ * inspired by "Ray Tracing in One Weekend" minibooks
  *
- * (c) Carlo Casta, 2017
+ * (c) Carlo Casta, 2018
  */
 
 #include <iostream>
@@ -18,7 +18,8 @@
 #define STB_IMAGE_IMPLEMENTATION
 #include "ext/stb_image.h"
 
-#include "tmath.h"
+#include "ext/cclib/cclib.h"
+
 #include "timer.hpp"
 #include "material.hpp"
 #include "camera.hpp"
@@ -28,9 +29,9 @@
 #include "pdf.hpp"
 #include "scenes.hpp"
 
-using vmath::vec2;
-using vmath::vec3;
-using vutil::clamp;
+using cc::math::vec2;
+using cc::math::vec3;
+using cc::util::clamp;
 
 #if defined(_MSC_VER)
  #define MAINCALLCONV __cdecl
@@ -103,8 +104,8 @@ int MAINCALLCONV main(int argc, char** argv)
 {
     const int nx = 512; // w
     const int ny = 512; // h
-    const int ns = 100; // samples
-    constexpr float inv_ns = 1.f / (float)ns;
+    const int ns = 200; // samples
+    const float inv_ns = 1.f / (float)ns;
 
     camera cam;
 
@@ -113,10 +114,10 @@ int MAINCALLCONV main(int argc, char** argv)
     hitable* world = load_scene(eCORNELLBOX, cam, float(nx) / float(ny));
     hitable* list[] =
     {
-        new xz_rect(213, 343, 227, 332, 554, nullptr),
-        new sphere(vec3(190, 90, 190), 90.0, nullptr)
+        new xz_rect(213, 343, 227, 332, 554, nullptr), // light
+        //new sphere(vec3(190, 90, 190), 90.0, nullptr)  // glass sphere
     };
-    hitable_list* hlist = new hitable_list(list, vutil::array_size(list));
+    hitable_list* hlist = new hitable_list(list, cc::util::array_size(list));
 
     //hitable* world = load_scene(eFINAL, cam, float(nx) / float(ny));
     //hitable* world = load_scene(eTEST, cam, float(nx) / float(ny));
@@ -136,7 +137,7 @@ int MAINCALLCONV main(int argc, char** argv)
     if (argc == 2)
     {
         memset(filename, 0, 256);
-        strncpy(filename, argv[1], strlen(argv[1]));
+        strncpy(filename, argv[1], 255);
     }
 
     std::ofstream ppm_stream(filename, std::ios::binary);

@@ -1,7 +1,14 @@
+/*
+ * Tracy, a simple raytracer
+ * inspired by "Ray Tracing in One Weekend" minibooks
+ *
+ * (c) Carlo Casta, 2018
+ */
+
 #pragma once
 #include "hitable.hpp"
 
-using vmath::vec2;
+using cc::math::vec2;
 
 class sphere : public hitable
 {
@@ -67,7 +74,7 @@ public:
         return true;
     }
 
-    virtual float pdf_value(const vmath::vec3 &o, const vmath::vec3 &v) const override final
+    virtual float pdf_value(const vec3& o, const vec3& v) const override final
     {
         hit_record rec;
         if (hit(Ray(o, v), 0.001f, FLT_MAX, rec)) {
@@ -78,7 +85,7 @@ public:
         return .0f;
     }
 
-    virtual vec3 random(const vmath::vec3 &o) const override final
+    virtual vec3 random(const vec3& o) const override final
     {
         vec3 direction = center - o;
         float d2 = length2(direction);

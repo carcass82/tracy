@@ -1,15 +1,16 @@
 /*
  * Tracy, a simple raytracer
- * inspired by "Ray Tracing in One Weekend" minibook
+ * inspired by "Ray Tracing in One Weekend" minibooks
  *
- * (c) Carlo Casta, 2017
+ * (c) Carlo Casta, 2018
  */
+
 #pragma once
 
-#include "tmath.h"
-using vmath::vec2;
-using vmath::vec3;
-using vutil::clamp;
+#include "ext/cclib/cclib.h"
+using cc::math::vec2;
+using cc::math::vec3;
+using cc::util::clamp;
 
 class texture
 {

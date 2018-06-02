@@ -1,3 +1,10 @@
+/*
+ * Tracy, a simple raytracer
+ * inspired by "Ray Tracing in One Weekend" minibooks
+ *
+ * (c) Carlo Casta, 2018
+ */
+
 #pragma once
 #include "hitable.hpp"
 
@@ -50,7 +57,7 @@ public:
         return true;
     }
 
-    virtual float pdf_value(const vmath::vec3 &o, const vmath::vec3 &v) const override final
+    virtual float pdf_value(const vec3& o, const vec3& v) const override final
     {
         float w = 1.f / list_size;
         float sum = .0f;
@@ -63,7 +70,7 @@ public:
         //return list[0]->pdf_value(o, v);;
     }
 
-    virtual vec3 random(const vmath::vec3 &o) const override final
+    virtual vec3 random(const vec3& o) const override final
     {
         return list[int(fastrand() * list_size)]->random(o);
         //return list[0]->random(o);

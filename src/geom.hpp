@@ -1,18 +1,18 @@
 /*
  * Tracy, a simple raytracer
- * inspired by "Ray Tracing in One Weekend" minibook
+ * inspired by "Ray Tracing in One Weekend" minibooks
  *
- * (c) Carlo Casta, 2017
+ * (c) Carlo Casta, 2018
  */
+
 #pragma once
 
 #include <vector>
-#include <algorithm>
-#include "tmath.h"
-using vmath::PI;
-using vmath::vec3;
-using vmath::mat3;
-using vmath::length2;
+#include "ext/cclib/cclib.h"
+using cc::math::PI;
+using cc::math::vec3;
+using cc::math::mat3;
+using cc::math::length2;
 
 float fastrand()
 {

@@ -1,14 +1,15 @@
 /*
  * Tracy, a simple raytracer
- * inspired by "Ray Tracing in One Weekend" minibook
+ * inspired by "Ray Tracing in One Weekend" minibooks
  *
- * (c) Carlo Casta, 2017
+ * (c) Carlo Casta, 2018
  */
+
 #pragma once
 
-#include "tmath.h"
-using vmath::vec3;
-using vmath::mat3;
+#include "ext/cclib/cclib.h"
+using cc::math::vec3;
+using cc::math::mat3;
 
 //
 // probability density function
@@ -26,7 +27,7 @@ class cosine_pdf : public pdf
 public:
     cosine_pdf(const vec3& w) { uvw = build_orthonormal_basis(w); }
 
-    float value(const vmath::vec3 &direction) const override final
+    float value(const vec3 &direction) const override final
     {
         float cosine = dot(normalize(direction), uvw[2]);
         return (cosine > .0f)? cosine / PI : .0f;
@@ -46,7 +47,7 @@ class hitable_pdf : public pdf
 public:
     hitable_pdf(hitable* p, const vec3& origin) : ptr(p), o(origin) {}
 
-    float value(const vmath::vec3 &direction) const override final { return ptr->pdf_value(o, direction); }
+    float value(const vec3& direction) const override final { return ptr->pdf_value(o, direction); }
     vec3 generate() const override final { return ptr->random(o); }
 
 private:
@@ -59,7 +60,7 @@ class mixture_pdf : public pdf
 public:
     mixture_pdf(pdf* p0, pdf* p1, float prob1) : p{p0, p1}, prob(prob1) { }
 
-    float value(const vmath::vec3 &direction) const override final { return prob * p[0]->value(direction) + (1.f - prob) * p[1]->value(direction); }
+    float value(const vec3& direction) const override final { return prob * p[0]->value(direction) + (1.f - prob) * p[1]->value(direction); }
     vec3 generate() const override final { return (fastrand() < prob)? p[0]->generate() : p[1]->generate(); }
 
 private:
@@ -71,7 +72,7 @@ private:
 class custom_pdf : public pdf
 {
 public:
-    float value(const vmath::vec3 &direction) const override final { return .5f; }
+    float value(const vec3& direction) const override final { return .5f; }
     vec3 generate() const override final { return vec3{1, 0, 0}; }
 
     //

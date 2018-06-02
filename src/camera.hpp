@@ -1,16 +1,17 @@
 /*
  * Tracy, a simple raytracer
- * inspired by "Ray Tracing in One Weekend" minibook
+ * inspired by "Ray Tracing in One Weekend" minibooks
  *
- * (c) Carlo Casta, 2017
+ * (c) Carlo Casta, 2018
  */
+
 #pragma once
 
-#include "tmath.h"
-using vmath::vec3;
-using vmath::radians;
-using vmath::cross;
-using vmath::normalize;
+#include "ext/cclib/cclib.h"
+using cc::math::vec3;
+using cc::math::radians;
+using cc::math::cross;
+using cc::math::normalize;
 
 struct camera
 {
