@@ -105,7 +105,6 @@ int MAINCALLCONV main(int argc, char** argv)
     const int nx = 512; // w
     const int ny = 512; // h
     const int ns = 200; // samples
-    const float inv_ns = 1.f / (float)ns;
 
     camera cam;
 
@@ -223,9 +222,9 @@ int MAINCALLCONV main(int argc, char** argv)
     {
         for (int i = 0; i < nx; ++i)
         {
-            vec3 clamped_col = vec3{ clamp(255.99f * sqrtf(output[ny * j + i].r * inv_ns), 0.0f, 255.0f),
-                                     clamp(255.99f * sqrtf(output[ny * j + i].g * inv_ns), 0.0f, 255.0f),
-                                     clamp(255.99f * sqrtf(output[ny * j + i].b * inv_ns), 0.0f, 255.0f) };
+            vec3 clamped_col = vec3{ clamp(255.99f * sqrtf(output[ny * j + i].r / ns), 0.0f, 255.0f),
+                                     clamp(255.99f * sqrtf(output[ny * j + i].g / ns), 0.0f, 255.0f),
+                                     clamp(255.99f * sqrtf(output[ny * j + i].b / ns), 0.0f, 255.0f) };
 
             ppm_stream << uint8_t(clamped_col.r) << uint8_t(clamped_col.g) << uint8_t(clamped_col.b);
         }
