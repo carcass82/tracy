@@ -3,6 +3,13 @@
  * inspired by "Ray Tracing in One Weekend" minibooks
  *
  * (c) Carlo Casta, 2018
+ *
+ *
+ * TODO:
+ * - read scene desc from file
+ * - support for triangular meshes
+ * - openmp -> gpu
+ * - realtime preview of result
  */
 
 #include <iostream>
@@ -20,6 +27,14 @@
 
 #include "ext/cclib/cclib.h"
 
+#if defined(_MSC_VER)
+ #define MAINCALLCONV __cdecl
+ #define NOVTABLE __declspec(novtable)
+#else
+ #define MAINCALLCONV
+ #define NOVTABLE
+#endif
+
 #include "timer.hpp"
 #include "material.hpp"
 #include "camera.hpp"
@@ -27,17 +42,38 @@
 #include "ray.hpp"
 #include "geom.hpp"
 #include "pdf.hpp"
+#include "pdf/hitable.hpp"
+#include "pdf/cosine.hpp"
+#include "pdf/mix.hpp"
 #include "scenes.hpp"
+
 
 using cc::math::vec2;
 using cc::math::vec3;
 using cc::util::clamp;
 
-#if defined(_MSC_VER)
- #define MAINCALLCONV __cdecl
-#else
- #define MAINCALLCONV
-#endif
+class custom_pdf : public pdf
+{
+public:
+    float value(const vec3& direction) const override final { return .5f; }
+    vec3 generate() const override final { return vec3{1, 0, 0}; }
+
+    //
+    // avoid memleaks or simply out-of-memory for too many new PDFs
+    // (at the cost of objects created and destoyed each loop - profiler does seem happy though!)
+    //
+    static void generate_all(hitable* shape, const vec3& o, const vec3& w, Ray& out_scattered, float& out_pdf)
+    {
+        hitable_pdf lightpdf(shape, o);
+        cosine_pdf cospdf(w);
+
+        mix_pdf mixpdf(&cospdf, &lightpdf, .45f);
+
+        out_scattered = Ray(o, mixpdf.generate());
+        out_pdf = mixpdf.value(out_scattered.direction());
+    }
+};
+
 
 vec3 color(const Ray& r, hitable* world, int depth, hitable* light_shape)
 {
@@ -108,8 +144,10 @@ int MAINCALLCONV main(int argc, char** argv)
 
     camera cam;
 
+    // test
     //hitable* world = load_scene(eRANDOM, cam, float(nx) / float(ny));
 
+    // modified cornell box
     hitable* world = load_scene(eCORNELLBOX, cam, float(nx) / float(ny));
     hitable* list[] =
     {
@@ -117,20 +155,6 @@ int MAINCALLCONV main(int argc, char** argv)
         //new sphere(vec3(190, 90, 190), 90.0, nullptr)  // glass sphere
     };
     hitable_list* hlist = new hitable_list(list, cc::util::array_size(list));
-
-    //hitable* world = load_scene(eFINAL, cam, float(nx) / float(ny));
-    //hitable* world = load_scene(eTEST, cam, float(nx) / float(ny));
-
-    //
-    // first book, scene with 3 different big spheres
-    //
-    //hitable* world = load_scene(eFIRST_SCENE, cam, float(nx) / float(ny));
-    //hitable* list[] =
-    //{
-    //    new xz_rect(-8, 8, -8, 8, 10, nullptr),
-    //    new sphere(vec3(-4.f, 1.f, .0f), 1.f, nullptr)
-    //};
-    //hitable_list* hlist = new hitable_list(list, vutil::array_size(list));
 
     char filename[256] = { "output.ppm" };
     if (argc == 2)

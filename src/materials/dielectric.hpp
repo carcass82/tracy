@@ -26,11 +26,14 @@ public:
         float ni_over_nt;
         float cosine;
         vec3 outward_normal;
-        if (dot(r_in.direction(), rec.normal) > 0.0f) {
+        if (dot(r_in.direction(), rec.normal) > 0.0f)
+        {
             outward_normal = rec.normal * -1;
             ni_over_nt = ref_idx;
             cosine = ref_idx * dot(r_in.direction(), rec.normal) / length(r_in.direction());
-        } else {
+        }
+        else
+        {
             outward_normal = rec.normal;
             ni_over_nt = 1.0f / ref_idx;
             cosine = (dot(r_in.direction(), rec.normal) * -1) / length(r_in.direction());
@@ -39,15 +42,21 @@ public:
         float reflect_prob;
         vec3 refracted;
         refracted = refract(normalize(r_in.direction()), normalize(outward_normal), ni_over_nt);
-        if (refracted != ZERO) {
+        if (refracted != ZERO)
+        {
             reflect_prob = schlick(cosine, ref_idx);
-        } else {
+        }
+        else
+        {
             reflect_prob = 1.0f;
         }
 
-        if (fastrand() < reflect_prob) {
+        if (fastrand() < reflect_prob)
+        {
             s_rec.specular = Ray(rec.p, reflected);
-        } else {
+        }
+        else
+        {
             s_rec.specular = Ray(rec.p, refracted);
         }
 

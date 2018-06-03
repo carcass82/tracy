@@ -11,7 +11,7 @@
 class lambertian : public material
 {
 public:
-    lambertian(texture* a)
+    lambertian(Texture* a)
         : albedo(a)
     {
     }
@@ -33,6 +33,6 @@ public:
     virtual bool islambertian() const override { return true; }
 
 private:
-    texture* albedo;
+    Texture* albedo;
 };
 

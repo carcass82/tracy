@@ -8,7 +8,7 @@
 #pragma once
 #include "texture.hpp"
 
-class constant_texture : public texture
+class constant_texture : public Texture
 {
 public:
     constant_texture() {}

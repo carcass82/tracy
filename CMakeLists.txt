@@ -23,6 +23,9 @@ source_group("Includes\\Materials" FILES ${INC_MATERIALS})
 file(GLOB INC_TEXTURES "./src/textures/*.hpp")
 source_group("Includes\\Textures" FILES ${INC_TEXTURES})
 
+file(GLOB INC_PDF "./src/pdf/*.hpp")
+source_group("Includes\\PDF" FILES ${INC_PDF})
+
 file(GLOB INC_CCLIB "./ext/cclib/*.h")
 source_group("Ext\\CCLib" FILES ${INC_CCLIB})
 
@@ -50,4 +53,4 @@ elseif (${CMAKE_BUILD_TYPE} MATCHES "Debug")
 else()
     message(STATUS "Current CMAKE_CXX_FLAGS: " ${CMAKE_CXX_FLAGS})
 endif()
-add_executable(${PROJECT_NAME} ${SRC_MAIN} ${INC_LIST} ${INC_SHAPES} ${INC_SHAPES_MOD} ${INC_MATERIALS} ${INC_TEXTURES} ${INC_CCLIB})
+add_executable(${PROJECT_NAME} ${SRC_MAIN} ${INC_LIST} ${INC_SHAPES} ${INC_SHAPES_MOD} ${INC_MATERIALS} ${INC_TEXTURES} ${INC_PDF} ${INC_CCLIB})

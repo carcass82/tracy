@@ -35,34 +35,31 @@ public:
         // c > 0     - ray does not start inside sphere
         // discr < 0 - ray does not hit the sphere
         //
-        if (!(discriminant < .0f)) {
-
+        if (!(discriminant < .0f))
+        {
             float sq_bac = sqrtf(discriminant);
 
             float temp = (-b - sq_bac) / a;
-            if (temp < t_max && temp > t_min) {
-
+            if (temp < t_max && temp > t_min)
+            {
                 rec.t = temp;
                 rec.p = r.pt(temp);
                 rec.normal = (rec.p - center) / radius;
                 rec.uv = get_uv_at((rec.p - center) / radius);
                 rec.mat_ptr = mat;
                 return true;
-
             }
 
             temp = (-b + sq_bac) / a;
-            if (temp < t_max && temp > t_min) {
-
+            if (temp < t_max && temp > t_min)
+            {
                 rec.t = temp;
                 rec.p = r.pt(temp);
                 rec.normal = (rec.p - center) / radius;
                 rec.uv = get_uv_at((rec.p - center) / radius);
                 rec.mat_ptr = mat;
                 return true;
-
             }
-
         }
 
         return false;
@@ -77,7 +74,8 @@ public:
     virtual float pdf_value(const vec3& o, const vec3& v) const override final
     {
         hit_record rec;
-        if (hit(Ray(o, v), 0.001f, FLT_MAX, rec)) {
+        if (hit(Ray(o, v), 0.001f, FLT_MAX, rec))
+        {
             float cos_theta_max = sqrtf(1.f - radius2 / length2(center - o));
             float solid_angle = 2.f * PI * (1.f - cos_theta_max);
             return 1.f / solid_angle;

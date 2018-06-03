@@ -19,9 +19,6 @@ using cc::util::max;
 using cc::math::radians;
 using cc::math::PI;
 
-class material;
-class isotropic;
-
 class hitable
 {
 public:

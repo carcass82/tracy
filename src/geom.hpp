@@ -25,27 +25,21 @@ float fastrand()
 vec3 random_in_unit_sphere()
 {
     vec3 p;
-    do {
+    
+    do
+    {
         p = vec3(fastrand(), fastrand(), fastrand()) * 2.0f - vec3(1.0f, 1.0f, 1.0f);
     } while (length2(p) >= 1.0f);
 
     return p;
 }
 
-vec3 random_on_unit_sphere()
-{
-    vec3 p;
-    do {
-        p = vec3(fastrand(), fastrand(), fastrand()) * 2.0f - vec3(1.0f, 1.0f, 1.0f);
-    } while (length2(p) >= 1.0f);
-
-    return normalize(p);
-}
-
 vec3 random_in_unit_disk()
 {
     vec3 p;
-    do {
+    
+    do
+    {
         p = vec3(fastrand(), fastrand(), 0.0f) * 2.0f - vec3(1.0f, 1.0f, 0.0f);
     } while (length2(p) >= 1.0f);
 
@@ -89,6 +83,5 @@ mat3 build_orthonormal_basis(const vec3& w)
 float schlick(float cos, float ref_idx)
 {
     float r0 = powf((1.0f - ref_idx) / (1.0f + ref_idx), 2.0f);
-
     return r0 + (1.0f - r0) * pow((1 - cos), 5);
 }

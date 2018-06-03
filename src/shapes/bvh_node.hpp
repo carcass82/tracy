@@ -22,7 +22,9 @@ public:
 
             aabb box_left, box_right;
             if (!ah->bounding_box(0, 0, box_left) || !bh->bounding_box(0, 0, box_right))
+            {
                 std::cerr << "no bbox in bvh_node constructor!\n";
+            }
 
             return (box_left.vmin.x - box_right.vmin.x < 0.0f)? -1 : 1;
         };
@@ -34,7 +36,9 @@ public:
 
             aabb box_left, box_right;
             if (!ah->bounding_box(0, 0, box_left) || !bh->bounding_box(0, 0, box_right))
+            {
                 std::cerr << "no bbox in bvh_node constructor!\n";
+            }
 
             return (box_left.vmin.y - box_right.vmin.y < 0.0f)? -1 : 1;
         };
@@ -46,12 +50,15 @@ public:
 
             aabb box_left, box_right;
             if (!ah->bounding_box(0, 0, box_left) || !bh->bounding_box(0, 0, box_right))
+            {
                 std::cerr << "no bbox in bvh_node constructor!\n";
+            }
 
             return (box_left.vmin.z - box_right.vmin.z < 0.0f)? -1 : 1;
         };
 
-        switch (axis) {
+        switch (axis)
+        {
         case 0:
             qsort(l, n, sizeof(hitable*), x_comparer);
             break;
@@ -65,19 +72,28 @@ public:
             break;
         }
 
-        if (n == 1) {
+        switch (n)
+        {
+        case 1:
             left = right = l[0];
-        } else if (n == 2) {
+            break;
+
+        case 2:
             left = l[0];
             right = l[1];
-        } else {
+            break;
+
+        default:
             left = new bvh_node(l, n / 2, time0, time1);
             right = new bvh_node(l + n / 2, n - n / 2, time0, time1);
+            break;
         }
 
         aabb box_left, box_right;
         if (!left->bounding_box(time0, time1, box_left) || !right->bounding_box(time0, time1, box_right))
+        {
             std::cerr << "no bbox in bvh_node constructor!\n";
+        }
 
         box = box_left;
         box.expand(box_right);
@@ -85,29 +101,43 @@ public:
 
     virtual bool hit(const Ray& r, float t_min, float t_max, hit_record& rec) const override
     {
-        if (box.hit(r, t_min, t_max)) {
+        if (box.hit(r, t_min, t_max))
+        {
             hit_record left_rec;
             bool hit_left = left->hit(r, t_min, t_max, left_rec);
 
             hit_record right_rec;
             bool hit_right = right->hit(r, t_min, t_max, right_rec);
 
-            if (hit_left && hit_right) {
+            if (hit_left && hit_right)
+            {
                 if (left_rec.t < right_rec.t)
+                {
                     rec = left_rec;
+                }
                 else
+                {
                     rec = right_rec;
+                }
                 return true;
-            } else if (hit_left) {
+            }
+            else if (hit_left)
+            {
                 rec = left_rec;
                 return true;
-            } else if (hit_right) {
+            }
+            else if (hit_right)
+            {
                 rec = right_rec;
                 return true;
-            } else {
+            }
+            else
+            {
                 return false;
             }
-        } else {
+        }
+        else
+        {
             return false;
         }
     }
@@ -118,6 +148,7 @@ public:
         return true;
     }
 
+private:
     hitable* left;
     hitable* right;
     aabb box;

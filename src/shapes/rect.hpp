@@ -26,12 +26,16 @@ public:
     {
         float t = (k - r.origin().z) / r.direction().z;
         if (t < t_min || t > t_max)
+        {
             return false;
+        }
 
         float x = r.origin().x + t * r.direction().x;
         float y = r.origin().y + t * r.direction().y;
         if (x < x0 || x > x1 || y < y0 || y > y1)
+        {
             return false;
+        }
 
         rec.t = t;
         rec.uv = vec2{ (x - x0) / (x1 - x0), (y - y0) / (y1 - y0) };
@@ -47,6 +51,7 @@ public:
         return true;
     }
 
+private:
     float x0;
     float x1;
     float y0;

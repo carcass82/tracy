@@ -41,6 +41,7 @@ public:
         return true;
     }
 
+private:
     vec3 pmin;
     vec3 pmax;
     hitable* list_ptr;

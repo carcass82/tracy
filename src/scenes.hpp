@@ -19,8 +19,8 @@ using cc::math::vec3;
 #include "materials/metal.hpp"
 #include "materials/dielectric.hpp"
 #include "materials/emissive.hpp"
-#include "textures/image.hpp"
-#include "textures/color.hpp"
+#include "textures/bitmap.hpp"
+#include "textures/constant.hpp"
 #include "textures/checker.hpp"
 
 hitable* random_scene()
@@ -28,7 +28,7 @@ hitable* random_scene()
     const int n = 500;
     hitable** list = new hitable*[n + 1];
 
-    texture* terrain_texture = new checker_texture(new constant_texture(vec3(0.2f, 0.3f, 0.1f)), new constant_texture(vec3(0.9f, 0.9f, 0.9f)));
+    Texture* terrain_texture = new checker_texture(new constant_texture(vec3(0.2f, 0.3f, 0.1f)), new constant_texture(vec3(0.9f, 0.9f, 0.9f)));
     list[0] = new sphere(vec3(0, -1000, 0), 1000, new lambertian(terrain_texture));
 
     int i = 1;
@@ -69,7 +69,7 @@ hitable* random_scene()
     // lambertian textured
     int nx, ny, nn;
     unsigned char* tex_data = stbi_load("data/earth.jpg", &nx, &ny, &nn, 0);
-    list[i++] = new sphere(vec3(6, 1, 0), 1.0, new lambertian(new image_texture(tex_data, nx, ny)));
+    list[i++] = new sphere(vec3(6, 1, 0), 1.0, new lambertian(new bitmap_texture(tex_data, nx, ny)));
 
     return new hitable_list(list, i);
 }
@@ -141,7 +141,7 @@ hitable* final()
 
     int nx, ny, nn;
     unsigned char* tex_data = stbi_load("data/earth.jpg", &nx, &ny, &nn, 0);
-    material* _textured = new lambertian(new image_texture(tex_data, nx, ny));
+    material* _textured = new lambertian(new bitmap_texture(tex_data, nx, ny));
 
     //material* _noise = new lambertian(new noise_texture(0.1f));
 
@@ -194,7 +194,7 @@ hitable* test_scene()
     //list[i++] = new sphere(vec3(0, -1, -1), 1.0, new lambertian(new noise_texture(5.0f)));
     //list[i++] = new xz_rect(-50, 50, -50, 50, 0, red);
     //list[i++] = new yz_rect(0, 50, 0, 50, 0, red);
-    list[i++] = new sphere(vec3(0.f, -1.f, -1.f), 1.0f, new lambertian(new image_texture(tex_data, nx, ny)));
+    list[i++] = new sphere(vec3(0.f, -1.f, -1.f), 1.0f, new lambertian(new bitmap_texture(tex_data, nx, ny)));
 
     return new hitable_list(list, i);
 }
@@ -249,30 +249,6 @@ hitable* first_scene()
     list[i++] = new xz_rect(-15, 15, -15, 15, 12, new lambertian(new constant_texture(vec3(0.9f, 0.0f, 0.9f))));
 
     return new hitable_list(list, i);
-}
-
-hitable* sort_by_distance(hitable* list, const vec3& point)
-{
-    hitable_list* scene = (hitable_list*)list;
-
-    for (int i = 0; i < scene->list_size; ++i) {
-
-        for (int j = scene->list_size - 1; j > i; --j) {
-
-            aabb bbox1, bbox2;
-            scene->list[j - 1]->bounding_box(0.001f, FLT_MAX, bbox1);
-            scene->list[j]->bounding_box(0.001f, FLT_MAX, bbox2);
-            float dist1 = bbox1.distance(point);
-            float dist2 = bbox2.distance(point);
-
-            if (dist2 < dist1)
-            {
-                std::swap(scene->list[j], scene->list[j - 1]);
-            }
-        }
-    }
-
-    return list;
 }
 
 enum eScene { eRANDOM, eCORNELLBOX, eFINAL, eTEST, eFROMFILE, eFIRST_SCENE, eNUM_SCENES };

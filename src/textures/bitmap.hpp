@@ -8,11 +8,11 @@
 #pragma once
 #include "texture.hpp"
 
-class image_texture : public texture
+class bitmap_texture : public Texture
 {
 public:
-    image_texture() {}
-    image_texture(uint8_t* pixels, int width, int height)
+    bitmap_texture() {}
+    bitmap_texture(uint8_t* pixels, int width, int height)
         : data(pixels)
         , nx(width)
         , ny(height)

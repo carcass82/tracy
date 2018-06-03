@@ -18,10 +18,13 @@ public:
 
     virtual bool hit(const Ray& r, float t_min, float t_max, hit_record& rec) const override
     {
-        if (ptr->hit(r, t_min, t_max, rec)) {
+        if (ptr->hit(r, t_min, t_max, rec))
+        {
             rec.normal = rec.normal * -1;
             return true;
-        } else {
+        }
+        else
+        {
             return false;
         }
     }
@@ -31,6 +34,7 @@ public:
         return ptr->bounding_box(t0, t1, box);
     }
 
+private:
     hitable* ptr;
 };
 

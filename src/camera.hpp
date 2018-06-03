@@ -13,19 +13,11 @@ using cc::math::radians;
 using cc::math::cross;
 using cc::math::normalize;
 
-struct camera
+class camera
 {
-    vec3 origin;
-    vec3 lower_left_corner;
-    vec3 horizontal;
-    vec3 vertical;
-    vec3 u;
-    vec3 v;
-    vec3 w;
-    float lens_radius;
-
-
+public:
     camera() {}
+
     camera(const vec3& lookfrom, const vec3& lookat, const vec3& vup, float vfov, float aspect, float aperture, float focus_dist)
     {
         setup(lookfrom, lookat, vup, vfov, aspect, aperture, focus_dist);
@@ -55,4 +47,14 @@ struct camera
         vec3 offset = u * rd.x + v * rd.y;
         return Ray(origin + offset, lower_left_corner + s * horizontal + t * vertical - origin - offset);
     }
+
+private:
+    vec3 origin;
+    vec3 lower_left_corner;
+    vec3 horizontal;
+    vec3 vertical;
+    vec3 u;
+    vec3 v;
+    vec3 w;
+    float lens_radius;
 };
