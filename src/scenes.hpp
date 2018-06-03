@@ -62,18 +62,18 @@ hitable* random_scene()
     list[i++] = new flip_normals(new xz_rect(-20, 20, -20, 20, 10, new emissive(new constant_texture(vec3(2,2,2)))));
 
     // lambertian
-    list[i++] = new sphere(vec3(-2.f, 1.f, 0.f), 1.0f, new lambertian(new constant_texture(vec3(0.4f, 0.2f, 0.1f))));
+    list[i++] = new sphere(vec3(0.f, 1.f, 0.f), 1.0f, new lambertian(new constant_texture(vec3(0.4f, 0.2f, 0.1f))));
 
     // dielectric
-    list[i++] = new sphere(vec3(0.f, 1.f, 0.f), 1.0f, new dielectric(1.5f));
+    list[i++] = new sphere(vec3(2.f, 1.f, 0.f), 1.0f, new dielectric(1.5f));
 
     // metal
-    list[i++] = new sphere(vec3(2.f, 1.f, 0.f), 1.0f, new metal(vec3(0.7f, 0.6f, 0.5f), 0.0f));
+    list[i++] = new sphere(vec3(4.f, 1.f, 0.f), 1.0f, new metal(vec3(0.7f, 0.6f, 0.5f), 0.0f));
 
     // lambertian textured
     int nx, ny, nn;
     unsigned char* tex_data = stbi_load("data/earth.jpg", &nx, &ny, &nn, 0);
-    list[i++] = new sphere(vec3(6, 1, 0), 1.0, new lambertian(new bitmap_texture(tex_data, nx, ny)));
+    list[i++] = new sphere(vec3(6.f, 1.f, 0.f), 1.0, new lambertian(new bitmap_texture(tex_data, nx, ny)));
 
     return new hitable_list(list, i);
 }
