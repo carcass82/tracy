@@ -8,9 +8,12 @@ It gave me the excuse i needed to start my own util functions/math library and t
 
 Tracing is not yet visible in realtime, but i added a cute progress bar so
 you can estimate how many coffees you can drink before work has finished.
-![tracing](doc/cmd.png)
+![tracing](doc/cmd.jpg)
 
 
 This is an example of CornellBox tracing (1500 samples per pixel). I added some spheres with different
 materials to make result more interesting
-![cornell](doc/output.png)
+![cornell](doc/output.jpg)
+
+This is another scene inspired by one of those present in minibook (500 spp).
+![random](doc/output2.jpg)

@@ -150,26 +150,26 @@ int MAINCALLCONV main(int argc, char** argv)
 {
     const int nx = 512; // w
     const int ny = 512; // h
-    const int ns = 100; // samples
+    const int ns = 500; // samples
 
     camera cam;
 
     // test
-    //hitable* world = load_scene(eRANDOM, cam, float(nx) / float(ny));
-    //hitable* list[] =
-    //{
-    //    new xz_rect(-20, 20, -20, 20, 10, nullptr) // light
-    //};
-    //hitable_list* hlist = new hitable_list(list, cc::util::array_size(list));
-    
-    // modified cornell box
-    hitable* world = load_scene(eCORNELLBOX, cam, float(nx) / float(ny));
+    hitable* world = load_scene(eRANDOM, cam, float(nx) / float(ny));
     hitable* list[] =
     {
-        new xz_rect(213, 343, 227, 332, 554, nullptr), // light
-        new sphere(vec3(130 + 82.5 - 25, 215, 65 + 82.5 - 25), 50.0, nullptr) // glass sphere
+        new xz_rect(-20, 20, -20, 20, 10, nullptr) // light
     };
     hitable_list* hlist = new hitable_list(list, cc::util::array_size(list));
+    
+    // modified cornell box
+    //hitable* world = load_scene(eCORNELLBOX, cam, float(nx) / float(ny));
+    //hitable* list[] =
+    //{
+    //    new xz_rect(213, 343, 227, 332, 554, nullptr), // light
+    //    new sphere(vec3(130 + 82.5 - 25, 215, 65 + 82.5 - 25), 50.0, nullptr) // glass sphere
+    //};
+    //hitable_list* hlist = new hitable_list(list, cc::util::array_size(list));
 
     char filename[256] = { "output.ppm" };
     if (argc == 2)
