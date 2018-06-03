@@ -11,6 +11,6 @@ you can estimate how many coffees you can drink before work has finished.
 ![tracing](doc/cmd.png)
 
 
-This is an example of CornellBox tracing. I added some spheres with different
+This is an example of CornellBox tracing (1500 samples per pixel). I added some spheres with different
 materials to make result more interesting
 ![cornell](doc/output.png)
