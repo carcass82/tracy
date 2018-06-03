@@ -26,6 +26,9 @@
 #include "ext/stb_image.h"
 
 #include "ext/cclib/cclib.h"
+using cc::math::vec2;
+using cc::math::vec3;
+using cc::util::clamp;
 
 #if defined(_MSC_VER)
  #define MAINCALLCONV __cdecl
@@ -47,10 +50,8 @@
 #include "pdf/mix.hpp"
 #include "scenes.hpp"
 
-
-using cc::math::vec2;
-using cc::math::vec3;
-using cc::util::clamp;
+// max "bounces" for tracing
+#define MAX_DEPTH 30
 
 class custom_pdf : public pdf
 {
@@ -64,13 +65,22 @@ public:
     //
     static void generate_all(hitable* shape, const vec3& o, const vec3& w, Ray& out_scattered, float& out_pdf)
     {
-        hitable_pdf lightpdf(shape, o);
-        cosine_pdf cospdf(w);
+        if (shape)
+        {
+            hitable_pdf objectpdf(shape, o);
+            cosine_pdf cospdf(w);
 
-        mix_pdf mixpdf(&cospdf, &lightpdf, .45f);
+            mix_pdf mixpdf(&cospdf, &objectpdf, .45f);
 
-        out_scattered = Ray(o, mixpdf.generate());
-        out_pdf = mixpdf.value(out_scattered.direction());
+            out_scattered = Ray(o, mixpdf.generate());
+            out_pdf = mixpdf.value(out_scattered.direction());
+        }
+        else
+        {
+            cosine_pdf cospdf(w);
+            out_scattered = Ray(o, cospdf.generate());
+            out_pdf = cospdf.value(out_scattered.direction());
+        }
     }
 };
 
@@ -83,7 +93,7 @@ vec3 color(const Ray& r, hitable* world, int depth, hitable* light_shape)
         scatter_record srec;
         vec3 emitted = rec.mat_ptr->emitted(r, rec, rec.uv, rec.p);
 
-        if (depth < 50 && rec.mat_ptr->scatter(r, rec, srec))
+        if (depth < MAX_DEPTH && rec.mat_ptr->scatter(r, rec, srec))
         {
             if (srec.is_specular)
             {
@@ -140,19 +150,24 @@ int MAINCALLCONV main(int argc, char** argv)
 {
     const int nx = 512; // w
     const int ny = 512; // h
-    const int ns = 200; // samples
+    const int ns = 100; // samples
 
     camera cam;
 
     // test
     //hitable* world = load_scene(eRANDOM, cam, float(nx) / float(ny));
-
+    //hitable* list[] =
+    //{
+    //    new xz_rect(-20, 20, -20, 20, 10, nullptr) // light
+    //};
+    //hitable_list* hlist = new hitable_list(list, cc::util::array_size(list));
+    
     // modified cornell box
     hitable* world = load_scene(eCORNELLBOX, cam, float(nx) / float(ny));
     hitable* list[] =
     {
         new xz_rect(213, 343, 227, 332, 554, nullptr), // light
-        //new sphere(vec3(190, 90, 190), 90.0, nullptr)  // glass sphere
+        new sphere(vec3(130 + 82.5 - 25, 215, 65 + 82.5 - 25), 50.0, nullptr) // glass sphere
     };
     hitable_list* hlist = new hitable_list(list, cc::util::array_size(list));
 
@@ -170,26 +185,14 @@ int MAINCALLCONV main(int argc, char** argv)
         return -1;
     }
 
-#if defined(TEST_PRNG)
-    ppm_stream << "P6\n" << nx << " " << ny << " " << 0xff << "\n";
-    for (int j = 0; j < ny; ++j)
-    {
-        for (int i = 0; i < nx; ++i)
-        {
-            uint8_t pixel = fastrand() * 255.99f;
-            ppm_stream << pixel << pixel << pixel;
-        }
-    }
-    ppm_stream.close();
-    return 0;
-#endif
-
-    std::vector<vec3> output(nx * ny);
 
     // update progress bar using a separate thread
     bool quit = false;
     size_t pixel_idx = 0;
     std::thread progbar_thread(progbar, nx * ny, ns, &pixel_idx, &quit);
+
+    // output buffer
+    vec3* output = new vec3[nx * ny];
 
     // trace!
     Timer t;
