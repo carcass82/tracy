@@ -329,7 +329,7 @@ __global__ void raytrace(int width, int height, int samples, float3* pixels)
     spheres[1].radius = 70.f;
     spheres[1].material.type = eMETAL;
     spheres[1].material.albedo = { .8f, .85f, .88f };
-    spheres[1].material.roughness = .05f;
+    spheres[1].material.roughness = .0f;
     
     spheres[2].center = { 265 + 82.5 + 15, 30, 80 };
     spheres[2].radius = 30.f;
@@ -369,8 +369,10 @@ __global__ void raytrace(int width, int height, int samples, float3* pixels)
     boxes[4].min_limit = { .0f,    555.f, 0.f };
     boxes[4].max_limit = { 555.f, 555.1f, 555.f };
     boxes[4].rot = { .0f, .0f, .0f };
-    boxes[4].material.type = eLAMBERTIAN;
-    boxes[4].material.albedo = { 0.73f, .73f, .73f };
+    boxes[4].material.type = eEMISSIVE;
+    boxes[4].material.albedo = { 1.f, 1.f, 1.f };
+    //boxes[4].material.type = eLAMBERTIAN;
+    //boxes[4].material.albedo = { 0.73f, .73f, .73f };
     //back
     boxes[5].min_limit = { .0f,    .0f, 554.9f };
     boxes[5].max_limit = { 555.f, 555.f, 555.f };
@@ -448,8 +450,11 @@ __global__ void raytrace(int width, int height, int samples, float3* pixels)
 //
 // IFace for raytracer.cpp
 // 
-extern "C" void cuda_trace(int w, int h, int s, float* out_buffer)
+extern "C" void cuda_trace(int w, int h, int ns, float* out_buffer)
 {
+    // ensure buffer is properly zeroed
+    memset(out_buffer, 0, w * h * sizeof(float3));
+
     const int MAX_GPU = 32;
     int num_gpus = 0;
     cudaGetDeviceCount(&num_gpus);
@@ -468,42 +473,54 @@ extern "C" void cuda_trace(int w, int h, int s, float* out_buffer)
                gpu_properties[i].maxGridSize[0], gpu_properties[i].maxGridSize[1], gpu_properties[i].maxGridSize[2]);
     }
 
-    CUDALOG("image is %dx%d (%d samples desired)\n", w, h, s);
+    CUDALOG("image is %dx%d (%d samples desired)\n", w, h, ns);
 
-    //
-    // TODO: resolve crash with multi gpu
-    //
-    num_gpus = 1;
-    //
-    // TODO: resolve crash with multi gpu
-    //
-
-    const int new_w = w / num_gpus;
-    const int new_h = h;
-
+    cudaStream_t d_stream[MAX_GPU];
     float3* d_output_cuda[MAX_GPU];
+    float* h_output_cuda[MAX_GPU];
+
     for (int i = 0; i < num_gpus; ++i)
     {
         cudaSetDevice(i);
 
-        checkCudaErrors(cudaMalloc((void**)&d_output_cuda[i], new_w * new_h * 3 * sizeof(float)));
+        checkCudaErrors(cudaStreamCreateWithFlags(&d_stream[i], cudaStreamNonBlocking));
 
-        int threads_per_row = sqrt(gpu_properties[i].maxThreadsPerBlock) / 2;
-        dim3 dimBlock(threads_per_row, threads_per_row);
-        dim3 dimGrid(w / dimBlock.x + 1, h / dimBlock.y + 1);
-        
-        raytrace<<<dimGrid, dimBlock>>>(new_w, new_h, s, d_output_cuda[i]);
-        CUDALOG("raytrace<<<(%d,%d,%d), (%d,%d,%d)>>>\n", dimBlock.x, dimBlock.y, dimBlock.z, dimGrid.x, dimGrid.y, dimGrid.z);
+        checkCudaErrors(cudaMalloc((void**)&d_output_cuda[i], w * h * sizeof(float3)));
+        checkCudaErrors(cudaMallocHost((void**)&h_output_cuda[i], w * h * sizeof(float3)));
     }
 
     for (int i = 0; i < num_gpus; ++i)
     {
         cudaSetDevice(i);
-        checkCudaErrors(cudaDeviceSynchronize());
 
-        CUDALOG("cuda compute (%d/%d) completed!\n", i, num_gpus - 1);
+        int threads_per_row = sqrt(gpu_properties[i].maxThreadsPerBlock) / 2;
+        dim3 dimBlock(threads_per_row, threads_per_row);
+        dim3 dimGrid(w / dimBlock.x + 1, h / dimBlock.y + 1);
+        
+        CUDALOG("raytrace<<<(%d,%d,%d), (%d,%d,%d)>>> on gpu %d\n", dimBlock.x, dimBlock.y, dimBlock.z, dimGrid.x, dimGrid.y, dimGrid.z, i + 1);
+        raytrace<<<dimGrid, dimBlock, 0, d_stream[i]>>>(w, h, ns / num_gpus, d_output_cuda[i]);
 
-        checkCudaErrors(cudaMemcpy(out_buffer + (i * new_w * new_h * 3 * sizeof(float)), d_output_cuda[i], new_w * new_h * 3 * sizeof(float), cudaMemcpyDeviceToHost));
+        checkCudaErrors(cudaMemcpyAsync(h_output_cuda[i], d_output_cuda[i], w * h * sizeof(float3), cudaMemcpyDeviceToHost, d_stream[i]));
+    }
+
+    for (int i = 0; i < num_gpus; ++i)
+    {
+        cudaSetDevice(i);
+
+        cudaStreamSynchronize(d_stream[i]);
+
+        //checkCudaErrors(cudaMemcpy(h_output_cuda[i], d_output_cuda[i], w * h * sizeof(float3), cudaMemcpyDeviceToHost));
+
+        for (int c = 0; c < w * h * 3; ++c)
+        {
+            out_buffer[c] += h_output_cuda[i][c];
+        }
+
+        CUDALOG("cuda compute (%d/%d) completed!\n", i + 1, num_gpus);
+
         checkCudaErrors(cudaFree(d_output_cuda[i]));
+        checkCudaErrors(cudaFreeHost(h_output_cuda[i]));
+
+        checkCudaErrors(cudaStreamDestroy(d_stream[i]));
     }
 }
