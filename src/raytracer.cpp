@@ -156,7 +156,7 @@ int MAINCALLCONV main(int argc, char** argv)
 {
     const int nx = 1024; // w
     const int ny = 1024; // h
-    const int ns = 50; // samples
+    const int ns = 1000; // samples
 
     camera cam;
 

@@ -56,7 +56,7 @@ __device__ static float fastrand()
     return curand_uniform(&curand_ctx);
 }
 
-__device__ float3 random_in_unit_sphere()
+__device__ float3 cuda_random_in_unit_sphere()
 {
     float3 p;
     do
@@ -100,7 +100,7 @@ struct DMaterial
     {
         if (type == eLAMBERTIAN)
         {
-            float3 target = hit.point + hit.normal + random_in_unit_sphere();
+            float3 target = hit.point + hit.normal + cuda_random_in_unit_sphere();
             scattered.origin = hit.point;
             scattered.direction = target - hit.point;
             attenuation = albedo;
@@ -112,7 +112,7 @@ struct DMaterial
         {
             float3 reflected = reflect(normalize(ray.direction), hit.normal);
             scattered.origin = hit.point;
-            scattered.direction = reflected + roughness * random_in_unit_sphere();
+            scattered.direction = reflected + roughness * cuda_random_in_unit_sphere();
             attenuation = albedo;
             emission = make_float3(.0f, .0f, .0f);
             
