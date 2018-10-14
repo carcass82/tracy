@@ -38,6 +38,10 @@ using cc::util::clamp;
  #define NOVTABLE
 #endif
 
+#if defined(USE_CUDA)
+extern "C" void MAINCALLCONV cuda_trace(int, int, int, float*);
+#endif
+
 #include "timer.hpp"
 #include "material.hpp"
 #include "camera.hpp"
@@ -73,13 +77,13 @@ public:
             mix_pdf mixpdf(&cospdf, &objectpdf, .45f);
 
             out_scattered = Ray(o, mixpdf.generate());
-            out_pdf = mixpdf.value(out_scattered.direction());
+            out_pdf = mixpdf.value(out_scattered.GetDirection());
         }
         else
         {
             cosine_pdf cospdf(w);
             out_scattered = Ray(o, cospdf.generate());
-            out_pdf = cospdf.value(out_scattered.direction());
+            out_pdf = cospdf.value(out_scattered.GetDirection());
         }
     }
 };
@@ -117,7 +121,7 @@ vec3 color(const Ray& r, hitable* world, int depth, hitable* light_shape)
         //
         // fake sky-ish gradient
         //
-        //vec3 unit_direction = normalize(r.direction());
+        //vec3 unit_direction = normalize(r.GetDirection());
         //float t = (unit_direction.y + 1.f) * .5;
         //return (1.f - t) * vec3{1.f, 1.f, 1.f} + t * vec3{.5f, .7f, 1.f};
 
@@ -155,21 +159,21 @@ int MAINCALLCONV main(int argc, char** argv)
     camera cam;
 
     // test
-    hitable* world = load_scene(eRANDOM, cam, float(nx) / float(ny));
-    hitable* list[] =
-    {
-        new xz_rect(-20, 20, -20, 20, 10, nullptr) // light
-    };
-    hitable_list* hlist = new hitable_list(list, cc::util::array_size(list));
-    
-    // modified cornell box
-    //hitable* world = load_scene(eCORNELLBOX, cam, float(nx) / float(ny));
+    //hitable* world = load_scene(eRANDOM, cam, float(nx) / float(ny));
     //hitable* list[] =
     //{
-    //    new xz_rect(213, 343, 227, 332, 554, nullptr), // light
-    //    new sphere(vec3(130 + 82.5 - 25, 215, 65 + 82.5 - 25), 50.0, nullptr) // glass sphere
+    //    new xz_rect(-20, 20, -20, 20, 10, nullptr) // light
     //};
     //hitable_list* hlist = new hitable_list(list, cc::util::array_size(list));
+    
+    // modified cornell box
+    hitable* world = load_scene(eCORNELLBOX, cam, float(nx) / float(ny));
+    hitable* list[] =
+    {
+        new xz_rect(213, 343, 227, 332, 554, nullptr), // light
+        new sphere(vec3(130 + 82.5 - 25, 215, 65 + 82.5 - 25), 50.0, nullptr) // glass sphere
+    };
+    hitable_list* hlist = new hitable_list(list, cc::util::array_size(list));
 
     char filename[256] = { "output.ppm" };
     if (argc == 2)
@@ -198,19 +202,17 @@ int MAINCALLCONV main(int argc, char** argv)
     Timer t;
     t.begin();
 
+#if !defined(USE_CUDA)
     //
     // OpenMP: collapse all 3 loops and distribute work to threads.
     //         scheduling must be dynamic to avoid work imbalance
     //         since rays could hit nothing or bounce "forever"
     //
-#if !defined(_MSC_VER)
-    #pragma omp parallel for collapse(3) schedule(dynamic)
-#else
-    //
-    // ah, microsoft...
-    //
-    #pragma omp parallel for schedule(dynamic)
+#if defined(_MSC_VER)
+ #define collapse(x) /* ms compiler does not support openmp 3.0 */
 #endif
+
+    #pragma omp parallel for collapse(3) schedule(dynamic)
     for (int j = 0; j < ny; ++j)
     {
         for (int i = 0; i < nx; ++i)
@@ -222,19 +224,26 @@ int MAINCALLCONV main(int argc, char** argv)
                 vec3 sampled_col = color(r, world, 0, hlist);
 
                 #pragma omp atomic
-                output[ny * j + i].r += sampled_col.r;
+                output[j * nx + i].r += sampled_col.r;
 
                 #pragma omp atomic
-                output[ny * j + i].g += sampled_col.g;
+                output[j * nx + i].g += sampled_col.g;
 
                 #pragma omp atomic
-                output[ny * j + i].b += sampled_col.b;
+                output[j * nx + i].b += sampled_col.b;
 
                 // not really interested in correctness
                 pixel_idx++;
             }
         }
     }
+
+#else
+
+    cuda_trace(nx, ny, ns, reinterpret_cast<float*>(output));
+
+#endif
+
     t.end();
 
     quit = true;
@@ -249,14 +258,16 @@ int MAINCALLCONV main(int argc, char** argv)
     {
         for (int i = 0; i < nx; ++i)
         {
-            vec3 clamped_col = vec3{ clamp(255.99f * sqrtf(output[ny * j + i].r / ns), 0.0f, 255.0f),
-                                     clamp(255.99f * sqrtf(output[ny * j + i].g / ns), 0.0f, 255.0f),
-                                     clamp(255.99f * sqrtf(output[ny * j + i].b / ns), 0.0f, 255.0f) };
-
+            vec3 clamped_col = vec3{ clamp(255.99f * sqrtf(output[j * nx + i].r / ns), 0.0f, 255.0f),
+                                     clamp(255.99f * sqrtf(output[j * nx + i].g / ns), 0.0f, 255.0f),
+                                     clamp(255.99f * sqrtf(output[j * nx + i].b / ns), 0.0f, 255.0f) };
+    
             ppm_stream << uint8_t(clamped_col.r) << uint8_t(clamped_col.g) << uint8_t(clamped_col.b);
         }
     }
     ppm_stream.close();
 
-    std::cerr << "finished in " << std::fixed << std::setprecision(1) << t.duration() << " secs\n";
+    delete[] output;
+
+    std::cerr << "finished in " << std::fixed << std::setprecision(1) << t.duration() << " secs\n" << std::endl;
 }

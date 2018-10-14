@@ -48,8 +48,8 @@ struct aabb
 
     bool hit(const Ray& r, float tmin, float tmax) const
     {
-        vec3 a = (vmin - r.origin()) / r.direction();
-        vec3 b = (vmax - r.origin()) / r.direction();
+        vec3 a = (vmin - r.GetOrigin()) / r.GetDirection();
+        vec3 b = (vmax - r.GetOrigin()) / r.GetDirection();
 
         return (!(min(max(a.x, b.x), tmax) <= max(min(a.x, b.x), tmin)) ||
                  (min(max(a.y, b.y), tmax) <= max(min(a.y, b.y), tmin)) ||

@@ -21,27 +21,27 @@ public:
         s_rec.is_specular = true;
         s_rec.attenuation = vec3(1.0f, 1.0f, 1.0f);
 
-        vec3 reflected = reflect(normalize(r_in.direction()), rec.normal);
+        vec3 reflected = reflect(normalize(r_in.GetDirection()), rec.normal);
 
         float ni_over_nt;
         float cosine;
         vec3 outward_normal;
-        if (dot(r_in.direction(), rec.normal) > 0.0f)
+        if (dot(r_in.GetDirection(), rec.normal) > 0.0f)
         {
             outward_normal = rec.normal * -1;
             ni_over_nt = ref_idx;
-            cosine = ref_idx * dot(r_in.direction(), rec.normal) / length(r_in.direction());
+            cosine = ref_idx * dot(r_in.GetDirection(), rec.normal) / length(r_in.GetDirection());
         }
         else
         {
             outward_normal = rec.normal;
             ni_over_nt = 1.0f / ref_idx;
-            cosine = (dot(r_in.direction(), rec.normal) * -1) / length(r_in.direction());
+            cosine = (dot(r_in.GetDirection(), rec.normal) * -1) / length(r_in.GetDirection());
         }
 
         float reflect_prob;
         vec3 refracted;
-        refracted = refract(normalize(r_in.direction()), normalize(outward_normal), ni_over_nt);
+        refracted = refract(normalize(r_in.GetDirection()), normalize(outward_normal), ni_over_nt);
         if (refracted != ZERO)
         {
             reflect_prob = schlick(cosine, ref_idx);

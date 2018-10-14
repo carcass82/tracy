@@ -19,7 +19,7 @@ public:
 
     virtual bool scatter(const Ray& r_in, const hit_record& rec, scatter_record& s_rec) const override
     {
-        vec3 reflected = reflect(normalize(r_in.direction()), rec.normal);
+        vec3 reflected = reflect(normalize(r_in.GetDirection()), rec.normal);
 
         s_rec.is_specular = true;
         s_rec.specular = Ray(rec.p, reflected + random_in_unit_sphere() * fuzz);

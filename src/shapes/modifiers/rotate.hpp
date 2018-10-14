@@ -49,13 +49,13 @@ public:
 
     virtual bool hit(const Ray& r, float t_min, float t_max, hit_record& rec) const override
     {
-        vec3 origin = r.origin();
-        vec3 direction = r.direction();
+        vec3 origin = r.GetOrigin();
+        vec3 direction = r.GetDirection();
 
-        origin[0] = cos_theta * r.origin()[0] - sin_theta * r.origin()[2];
-        origin[2] = sin_theta * r.origin()[0] + cos_theta * r.origin()[2];
-        direction[0] = cos_theta * r.direction()[0] - sin_theta * r.direction()[2];
-        direction[2] = sin_theta * r.direction()[0] + cos_theta * r.direction()[2];
+        origin[0] = cos_theta * r.GetOrigin()[0] - sin_theta * r.GetOrigin()[2];
+        origin[2] = sin_theta * r.GetOrigin()[0] + cos_theta * r.GetOrigin()[2];
+        direction[0] = cos_theta * r.GetDirection()[0] - sin_theta * r.GetDirection()[2];
+        direction[2] = sin_theta * r.GetDirection()[0] + cos_theta * r.GetDirection()[2];
 
         Ray rotated_r(origin, direction);
 

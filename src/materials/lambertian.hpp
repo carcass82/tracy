@@ -26,7 +26,7 @@ public:
 
     virtual float scattering_pdf(const Ray &r_in, const hit_record &rec, const Ray &scattered) const
     {
-        float cosine = max(.0f, dot(rec.normal, normalize(scattered.direction())));
+        float cosine = max(.0f, dot(rec.normal, normalize(scattered.GetDirection())));
         return cosine / PI;
     }
 

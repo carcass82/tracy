@@ -23,10 +23,10 @@ public:
 
     virtual bool hit(const Ray& r, float t_min, float t_max, hit_record& rec) const override final
     {
-        vec3 oc = r.origin() - center;
+        vec3 oc = r.GetOrigin() - center;
 
-        float a = dot(r.direction(), r.direction());
-        float b = dot(oc, r.direction());
+        float a = dot(r.GetDirection(), r.GetDirection());
+        float b = dot(oc, r.GetDirection());
         float c = dot(oc, oc) - radius2;
         float discriminant = b * b - a * c;
 
@@ -43,7 +43,7 @@ public:
             if (temp < t_max && temp > t_min)
             {
                 rec.t = temp;
-                rec.p = r.pt(temp);
+                rec.p = r.PointAt(temp);
                 rec.normal = (rec.p - center) / radius;
                 rec.uv = get_uv_at((rec.p - center) / radius);
                 rec.mat_ptr = mat;
@@ -54,7 +54,7 @@ public:
             if (temp < t_max && temp > t_min)
             {
                 rec.t = temp;
-                rec.p = r.pt(temp);
+                rec.p = r.PointAt(temp);
                 rec.normal = (rec.p - center) / radius;
                 rec.uv = get_uv_at((rec.p - center) / radius);
                 rec.mat_ptr = mat;

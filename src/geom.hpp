@@ -46,7 +46,7 @@ vec3 random_in_unit_disk()
     return p;
 }
 
-vec3 random_cosine_direction()
+vec3 random_cosine_GetDirection()
 {
     float r1 = fastrand();
     float r2 = fastrand();

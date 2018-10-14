@@ -15,7 +15,7 @@ public:
 
     vec3 generate() const override final
     {
-        return random_cosine_direction() * uvw;
+        return random_cosine_GetDirection() * uvw;
     }
 
 private:

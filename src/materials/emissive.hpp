@@ -18,7 +18,7 @@ public:
 
     virtual vec3 emitted(const Ray& r_in, const hit_record& rec, const vec2& uv, const vec3& p) const override
     {
-        if (dot(rec.normal, r_in.direction()) < .0f)
+        if (dot(rec.normal, r_in.GetDirection()) < .0f)
         {
             return emit->value(uv, p);
         }

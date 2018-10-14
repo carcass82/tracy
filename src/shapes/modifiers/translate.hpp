@@ -19,7 +19,7 @@ public:
 
     virtual bool hit(const Ray& r, float t_min, float t_max, hit_record& rec) const override
     {
-        Ray moved_r(r.origin() - offset, r.direction());
+        Ray moved_r(r.GetOrigin() - offset, r.GetDirection());
         if (ptr->hit(moved_r, t_min, t_max, rec))
         {
             rec.p += offset;

@@ -19,13 +19,13 @@ class Ray
 {
 public:
     Ray() {}
-    Ray(const vec3& a, const vec3& b) : A(a), B(b) {}
+    Ray(const vec3& a, const vec3& b) : origin_(a), direction_(b) {}
 
-    const vec3& origin() const    { return A; }
-    const vec3& direction() const { return B; }
-    vec3 pt(float t) const        { return A + t * B; }
+    constexpr inline const vec3& GetOrigin() const noexcept    { return origin_;    }
+    constexpr inline const vec3& GetDirection() const noexcept { return direction_; }
+    constexpr inline vec3 PointAt(float t) const noexcept      { return origin_ + t * direction_; }
 
 private:
-    vec3 A;
-    vec3 B;
+    vec3 origin_;
+    vec3 direction_;
 };
