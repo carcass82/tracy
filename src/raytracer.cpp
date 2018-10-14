@@ -129,6 +129,7 @@ vec3 color(const Ray& r, hitable* world, int depth, hitable* light_shape)
     }
 }
 
+#if !defined(USE_CUDA)
 void progbar(size_t total, size_t samples, size_t* value, bool* quit)
 {
     const size_t progbarsize = 78;
@@ -149,12 +150,13 @@ void progbar(size_t total, size_t samples, size_t* value, bool* quit)
 
     std::cout << "tracing... [" << std::string(progbarsize, '#') << "] 100.0%\n";
 }
+#endif
 
 int MAINCALLCONV main(int argc, char** argv)
 {
-    const int nx = 512; // w
-    const int ny = 512; // h
-    const int ns = 500; // samples
+    const int nx = 1024; // w
+    const int ny = 1024; // h
+    const int ns = 50; // samples
 
     camera cam;
 
@@ -175,7 +177,11 @@ int MAINCALLCONV main(int argc, char** argv)
     };
     hitable_list* hlist = new hitable_list(list, cc::util::array_size(list));
 
+#if !defined(USE_CUDA)
     char filename[256] = { "output.ppm" };
+#else
+    char filename[256] = { "output_cuda.ppm" };
+#endif
     if (argc == 2)
     {
         memset(filename, 0, 256);
@@ -189,12 +195,6 @@ int MAINCALLCONV main(int argc, char** argv)
         return -1;
     }
 
-
-    // update progress bar using a separate thread
-    bool quit = false;
-    size_t pixel_idx = 0;
-    std::thread progbar_thread(progbar, nx * ny, ns, &pixel_idx, &quit);
-
     // output buffer
     vec3* output = new vec3[nx * ny];
 
@@ -203,6 +203,11 @@ int MAINCALLCONV main(int argc, char** argv)
     t.begin();
 
 #if !defined(USE_CUDA)
+    // update progress bar using a separate thread
+    bool quit = false;
+    size_t pixel_idx = 0;
+    std::thread progbar_thread(progbar, nx * ny, ns, &pixel_idx, &quit);
+
     //
     // OpenMP: collapse all 3 loops and distribute work to threads.
     //         scheduling must be dynamic to avoid work imbalance
@@ -238,6 +243,9 @@ int MAINCALLCONV main(int argc, char** argv)
         }
     }
 
+    quit = true;
+    progbar_thread.join();
+
 #else
 
     cuda_trace(nx, ny, ns, reinterpret_cast<float*>(output));
@@ -245,9 +253,6 @@ int MAINCALLCONV main(int argc, char** argv)
 #endif
 
     t.end();
-
-    quit = true;
-    progbar_thread.join();
 
     //
     // output to ppm (y inverted)
