@@ -154,9 +154,9 @@ void progbar(size_t total, size_t samples, size_t* value, bool* quit)
 
 int MAINCALLCONV main(int argc, char** argv)
 {
-    const int nx = 1024; // w
-    const int ny = 1024; // h
-    const int ns = 50; // samples
+    const int nx = 640; // w
+    const int ny = 512; // h
+    const int ns = 150; // samples
 
     camera cam;
 
@@ -169,11 +169,13 @@ int MAINCALLCONV main(int argc, char** argv)
     //hitable_list* hlist = new hitable_list(list, cc::util::array_size(list));
     
     // modified cornell box
-    hitable* world = load_scene(eCORNELLBOX, cam, float(nx) / float(ny));
+    //hitable* world = load_scene(eCORNELLBOX, cam, float(nx) / float(ny));
+    hitable* world = load_scene(eTESTGPU, cam, float(nx) / float(ny));
     hitable* list[] =
     {
-        new xz_rect(213, 343, 227, 332, 554, nullptr), // light
-        new sphere(vec3(130 + 82.5 - 25, 215, 65 + 82.5 - 25), 50.0, nullptr) // glass sphere
+        new xz_rect(213, 343, 227, 332, 554, nullptr)
+        /*, // light
+        new sphere(vec3(130 + 82.5 - 25, 215, 65 + 82.5 - 25), 50.0, nullptr) // glass sphere*/
     };
     hitable_list* hlist = new hitable_list(list, cc::util::array_size(list));
 

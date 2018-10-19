@@ -114,7 +114,36 @@ hitable* cornellbox_scene()
     return new hitable_list(list, i);
 }
 
-enum eScene { eRANDOM, eCORNELLBOX, eNUM_SCENES };
+hitable* gpu_scene()
+{
+    const int n = 50;
+    int i = 0;
+    hitable** list = new hitable*[n];
+
+    material* light = new emissive(new constant_texture(vec3(2.f, 2.f, 2.f)));
+    material* blu = new lambertian(new constant_texture(vec3(0.1f, 0.2f, 0.5f)));
+    material* red = new lambertian(new constant_texture(vec3(.85f, .05f, .02f)));
+    material* green = new lambertian(new constant_texture(vec3(.05f, .85f, .02f)));
+    material* grey = new lambertian(new constant_texture(vec3(0.2f, 0.2f, 0.2f)));
+    material* glass = new dielectric(1.5);
+    material* alluminium = new metal(vec3(.8f, .85f, .88f), .05f);
+    material* gold = new metal(vec3(1.f, .71f, .29f), .05f);
+
+    list[i++] = new sphere(vec3(0.f, 0.f, -1.f), .5f, blu);
+    list[i++] = new sphere(vec3(0.f, -100.5f, -1.f), 100.f, grey);
+    list[i++] = new sphere(vec3(1.f, 0.f, -1.f), .5f, alluminium);
+    list[i++] = new sphere(vec3(-1.f, 0.f, -1.f), .5f, glass);
+    list[i++] = new sphere(vec3(0.f, 150.f, -1.f), 100.f, light);
+    list[i++] = new sphere(vec3(0.f, 0.f, 0.f), .2f, glass);
+    list[i++] = new sphere(vec3(0.f, 1.f, -1.5f), .3f, gold);
+    list[i++] = new sphere(vec3(0.f, 0.f, -2.5f), .5f, red);
+
+    list[i++] = new box(vec3(-2.f, 0.f, -3.1f), vec3(2.f, 2.f, -3.f), green);
+
+    return new hitable_list(list, i);
+}
+
+enum eScene { eRANDOM, eCORNELLBOX, eTESTGPU, eNUM_SCENES };
 
 hitable* load_scene(eScene scene, camera& cam, float ratio)
 {
@@ -128,6 +157,11 @@ hitable* load_scene(eScene scene, camera& cam, float ratio)
         std::cerr << "'cornell' scene selected\n";
         cam.setup(vec3(278, 278, -800), vec3(278, 278, 0), vec3(0.0f, 1.0f, 0.0f), 40.0f, ratio, 0.0f, 10.0f);
         return cornellbox_scene();
+
+    case eTESTGPU:
+        std::cerr << "'testGPU' scene selected\n";
+        cam.setup(vec3(-.5f, 1.2f, 1.5f), vec3(.0f, .0f, -1.f), vec3(0.0f, 1.0f, 0.0f), 60.0f, ratio, 0.0f, 10.0f);
+        return gpu_scene();
 
     default:
         std::cerr << "tracing NULL, i'm going to crash...\n";

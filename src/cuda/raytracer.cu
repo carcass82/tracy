@@ -58,12 +58,16 @@ __device__ static float fastrand()
 
 __device__ float3 random_in_unit_sphere()
 {
-    float3 p;
-    do
-    {
-        p = make_float3(2.f * fastrand() - 1.f, 2.f * fastrand() - 1.f, 2.f * fastrand() - 1.f);
-    } while (dot(p, p) >= 1.f);
+    //float3 point{ fastrand(), fastrand(), fastrand() };
+    //point = normalize(point);
+    //
+    //float r = powf(fastrand(), 1.f / 3.f);
+    //return r * point;
 
+    float3 p;
+    do {
+        p = 2.0*make_float3(fastrand(), fastrand(), fastrand()) - make_float3(1, 1, 1);
+    } while (dot(p,p) >= 1.0);
     return p;
 }
 
@@ -102,7 +106,7 @@ struct DMaterial
         {
             float3 target = hit.point + hit.normal + random_in_unit_sphere();
             scattered.origin = hit.point;
-            scattered.direction = target - hit.point;
+            scattered.direction = normalize(target - hit.point);
             attenuation = albedo;
             emission = make_float3(.0f, .0f, .0f);
 
@@ -112,7 +116,7 @@ struct DMaterial
         {
             float3 reflected = reflect(normalize(ray.direction), hit.normal);
             scattered.origin = hit.point;
-            scattered.direction = reflected + roughness * random_in_unit_sphere();
+            scattered.direction = normalize(reflected + roughness * random_in_unit_sphere());
             attenuation = albedo;
             emission = make_float3(.0f, .0f, .0f);
             
@@ -130,21 +134,21 @@ struct DMaterial
             {
                 outward_normal = -1.f * hit.normal;
                 ni_nt = ior;
-                cosine = ior * dot(ray.direction, hit.normal) / length(ray.direction);
+                cosine = ior * dot(ray.direction, hit.normal);
             }
             else
             {
                 outward_normal = hit.normal;
                 ni_nt = 1.f / ior;
-                cosine = (dot(ray.direction, hit.normal) * -1.f) / length(ray.direction);
+                cosine = -dot(ray.direction, hit.normal);
             }
 
             float3 refracted;
-            bool is_refracted = refract(ray.direction, normalize(outward_normal), ni_nt, refracted);
+            bool is_refracted = refract(ray.direction, outward_normal, ni_nt, refracted);
             float reflect_chance = (is_refracted) ? schlick_fresnel(cosine, ior) : 1.0f;
             
             scattered.origin = hit.point;
-            scattered.direction = (fastrand() < reflect_chance) ? reflect(normalize(ray.direction), hit.normal) : refracted;
+            scattered.direction = normalize((fastrand() < reflect_chance) ? reflect(ray.direction, hit.normal) : refracted);
 
             return true;
         }
@@ -207,30 +211,43 @@ struct DBox
     float3 rot;
     DMaterial material;
 
-    //
-    // code from http://www.gamedev.net/topic/495636-raybox-collision-intersection-point/
-    //
     __device__ bool intersects(const DRay& ray, DIntersection& hit)
     {
-        float3 tmin = (min_limit - ray.origin) / ray.direction;
-        float3 tmax = (max_limit - ray.origin) / ray.direction;
+        float tmin = .0001f;
+        float tmax = FLT_MAX;
 
-        float3 real_min = min(tmin, tmax);
-        float3 real_max = max(tmin, tmax);
-
-        float minmax = min(min(real_max.x, real_max.y), real_max.z);
-        float maxmin = max(max(real_min.x, real_min.y), real_min.z);
-
-        if (minmax >= maxmin && maxmin < hit.t)
+        for (int i = 0; i < 3; ++i)
         {
-            hit.t = maxmin;
-            hit.point = ray.point_at(maxmin);
-            hit.normal = normal(hit.point);
-            hit.material = &material;
-            return true;
+            // TODO: think something better
+            float direction = (i == 0)? ray.direction.x : (i == 1)? ray.direction.y : ray.direction.z;
+            float origin =    (i == 0)? ray.origin.x :    (i == 1)? ray.origin.y : ray.origin.z;
+            float minbound =  (i == 0)? min_limit.x :     (i == 1)? min_limit.y : min_limit.z;
+            float maxbound =  (i == 0)? max_limit.x :     (i == 1)? max_limit.y : max_limit.z;
+
+            if (fabs(direction) < .0001f)
+            {
+                if (origin < minbound || origin > maxbound) return false;
+            }
+            else
+            {
+                float ood = 1.f / direction;
+                float t1 = (minbound - origin) * ood;
+                float t2 = (maxbound - origin) * ood;
+
+                if (t1 > t2) swap(t1, t2);
+
+                tmin = max(tmin, t1);
+                tmax = min(tmax, t2);
+
+                if (tmin > tmax || tmin > hit.t) return false;
+            }
         }
-        
-        return false;
+
+        hit.t = tmin;
+        hit.point = ray.point_at(tmin);
+        hit.normal = normal(hit.point);
+        hit.material = &material;
+        return true;
     }
 
     __device__ float3 normal(const float3& point)
@@ -246,7 +263,10 @@ struct DBox
     }
 };
 
-const int MAX_DEPTH = 5;
+__device__ const int MAX_DEPTH = 5;
+__device__ const float3 WHITE = {1.f, 1.f, 1.f};
+__device__ const float3 BLACK = {0.f, 0.f, 0.f};
+
 template<int depth>
 __device__ float3 get_color_for(DRay ray, DSphere* spheres, int sphere_count, DBox* boxes, int box_count)
 {
@@ -297,15 +317,15 @@ __device__ float3 get_color_for(DRay ray, DSphere* spheres, int sphere_count, DB
         }
     }
 
-    //return make_float3(1.f, 1.f, 1.f);
-    return make_float3(.0f, .0f, 0.0f);
+    //return WHITE;
+    return BLACK;
 }
 
 template<>
 __device__ float3 get_color_for<MAX_DEPTH>(DRay ray, DSphere* spheres, int sphere_count, DBox* boxes, int box_count)
 {
-    //return make_float3(1.f, 1.f, 1.f);
-    return make_float3(.0f, .0f, .0f);
+    //return WHITE;
+    return BLACK;
 }
 
 __global__ void raytrace(int width, int height, int samples, float3* pixels)
@@ -313,29 +333,41 @@ __global__ void raytrace(int width, int height, int samples, float3* pixels)
     const int i = (blockIdx.x * blockDim.x) + threadIdx.x;
     const int j = (blockIdx.y * blockDim.y) + threadIdx.y;
 
-    curand_init(j, i, 0, &curand_ctx);
+    if (i >= width || j >= height)
+    {
+        return;
+    }
+
+    curand_init(clock64(), i, 0, &curand_ctx);
 
     //
     // scene definition
     //
+#if CORNELL
     DSphere spheres[3];
     int spherecount = array_size(spheres);
     spheres[0].center = { 130 + 82.5 - 25, 215, 65 + 82.5 - 25 };
     spheres[0].radius = 50.f;
-    spheres[0].material.type = eDIELECTRIC;
-    spheres[0].material.ior = 1.5f;
+    //spheres[0].material.type = eDIELECTRIC;
+    //spheres[0].material.ior = 1.5f;
+    spheres[0].material.type = eEMISSIVE;
+    spheres[0].material.albedo = { 15.f, 15.f, 15.f };
 
     spheres[1].center = { 265 + 82.5 + 35, 400, 295 + 82.5 - 35 };
     spheres[1].radius = 70.f;
     spheres[1].material.type = eMETAL;
-    spheres[1].material.albedo = { .8f, .85f, .88f };
-    spheres[1].material.roughness = .0f;
+    //spheres[1].material.albedo = { .8f, .85f, .88f };
+    //spheres[1].material.roughness = .0f;
+    spheres[1].material.type = eEMISSIVE;
+    spheres[1].material.albedo = { 15.f, 15.f, 15.f };
     
     spheres[2].center = { 265 + 82.5 + 15, 30, 80 };
     spheres[2].radius = 30.f;
     spheres[2].material.type = eMETAL;
-    spheres[2].material.albedo = { 1.f, .71f, .29f };
-    spheres[2].material.roughness = .05f;
+    //spheres[2].material.albedo = { 1.f, .71f, .29f };
+    //spheres[2].material.roughness = .05f;
+    spheres[2].material.type = eEMISSIVE;
+    spheres[2].material.albedo = { 15.f, 15.f, 15.f };
 
 
     DBox boxes[8];
@@ -369,10 +401,10 @@ __global__ void raytrace(int width, int height, int samples, float3* pixels)
     boxes[4].min_limit = { .0f,    555.f, 0.f };
     boxes[4].max_limit = { 555.f, 555.1f, 555.f };
     boxes[4].rot = { .0f, .0f, .0f };
-    boxes[4].material.type = eEMISSIVE;
-    boxes[4].material.albedo = { 1.f, 1.f, 1.f };
-    //boxes[4].material.type = eLAMBERTIAN;
-    //boxes[4].material.albedo = { 0.73f, .73f, .73f };
+    //boxes[4].material.type = eEMISSIVE;
+    //boxes[4].material.albedo = { 1.f, 1.f, 1.f };
+    boxes[4].material.type = eLAMBERTIAN;
+    boxes[4].material.albedo = { 0.73f, .73f, .73f };
     //back
     boxes[5].min_limit = { .0f,    .0f, 554.9f };
     boxes[5].max_limit = { 555.f, 555.f, 555.f };
@@ -400,6 +432,73 @@ __global__ void raytrace(int width, int height, int samples, float3* pixels)
     const float3 center{ 278.f, 278.f, -800.f };
     const float3 lookat{ 278.f, 278.f, 0.f };
     const float3 vup{ 0.f, 1.f, 0.f };
+
+#else
+    DSphere spheres[8];
+    int spherecount = array_size(spheres);
+    spheres[0].center = { 0.f, 0.f, -1.f };
+    spheres[0].radius = .5f;
+    spheres[0].material.type = eLAMBERTIAN;
+    spheres[0].material.albedo = { 0.1f, 0.2f, 0.5f };
+
+    spheres[1].center = { 0.f, -100.5f, -1.f };
+    spheres[1].radius = 100.f;
+    spheres[1].material.type = eLAMBERTIAN;
+    spheres[1].material.albedo = { 0.2f, 0.2f, 0.2f };
+
+    spheres[2].center = { 1.f, 0.f, -1.f };
+    spheres[2].radius = .5f;
+    spheres[2].material.type = eMETAL;
+    spheres[2].material.albedo = { .8f, .85f, .88f };
+    spheres[2].material.roughness = .05f;
+
+    spheres[3].center = { -1.f, 0.f, -1.f };
+    spheres[3].radius = .5f;
+    spheres[3].material.type = eDIELECTRIC;
+    spheres[3].material.ior = 1.5f;
+    //spheres[3].material.type = eMETAL;
+    //spheres[3].material.albedo = { .8f, .85f, .88f };
+    //spheres[3].material.roughness = .05f;
+
+    spheres[4].center = { 0.f, 150.f, -1.f };
+    spheres[4].radius = 100.f;
+    spheres[4].material.type = eEMISSIVE;
+    spheres[4].material.albedo = { 2.f, 2.f, 2.f };
+
+    spheres[5].center = { 0.f, 0.f, 0.f };
+    spheres[5].radius = .2f;
+    //spheres[5].material.type = eEMISSIVE;
+    //spheres[5].material.albedo = { 2.f, 2.f, 2.f };
+    spheres[5].material.type = eDIELECTRIC;
+    spheres[5].material.ior = 1.5f;
+
+    spheres[6].center = { 0.f, 1.f, -1.5f };
+    spheres[6].radius = .3f;
+    spheres[6].material.type = eMETAL;
+    spheres[6].material.albedo = { 1.f, .71f, .29f };
+    spheres[6].material.roughness = .05f;
+
+    spheres[7].center = { 0.f, 0.f, -2.5f };
+    spheres[7].radius = .5f;
+    spheres[7].material.type = eLAMBERTIAN;
+    spheres[7].material.albedo = { .85f, .05f, .02f };
+
+    DBox boxes[1];
+    int boxcount = array_size(boxes);
+    boxes[0].min_limit = { -2.f, 0.f, -3.1f };
+    boxes[0].max_limit = { 2.f, 2.f, -3.f };
+    boxes[0].material.type = eLAMBERTIAN;
+    boxes[0].material.albedo = { .05f, .85f, .02f };
+
+    //
+    // camera setup
+    //
+    const float fov = radians(60.f);
+    const float aspect = width / fmax(1.f, static_cast<float>(height));
+    const float3 center{ -.5f, 1.2f, 1.5f };
+    const float3 lookat{ 0.f, 0.f, -1.f };
+    const float3 vup{ 0.f, 1.f, 0.f };
+#endif
 
     float height_2 = tanf(fov / 2.f);
     float width_2 = height_2 * aspect;
@@ -436,15 +535,16 @@ __global__ void raytrace(int width, int height, int samples, float3* pixels)
     //color.z = .0f;
     
     float3& pixel = *(&pixels[j * width + i]);
-    if (i < width && j < height)
-    {
-        pixel.x = color.x;
-        pixel.y = color.y;
-        pixel.z = color.z;
-    }
+    pixel.x = color.x;
+    pixel.y = color.y;
+    pixel.z = color.z;
+
+    //atomicAdd(&pixel.x, color.x);
+    //atomicAdd(&pixel.y, color.y);
+    //atomicAdd(&pixel.z, color.z);
 
     // just to be sure we're running
-    if (i == 0 && j == 0) { CUDALOG("[CUDA] running kernel...\n"); }
+    if (i == 0 && j == 0 && blockIdx.z == 0) { CUDALOG("[CUDA] running kernel...\n"); }
 }
 
 //
@@ -452,17 +552,17 @@ __global__ void raytrace(int width, int height, int samples, float3* pixels)
 // 
 extern "C" void cuda_trace(int w, int h, int ns, float* out_buffer)
 {
-    // ensure buffer is properly zeroed
+    // ensure output buffer is properly zeroed
     memset(out_buffer, 0, w * h * sizeof(float3));
 
     const int MAX_GPU = 32;
     int num_gpus = 0;
-    cudaGetDeviceCount(&num_gpus);
+    checkCudaErrors(cudaGetDeviceCount(&num_gpus));
 
     cudaDeviceProp gpu_properties[MAX_GPU];
     for (int i = 0; i < num_gpus; i++)
     {
-        cudaGetDeviceProperties(&gpu_properties[i], i);
+        checkCudaErrors(cudaGetDeviceProperties(&gpu_properties[i], i));
 
         CUDALOG("Device %d (%s):\n\t%d threads\n\tblocksize: %dx%dx%d\n\tshmem per block: %lu Kb\n\tgridsize: %dx%dx%d\n\n",
                i,
@@ -475,52 +575,71 @@ extern "C" void cuda_trace(int w, int h, int ns, float* out_buffer)
 
     CUDALOG("image is %dx%d (%d samples desired)\n", w, h, ns);
 
+#if CUDA_USE_STREAMS
     cudaStream_t d_stream[MAX_GPU];
+#endif
+
     float3* d_output_cuda[MAX_GPU];
     float* h_output_cuda[MAX_GPU];
 
-    for (int i = 0; i < num_gpus; ++i)
+    for (int i = num_gpus - 1; i > 0; --i)
     {
-        cudaSetDevice(i);
+        checkCudaErrors(cudaSetDevice(i));
 
+#if CUDA_USE_STREAMS
         checkCudaErrors(cudaStreamCreateWithFlags(&d_stream[i], cudaStreamNonBlocking));
+#endif
 
         checkCudaErrors(cudaMalloc((void**)&d_output_cuda[i], w * h * sizeof(float3)));
+        checkCudaErrors(cudaMemset((void*)d_output_cuda[i], 0, w * h * sizeof(float3)));
+
         checkCudaErrors(cudaMallocHost((void**)&h_output_cuda[i], w * h * sizeof(float3)));
     }
 
-    for (int i = 0; i < num_gpus; ++i)
+    for (int i = num_gpus - 1; i > 0; --i)
     {
-        cudaSetDevice(i);
+        checkCudaErrors(cudaSetDevice(i));
 
         int threads_per_row = sqrt(gpu_properties[i].maxThreadsPerBlock) / 2;
-        dim3 dimBlock(threads_per_row, threads_per_row);
-        dim3 dimGrid(w / dimBlock.x + 1, h / dimBlock.y + 1);
+        int block_depth = 1;
+
+        dim3 dimBlock(threads_per_row, threads_per_row, 1);
+        dim3 dimGrid(w / dimBlock.x + 1, h / dimBlock.y + 1, block_depth);
         
         CUDALOG("raytrace<<<(%d,%d,%d), (%d,%d,%d)>>> on gpu %d\n", dimBlock.x, dimBlock.y, dimBlock.z, dimGrid.x, dimGrid.y, dimGrid.z, i + 1);
-        raytrace<<<dimGrid, dimBlock, 0, d_stream[i]>>>(w, h, ns / num_gpus, d_output_cuda[i]);
+#if CUDA_USE_STREAMS
+        raytrace<<<dimGrid, dimBlock, 0, d_stream[i]>>>(w, h, ns / block_depth /* / num_gpus */, d_output_cuda[i]);
 
         checkCudaErrors(cudaMemcpyAsync(h_output_cuda[i], d_output_cuda[i], w * h * sizeof(float3), cudaMemcpyDeviceToHost, d_stream[i]));
+#else
+        raytrace<<<dimGrid, dimBlock>>>(w, h, ns / block_depth /* / num_gpus */, d_output_cuda[i]);
+#endif
     }
 
-    for (int i = 0; i < num_gpus; ++i)
+    for (int i = num_gpus - 1; i > 0; --i)
     {
-        cudaSetDevice(i);
+        checkCudaErrors(cudaSetDevice(i));
 
-        cudaStreamSynchronize(d_stream[i]);
+#if CUDA_USE_STREAMS
+        checkCudaErrors(cudaStreamSynchronize(d_stream[i]));
+#endif
 
-        //checkCudaErrors(cudaMemcpy(h_output_cuda[i], d_output_cuda[i], w * h * sizeof(float3), cudaMemcpyDeviceToHost));
+        checkCudaErrors(cudaDeviceSynchronize());
 
-        for (int c = 0; c < w * h * 3; ++c)
-        {
-            out_buffer[c] += h_output_cuda[i][c];
-        }
+        checkCudaErrors(cudaMemcpy(out_buffer, d_output_cuda[i], w * h * sizeof(float3), cudaMemcpyDeviceToHost));
+
+        //for (int c = 0; c < w * h * 3; ++c)
+        //{
+        //    out_buffer[c] += h_output_cuda[i][c];
+        //}
 
         CUDALOG("cuda compute (%d/%d) completed!\n", i + 1, num_gpus);
 
         checkCudaErrors(cudaFree(d_output_cuda[i]));
         checkCudaErrors(cudaFreeHost(h_output_cuda[i]));
 
+#if CUDA_USE_STREAMS
         checkCudaErrors(cudaStreamDestroy(d_stream[i]));
+#endif
     }
 }

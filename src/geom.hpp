@@ -16,10 +16,15 @@ using cc::math::length2;
 
 float fastrand()
 {
-    static uint32_t s_seed = 123456789;
-
-    s_seed = (214013 * s_seed + 2531011);
-    return ((s_seed >> 16) & 0x7FFF) / 32768.0f;
+    static uint32_t s_RndState = 1;
+    
+    uint32_t x = s_RndState;
+    x ^= x << 13;
+    x ^= x >> 17;
+    x ^= x << 15;
+    s_RndState = x;
+    
+    return (x & 0xffffff) / 16777216.0f;
 }
 
 vec3 random_in_unit_sphere()
