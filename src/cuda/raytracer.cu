@@ -14,7 +14,7 @@
 #include "mathutils.cuh"
 
 
-#ifdef _DEBUG
+#ifndef NODEBUG
 #define CUDALOG(...) printf(__VA_ARGS__)
 #else 
 #define CUDALOG(...) do {} while(0);
@@ -46,7 +46,7 @@ __device__ float schlick_fresnel(float costheta, float ior)
 {
     float r0 = (1.f - ior) / (1.f + ior);
     r0 *= r0;
-    return r0 + (1.f - r0) * powf((1.f - costheta), 5);
+    return r0 + (1.f - r0) * powf(max(.0f, (1.f - costheta)), 5);
 }
 
 __device__ curandState curand_ctx;
@@ -181,8 +181,8 @@ struct DSphere
             if (discriminant > 0.f)
             {
                 discriminant = sqrtf(discriminant);
+                
                 float t0 = -b - discriminant;
-                float t1 = -b + discriminant;
                 if (t0 > .0001f && t0 < hit.t)
                 {
                     hit.t = t0;
@@ -191,6 +191,8 @@ struct DSphere
                     hit.material = &material;
                     return true;
                 }
+
+                float t1 = -b + discriminant;
                 if (t1 > .0001f && t1 < hit.t)
                 {
                     hit.t = t1;
@@ -221,9 +223,9 @@ struct DBox
         {
             // TODO: think something better
             float direction = (i == 0)? ray.direction.x : (i == 1)? ray.direction.y : ray.direction.z;
-            float origin =    (i == 0)? ray.origin.x :    (i == 1)? ray.origin.y : ray.origin.z;
-            float minbound =  (i == 0)? min_limit.x :     (i == 1)? min_limit.y : min_limit.z;
-            float maxbound =  (i == 0)? max_limit.x :     (i == 1)? max_limit.y : max_limit.z;
+            float origin =    (i == 0)? ray.origin.x    : (i == 1)? ray.origin.y    : ray.origin.z;
+            float minbound =  (i == 0)? min_limit.x     : (i == 1)? min_limit.y     : min_limit.z;
+            float maxbound =  (i == 0)? max_limit.x     : (i == 1)? max_limit.y     : max_limit.z;
 
             if (fabs(direction) < .0001f)
             {
@@ -269,7 +271,7 @@ __device__ const float3 WHITE = {1.f, 1.f, 1.f};
 __device__ const float3 BLACK = {0.f, 0.f, 0.f};
 
 template<int depth>
-__device__ float3 get_color_for(DRay ray, DSphere* spheres, int sphere_count, DBox* boxes, int box_count)
+__device__ float3 get_color_for(DRay ray, DSphere* spheres, int sphere_count, DBox* boxes, int box_count, size_t* raycount)
 {
     //
     // check for hits
@@ -295,6 +297,8 @@ __device__ float3 get_color_for(DRay ray, DSphere* spheres, int sphere_count, DB
         }
     }
     
+    ++(*raycount);
+
     //
     // return color or continue
     //
@@ -310,7 +314,7 @@ __device__ float3 get_color_for(DRay ray, DSphere* spheres, int sphere_count, DB
         float3 emission;
         if (hit_data.material && hit_data.material->scatter(ray, hit_data, attenuation, emission, scattered))
         {
-            return emission + attenuation * get_color_for<depth + 1>(scattered, spheres, sphere_count, boxes, box_count);
+            return emission + attenuation * get_color_for<depth + 1>(scattered, spheres, sphere_count, boxes, box_count, raycount);
         }
         else
         {
@@ -323,13 +327,13 @@ __device__ float3 get_color_for(DRay ray, DSphere* spheres, int sphere_count, DB
 }
 
 template<>
-__device__ float3 get_color_for<MAX_DEPTH>(DRay ray, DSphere* spheres, int sphere_count, DBox* boxes, int box_count)
+__device__ float3 get_color_for<MAX_DEPTH>(DRay ray, DSphere* spheres, int sphere_count, DBox* boxes, int box_count, size_t* raycount)
 {
     //return WHITE;
     return BLACK;
 }
 
-__global__ void raytrace(int width, int height, int samples, float3* pixels)
+__global__ void raytrace(int width, int height, int samples, float3* pixels, size_t* raycount)
 {
     const int i = (blockIdx.x * blockDim.x) + threadIdx.x;
     const int j = (blockIdx.y * blockDim.y) + threadIdx.y;
@@ -515,6 +519,7 @@ __global__ void raytrace(int width, int height, int samples, float3* pixels)
     //
     // main loop
     //
+    size_t raycount_inst = 0;
     float3 color{ .0f, .0f, .0f };
     for (int sample = 0; sample < samples; ++sample)
     {
@@ -525,8 +530,10 @@ __global__ void raytrace(int width, int height, int samples, float3* pixels)
         ray.origin = center;
         ray.direction = normalize(origin + s * horizontal + t * vertical - center);
 
-        color += get_color_for<0>(ray, spheres, spherecount, boxes, boxcount);
+        color += get_color_for<0>(ray, spheres, spherecount, boxes, boxcount, &raycount_inst);
     }
+
+    atomicAdd(raycount, raycount_inst);
     
     //
     // debug output if needed
@@ -551,7 +558,7 @@ __global__ void raytrace(int width, int height, int samples, float3* pixels)
 //
 // IFace for raytracer.cpp
 // 
-extern "C" void cuda_trace(int w, int h, int ns, float* out_buffer)
+extern "C" void cuda_trace(int w, int h, int ns, float* out_buffer, size_t& raycount)
 {
     // ensure output buffer is properly zeroed
     memset(out_buffer, 0, w * h * sizeof(float3));
@@ -580,6 +587,7 @@ extern "C" void cuda_trace(int w, int h, int ns, float* out_buffer)
     cudaStream_t d_stream[MAX_GPU];
 #endif
 
+    size_t* d_raycount;
     float3* d_output_cuda[MAX_GPU];
     float* h_output_cuda[MAX_GPU];
 
@@ -594,6 +602,8 @@ extern "C" void cuda_trace(int w, int h, int ns, float* out_buffer)
         checkCudaErrors(cudaMalloc((void**)&d_output_cuda[i], w * h * sizeof(float3)));
         checkCudaErrors(cudaMemset((void*)d_output_cuda[i], 0, w * h * sizeof(float3)));
 
+        checkCudaErrors(cudaMalloc((void**)&d_raycount, sizeof(size_t)));
+
         checkCudaErrors(cudaMallocHost((void**)&h_output_cuda[i], w * h * sizeof(float3)));
     }
 
@@ -601,7 +611,7 @@ extern "C" void cuda_trace(int w, int h, int ns, float* out_buffer)
     {
         checkCudaErrors(cudaSetDevice(i));
 
-        int threads_per_row = sqrt(gpu_properties[i].maxThreadsPerBlock) / 2;
+        int threads_per_row = sqrt(gpu_properties[i].maxThreadsPerBlock);
         int block_depth = 1;
 
         dim3 dimBlock(threads_per_row, threads_per_row, 1);
@@ -613,7 +623,7 @@ extern "C" void cuda_trace(int w, int h, int ns, float* out_buffer)
 
         checkCudaErrors(cudaMemcpyAsync(h_output_cuda[i], d_output_cuda[i], w * h * sizeof(float3), cudaMemcpyDeviceToHost, d_stream[i]));
 #else
-        raytrace<<<dimGrid, dimBlock>>>(w, h, ns / block_depth /* / num_gpus */, d_output_cuda[i]);
+        raytrace<<<dimGrid, dimBlock>>>(w, h, ns / block_depth /* / num_gpus */, d_output_cuda[i], d_raycount);
 #endif
     }
 
@@ -628,6 +638,7 @@ extern "C" void cuda_trace(int w, int h, int ns, float* out_buffer)
         checkCudaErrors(cudaDeviceSynchronize());
 
         checkCudaErrors(cudaMemcpy(out_buffer, d_output_cuda[i], w * h * sizeof(float3), cudaMemcpyDeviceToHost));
+        checkCudaErrors(cudaMemcpy(&raycount, d_raycount, sizeof(size_t), cudaMemcpyDeviceToHost));
 
         //for (int c = 0; c < w * h * 3; ++c)
         //{
@@ -636,6 +647,7 @@ extern "C" void cuda_trace(int w, int h, int ns, float* out_buffer)
 
         CUDALOG("cuda compute (%d/%d) completed!\n", i + 1, num_gpus);
 
+        checkCudaErrors(cudaFree(d_raycount));
         checkCudaErrors(cudaFree(d_output_cuda[i]));
         checkCudaErrors(cudaFreeHost(h_output_cuda[i]));
 

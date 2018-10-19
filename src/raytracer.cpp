@@ -39,7 +39,7 @@ using cc::util::clamp;
 #endif
 
 #if defined(USE_CUDA)
-extern "C" void MAINCALLCONV cuda_trace(int, int, int, float*);
+extern "C" void MAINCALLCONV cuda_trace(int, int, int, float*, size_t&);
 #endif
 
 #include "timer.hpp"
@@ -89,8 +89,10 @@ public:
 };
 
 
-vec3 color(const Ray& r, hitable* world, int depth, hitable* light_shape)
+vec3 color(const Ray& r, hitable* world, int depth, hitable* light_shape, size_t& raycount)
 {
+    ++raycount;
+
     hit_record rec;
     if (world->hit(r, 0.01f, std::numeric_limits<float>::max(), rec))
     {
@@ -101,14 +103,14 @@ vec3 color(const Ray& r, hitable* world, int depth, hitable* light_shape)
         {
             if (srec.is_specular)
             {
-                return srec.attenuation * color(srec.specular, world, depth + 1, light_shape);
+                return srec.attenuation * color(srec.specular, world, depth + 1, light_shape, raycount);
             }
 
             Ray scattered;
             float pdf_val;
             custom_pdf::generate_all(light_shape, rec.p, rec.normal, scattered, pdf_val);
 
-            return emitted + srec.attenuation * rec.mat_ptr->scattering_pdf(r, rec, scattered) * color(scattered, world, depth + 1, light_shape) / pdf_val;
+            return emitted + srec.attenuation * rec.mat_ptr->scattering_pdf(r, rec, scattered) * color(scattered, world, depth + 1, light_shape, raycount) / pdf_val;
         }
         else
         {
@@ -154,9 +156,9 @@ void progbar(size_t total, size_t samples, size_t* value, bool* quit)
 
 int MAINCALLCONV main(int argc, char** argv)
 {
-    const int nx = 640; // w
-    const int ny = 512; // h
-    const int ns = 150; // samples
+    const int nx = 800; // w
+    const int ny = 600; // h
+    const int ns = 250; // samples
 
     camera cam;
 
@@ -204,6 +206,8 @@ int MAINCALLCONV main(int argc, char** argv)
     Timer t;
     t.begin();
 
+    size_t totrays = 0;
+
 #if !defined(USE_CUDA)
     // update progress bar using a separate thread
     bool quit = false;
@@ -226,9 +230,10 @@ int MAINCALLCONV main(int argc, char** argv)
         {
             for (int s = 0; s < ns; ++s)
             {
+                size_t raycount = 0;
                 vec2 uv{ (i + fastrand()) / float(nx), (j + fastrand()) / float(ny) };
                 Ray r = cam.get_ray(uv.x, uv.y);
-                vec3 sampled_col = color(r, world, 0, hlist);
+                vec3 sampled_col = color(r, world, 0, hlist, raycount);
 
                 #pragma omp atomic
                 output[j * nx + i].r += sampled_col.r;
@@ -241,6 +246,9 @@ int MAINCALLCONV main(int argc, char** argv)
 
                 // not really interested in correctness
                 pixel_idx++;
+
+                #pragma omp atomic
+                totrays += raycount;
             }
         }
     }
@@ -250,11 +258,13 @@ int MAINCALLCONV main(int argc, char** argv)
 
 #else
 
-    cuda_trace(nx, ny, ns, reinterpret_cast<float*>(output));
+    cuda_trace(nx, ny, ns, reinterpret_cast<float*>(output), totrays);
 
 #endif
 
     t.end();
+
+    std::cout << "Average: " << std::fixed << std::setprecision(2) << (totrays / 1000000.0) / t.duration() << " MRays/s\n";
 
     //
     // output to ppm (y inverted)
