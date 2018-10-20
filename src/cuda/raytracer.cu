@@ -278,6 +278,101 @@ struct DBox
     }
 };
 
+__device__ bool intersect_spheres(DRay ray, DSphere* spheres, int sphere_count, DIntersection& hit_data)
+{
+    bool hit_something = false;
+
+    for (int i = 0; i < sphere_count; ++i)
+    {
+        DSphere& sphere = spheres[i];
+
+        float3 oc = ray.origin - sphere.center;
+        float b = dot(oc, ray.direction);
+        float c = dot(oc, oc) - sphere.radius * sphere.radius;
+
+        if (b <= .0f || c <= .0f)
+        {
+            float discriminant = b * b - c;
+            if (discriminant > 0.f)
+            {
+                discriminant = sqrtf(discriminant);
+
+                float t0 = -b - discriminant;
+                if (t0 > .0001f && t0 < hit_data.t)
+                {
+                    hit_data.t = t0;
+                    hit_data.type = eSPHERE;
+                    hit_data.index = i;
+                    hit_something = true;
+                }
+
+                float t1 = -b + discriminant;
+                if (t1 > .0001f && t1 < hit_data.t)
+                {
+                    hit_data.t = t1;
+                    hit_data.type = eSPHERE;
+                    hit_data.index = i;
+                    hit_something = true;
+                }
+            }
+        }
+    }
+
+    return hit_something;
+}
+
+__device__ bool intersect_boxes(DRay ray, DBox* boxes, int box_count, DIntersection& hit_data)
+{
+    bool hit_something = false;
+
+    for (int i = 0; i < box_count; ++i)
+    {
+        DBox& box = boxes[i];
+
+        float tmin = .0001f;
+        float tmax = FLT_MAX;
+
+        bool boxhit = false;
+        for (int side = 0; side < 3; ++side)
+        {
+            // TODO: think something better
+            float direction = (side == 0) ? ray.direction.x : (side == 1) ? ray.direction.y : ray.direction.z;
+            float origin = (side == 0) ? ray.origin.x : (side == 1) ? ray.origin.y : ray.origin.z;
+            float minbound = (side == 0) ? box.min_limit.x : (side == 1) ? box.min_limit.y : box.min_limit.z;
+            float maxbound = (side == 0) ? box.max_limit.x : (side == 1) ? box.max_limit.y : box.max_limit.z;
+
+            if (fabs(direction) < .0001f)
+            {
+                if (origin < minbound || origin > maxbound) { boxhit = false; break; }
+            }
+            else
+            {
+                float ood = 1.f / direction;
+                float t1 = (minbound - origin) * ood;
+                float t2 = (maxbound - origin) * ood;
+
+                if (t1 > t2) swap(t1, t2);
+
+                tmin = max(tmin, t1);
+                tmax = min(tmax, t2);
+
+                if (tmin > tmax || tmin > hit_data.t) { boxhit = false; break; }
+                boxhit = true;
+            }
+        }
+
+        if (boxhit)
+        {
+            hit_data.t = tmin;
+            hit_data.type = eBOX;
+            hit_data.index = i;
+            hit_something = true;
+        }
+    }
+
+    return hit_something;
+}
+
 __device__ const int MAX_DEPTH = 5;
 __device__ const float3 WHITE = {1.f, 1.f, 1.f};
 __device__ const float3 BLACK = {0.f, 0.f, 0.f};
@@ -288,37 +383,41 @@ __device__ float3 get_color_for(DRay ray, DSphere* spheres, int sphere_count, DB
     //
     // check for hits
     //
-    bool hit = false;
+    bool hitspheres = false;
+    bool hitboxes = false;
     DIntersection hit_data;
     hit_data.t = FLT_MAX;
-    for (int i = 0; i < sphere_count; ++i)
-    {
-        DSphere& sphere = spheres[i];
-        if (sphere.intersects(ray, hit_data))
-        {
-            hit_data.type = eSPHERE;
-            hit_data.index = i;
-            hit = true;
-        }
-    }
 
-    for (int i = 0; i < box_count; ++i)
-    {
-        DBox& box = boxes[i];
-        if (box.intersects(ray, hit_data))
-        {
-            hit_data.type = eBOX;
-            hit_data.index = i;
-            hit = true;
-        }
-    }
+    //for (int i = 0; i < sphere_count; ++i)
+    //{
+    //    DSphere& sphere = spheres[i];
+    //    if (sphere.intersects(ray, hit_data))
+    //    {
+    //        hit_data.type = eSPHERE;
+    //        hit_data.index = i;
+    //        hitspheres = true;
+    //    }
+    //}
+    hitspheres = intersect_spheres(ray, spheres, sphere_count, hit_data);
+
+    //for (int i = 0; i < box_count; ++i)
+    //{
+    //    DBox& box = boxes[i];
+    //    if (box.intersects(ray, hit_data))
+    //    {
+    //        hit_data.type = eBOX;
+    //        hit_data.index = i;
+    //        hitboxes = true;
+    //    }
+    //}
+    hitboxes = intersect_boxes(ray, boxes, box_count, hit_data);
 
     ++(*raycount);
 
     //
     // return color or continue
     //
-    if (hit)
+    if (hitspheres || hitboxes)
     {
         //
         // debug - show normals
@@ -375,7 +474,7 @@ __global__ void raytrace(int width, int height, int samples, float3* pixels, siz
     //
 #define CORNELL 0
 #if CORNELL
-    DSphere spheres[3];
+    __shared__ DSphere spheres[3];
     int spherecount = array_size(spheres);
     spheres[0].center = { 130 + 82.5 - 25, 215, 65 + 82.5 - 25 };
     spheres[0].radius = 50.f;
@@ -401,7 +500,7 @@ __global__ void raytrace(int width, int height, int samples, float3* pixels, siz
     //spheres[2].material.albedo = { 15.f, 15.f, 15.f };
 
 
-    DBox boxes[8];
+    __shared__ DBox boxes[8];
     int boxcount = array_size(boxes);
     // light
     boxes[0].min_limit = { 213.f, 554.f, 227.f };
@@ -432,10 +531,10 @@ __global__ void raytrace(int width, int height, int samples, float3* pixels, siz
     boxes[4].min_limit = { .0f,    555.f, 0.f };
     boxes[4].max_limit = { 555.f, 555.1f, 555.f };
     boxes[4].rot = { .0f, .0f, .0f };
-    boxes[4].material.type = eEMISSIVE;
-    boxes[4].material.albedo = { 1.f, 1.f, 1.f };
-    //boxes[4].material.type = eLAMBERTIAN;
-    //boxes[4].material.albedo = { 0.73f, .73f, .73f };
+    //boxes[4].material.type = eEMISSIVE;
+    //boxes[4].material.albedo = { 1.f, 1.f, 1.f };
+    boxes[4].material.type = eLAMBERTIAN;
+    boxes[4].material.albedo = { 0.73f, .73f, .73f };
     //back
     boxes[5].min_limit = { .0f,    .0f, 554.9f };
     boxes[5].max_limit = { 555.f, 555.f, 555.f };
@@ -465,7 +564,7 @@ __global__ void raytrace(int width, int height, int samples, float3* pixels, siz
     const float3 vup{ 0.f, 1.f, 0.f };
 
 #else
-    DSphere spheres[8];
+    __shared__ DSphere spheres[8];
     int spherecount = array_size(spheres);
     spheres[0].center = { 0.f, 0.f, -1.f };
     spheres[0].radius = .5f;
@@ -514,7 +613,7 @@ __global__ void raytrace(int width, int height, int samples, float3* pixels, siz
     spheres[7].material.type = eLAMBERTIAN;
     spheres[7].material.albedo = { .85f, .05f, .02f };
 
-    DBox boxes[1];
+    __shared__ DBox boxes[1];
     int boxcount = array_size(boxes);
     boxes[0].min_limit = { -2.f, 0.f, -3.1f };
     boxes[0].max_limit = { 2.f, 2.f, -3.f };
