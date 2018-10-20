@@ -43,10 +43,6 @@ public:
             if (temp < t_max && temp > t_min)
             {
                 rec.t = temp;
-                rec.p = r.PointAt(temp);
-                rec.normal = (rec.p - center) / radius;
-                rec.uv = get_uv_at((rec.p - center) / radius);
-                rec.mat_ptr = mat;
                 return true;
             }
 
@@ -54,15 +50,19 @@ public:
             if (temp < t_max && temp > t_min)
             {
                 rec.t = temp;
-                rec.p = r.PointAt(temp);
-                rec.normal = (rec.p - center) / radius;
-                rec.uv = get_uv_at((rec.p - center) / radius);
-                rec.mat_ptr = mat;
                 return true;
             }
         }
 
         return false;
+    }
+
+    virtual void get_hit_data(const Ray& r, hit_record& rec) const
+    {
+        rec.p = r.PointAt(rec.t);
+        rec.normal = (rec.p - center) / radius;
+        rec.uv = get_uv_at((rec.p - center) / radius);
+        rec.mat_ptr = mat;
     }
 
     virtual bool bounding_box(float t0, float t1, aabb& box) const override final

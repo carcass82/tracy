@@ -58,17 +58,20 @@ __device__ static float fastrand()
 
 __device__ float3 cuda_random_in_unit_sphere()
 {
-    //float3 point{ fastrand(), fastrand(), fastrand() };
-    //point = normalize(point);
-    //
-    //float r = powf(fastrand(), 1.f / 3.f);
-    //return r * point;
-
     float3 p;
     do {
         p = 2.0*make_float3(fastrand(), fastrand(), fastrand()) - make_float3(1, 1, 1);
     } while (dot(p,p) >= 1.0);
     return p;
+}
+
+__device__ float3 cuda_random_on_unit_sphere()
+{
+    float z = fastrand() * 2.f - 1.f;
+    float a = fastrand() * 2.f * PI;
+    float r = sqrtf(max(.0f, 1.f - z * z));
+
+    return float3{ r * cosf(a), r * sinf(a), z };
 }
 
 //
@@ -83,9 +86,13 @@ struct DRay
     __device__ float3 point_at(float t) const { return origin + t * direction; }
 };
 
+enum { eSPHERE, eBOX };
+
 struct DMaterial;
 struct DIntersection
 {
+    int type;
+    int index;
     float t;
     float3 point;
     float3 normal;
@@ -104,7 +111,7 @@ struct DMaterial
     {
         if (type == eLAMBERTIAN)
         {
-            float3 target = hit.point + hit.normal + cuda_random_in_unit_sphere();
+            float3 target = hit.point + hit.normal + cuda_random_on_unit_sphere();
             scattered.origin = hit.point;
             scattered.direction = normalize(target - hit.point);
             attenuation = albedo;
@@ -116,7 +123,7 @@ struct DMaterial
         {
             float3 reflected = reflect(normalize(ray.direction), hit.normal);
             scattered.origin = hit.point;
-            scattered.direction = reflected + roughness * cuda_random_in_unit_sphere();
+            scattered.direction = reflected + roughness * cuda_random_on_unit_sphere();
 
             attenuation = albedo;
             emission = make_float3(.0f, .0f, .0f);
@@ -186,9 +193,6 @@ struct DSphere
                 if (t0 > .0001f && t0 < hit.t)
                 {
                     hit.t = t0;
-                    hit.point = ray.point_at(t0);
-                    hit.normal = (hit.point - center) / radius;
-                    hit.material = &material;
                     return true;
                 }
 
@@ -196,14 +200,18 @@ struct DSphere
                 if (t1 > .0001f && t1 < hit.t)
                 {
                     hit.t = t1;
-                    hit.point = ray.point_at(t1);
-                    hit.normal = (hit.point - center) / radius;
-                    hit.material = &material;
                     return true;
                 }
             }
         }
         return false;
+    }
+
+    __device__ void hit_data(const DRay& ray, DIntersection& hit)
+    {
+        hit.point = ray.point_at(hit.t);
+        hit.normal = (hit.point - center) / radius;
+        hit.material = &material;
     }
 };
 
@@ -247,10 +255,14 @@ struct DBox
         }
 
         hit.t = tmin;
-        hit.point = ray.point_at(tmin);
+        return true;
+    }
+
+    __device__ void hit_data(const DRay& ray, DIntersection& hit)
+    {
+        hit.point = ray.point_at(hit.t);
         hit.normal = normal(hit.point);
         hit.material = &material;
-        return true;
     }
 
     __device__ float3 normal(const float3& point)
@@ -284,6 +296,8 @@ __device__ float3 get_color_for(DRay ray, DSphere* spheres, int sphere_count, DB
         DSphere& sphere = spheres[i];
         if (sphere.intersects(ray, hit_data))
         {
+            hit_data.type = eSPHERE;
+            hit_data.index = i;
             hit = true;
         }
     }
@@ -293,10 +307,12 @@ __device__ float3 get_color_for(DRay ray, DSphere* spheres, int sphere_count, DB
         DBox& box = boxes[i];
         if (box.intersects(ray, hit_data))
         {
+            hit_data.type = eBOX;
+            hit_data.index = i;
             hit = true;
         }
     }
-    
+
     ++(*raycount);
 
     //
@@ -308,6 +324,15 @@ __device__ float3 get_color_for(DRay ray, DSphere* spheres, int sphere_count, DB
         // debug - show normals
         //
         //return .5f * (1.f + normalize(hit_data.normal));
+
+        if (hit_data.type == eSPHERE)
+        {
+            spheres[hit_data.index].hit_data(ray, hit_data);
+        }
+        else
+        {
+            boxes[hit_data.index].hit_data(ray, hit_data);
+        }
 
         DRay scattered;
         float3 attenuation;
@@ -348,31 +373,32 @@ __global__ void raytrace(int width, int height, int samples, float3* pixels, siz
     //
     // scene definition
     //
+#define CORNELL 0
 #if CORNELL
     DSphere spheres[3];
     int spherecount = array_size(spheres);
     spheres[0].center = { 130 + 82.5 - 25, 215, 65 + 82.5 - 25 };
     spheres[0].radius = 50.f;
-    //spheres[0].material.type = eDIELECTRIC;
-    //spheres[0].material.ior = 1.5f;
-    spheres[0].material.type = eEMISSIVE;
-    spheres[0].material.albedo = { 15.f, 15.f, 15.f };
+    spheres[0].material.type = eDIELECTRIC;
+    spheres[0].material.ior = 1.5f;
+    //spheres[0].material.type = eEMISSIVE;
+    //spheres[0].material.albedo = { 15.f, 15.f, 15.f };
 
     spheres[1].center = { 265 + 82.5 + 35, 400, 295 + 82.5 - 35 };
     spheres[1].radius = 70.f;
     spheres[1].material.type = eMETAL;
-    //spheres[1].material.albedo = { .8f, .85f, .88f };
-    //spheres[1].material.roughness = .0f;
-    spheres[1].material.type = eEMISSIVE;
-    spheres[1].material.albedo = { 15.f, 15.f, 15.f };
+    spheres[1].material.albedo = { .8f, .85f, .88f };
+    spheres[1].material.roughness = .0f;
+    //spheres[1].material.type = eEMISSIVE;
+    //spheres[1].material.albedo = { 15.f, 15.f, 15.f };
     
     spheres[2].center = { 265 + 82.5 + 15, 30, 80 };
     spheres[2].radius = 30.f;
     spheres[2].material.type = eMETAL;
-    //spheres[2].material.albedo = { 1.f, .71f, .29f };
-    //spheres[2].material.roughness = .05f;
-    spheres[2].material.type = eEMISSIVE;
-    spheres[2].material.albedo = { 15.f, 15.f, 15.f };
+    spheres[2].material.albedo = { 1.f, .71f, .29f };
+    spheres[2].material.roughness = .05f;
+    //spheres[2].material.type = eEMISSIVE;
+    //spheres[2].material.albedo = { 15.f, 15.f, 15.f };
 
 
     DBox boxes[8];
@@ -406,10 +432,10 @@ __global__ void raytrace(int width, int height, int samples, float3* pixels, siz
     boxes[4].min_limit = { .0f,    555.f, 0.f };
     boxes[4].max_limit = { 555.f, 555.1f, 555.f };
     boxes[4].rot = { .0f, .0f, .0f };
-    //boxes[4].material.type = eEMISSIVE;
-    //boxes[4].material.albedo = { 1.f, 1.f, 1.f };
-    boxes[4].material.type = eLAMBERTIAN;
-    boxes[4].material.albedo = { 0.73f, .73f, .73f };
+    boxes[4].material.type = eEMISSIVE;
+    boxes[4].material.albedo = { 1.f, 1.f, 1.f };
+    //boxes[4].material.type = eLAMBERTIAN;
+    //boxes[4].material.albedo = { 0.73f, .73f, .73f };
     //back
     boxes[5].min_limit = { .0f,    .0f, 554.9f };
     boxes[5].max_limit = { 555.f, 555.f, 555.f };

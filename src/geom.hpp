@@ -13,6 +13,7 @@ using cc::math::PI;
 using cc::math::vec3;
 using cc::math::mat3;
 using cc::math::length2;
+using cc::util::max;
 
 float fastrand()
 {
@@ -25,6 +26,15 @@ float fastrand()
     s_RndState = x;
     
     return (x & 0xffffff) / 16777216.0f;
+}
+
+vec3 random_on_unit_sphere()
+{
+    float z = fastrand() * 2.f - 1.f;
+    float a = fastrand() * 2.f * PI;
+    float r = sqrtf(max(.0f, 1.f - z * z));
+
+    return vec3{ r * cosf(a), r * sinf(a), z };
 }
 
 vec3 random_in_unit_sphere()

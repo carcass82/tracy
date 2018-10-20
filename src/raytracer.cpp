@@ -147,7 +147,7 @@ void progbar(size_t total, size_t samples, size_t* value, bool* quit)
                   << "] "
                   << std::fixed << std::setprecision(1) << progress * 100.f << "%\r";
 
-        std::this_thread::sleep_for(16ms);
+        std::this_thread::sleep_for(500ms);
     }
 
     std::cout << "tracing... [" << std::string(progbarsize, '#') << "] 100.0%\n";
@@ -247,7 +247,7 @@ int MAINCALLCONV main(int argc, char** argv)
                 // not really interested in correctness
                 pixel_idx++;
 
-                #pragma omp atomic
+                //#pragma omp atomic
                 totrays += raycount;
             }
         }

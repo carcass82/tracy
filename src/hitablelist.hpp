@@ -24,6 +24,7 @@ public:
         bool hit_anything = false;
 
         float closest_so_far = t_max;
+        int closest_index_so_far = -1;
         for (int i = 0; i < list_size; ++i)
         {
             if (list[i]->hit(r, t_min, closest_so_far, temp_rec))
@@ -31,7 +32,13 @@ public:
                 hit_anything = true;
                 closest_so_far = temp_rec.t;
                 rec = temp_rec;
+                closest_index_so_far = i;
             }
+        }
+
+        if (hit_anything)
+        {
+            list[closest_index_so_far]->get_hit_data(r, rec);
         }
 
         return hit_anything;

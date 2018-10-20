@@ -22,7 +22,7 @@ public:
         vec3 reflected = reflect(normalize(r_in.GetDirection()), rec.normal);
 
         s_rec.is_specular = true;
-        s_rec.specular = Ray(rec.p, reflected + random_in_unit_sphere() * fuzz);
+        s_rec.specular = Ray(rec.p, reflected + random_on_unit_sphere() * fuzz);
         s_rec.attenuation = albedo;
 
         return true;

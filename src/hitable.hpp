@@ -26,4 +26,5 @@ public:
     virtual bool bounding_box(float t0, float t1, aabb& box) const = 0;
     virtual float pdf_value(const vec3& o, const vec3& v) const { return 0.f; }
     virtual vec3 random(const vec3& o) const { return vec3{ 1, 0, 0 }; }
+    virtual void get_hit_data(const Ray& r, hit_record& rec) const {}
 };
