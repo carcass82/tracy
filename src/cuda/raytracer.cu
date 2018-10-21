@@ -56,22 +56,13 @@ __device__ static float fastrand()
     return curand_uniform(&curand_ctx);
 }
 
-__device__ float3 cuda_random_in_unit_sphere()
-{
-    float3 p;
-    do {
-        p = 2.0*make_float3(fastrand(), fastrand(), fastrand()) - make_float3(1, 1, 1);
-    } while (dot(p,p) >= 1.0);
-    return p;
-}
-
 __device__ float3 cuda_random_on_unit_sphere()
 {
     float z = fastrand() * 2.f - 1.f;
     float a = fastrand() * 2.f * PI;
     float r = sqrtf(max(.0f, 1.f - z * z));
 
-    return float3{ r * cosf(a), r * sinf(a), z };
+    return make_float3(r * cosf(a), r * sinf(a), z);
 }
 
 //
@@ -580,7 +571,7 @@ __global__ void raytrace(int width, int height, int samples, float3* pixels, siz
     spheres[2].radius = .5f;
     spheres[2].material.type = eMETAL;
     spheres[2].material.albedo = { .8f, .85f, .88f };
-    spheres[2].material.roughness = .05f;
+    spheres[2].material.roughness = .0f;
 
     spheres[3].center = { -1.f, 0.f, -1.f };
     spheres[3].radius = .5f;
@@ -712,12 +703,19 @@ extern "C" void cuda_trace(int w, int h, int ns, float* out_buffer, size_t& rayc
     cudaStream_t d_stream[MAX_GPU];
 #endif
 
-    size_t* d_raycount;
+    num_gpus = min(num_gpus, MAX_GPU);
+
+    size_t* d_raycount[MAX_GPU];
     float3* d_output_cuda[MAX_GPU];
     float* h_output_cuda[MAX_GPU];
 
-    for (int i = num_gpus - 1; i > 0; --i)
+#if CUDA_USE_MULTIGPU
+    for (int i = num_gpus - 1; i >= 0; --i)
     {
+#else
+    {
+        int i = num_gpus - 1;
+#endif
         checkCudaErrors(cudaSetDevice(i));
 
 #if CUDA_USE_STREAMS
@@ -727,52 +725,71 @@ extern "C" void cuda_trace(int w, int h, int ns, float* out_buffer, size_t& rayc
         checkCudaErrors(cudaMalloc((void**)&d_output_cuda[i], w * h * sizeof(float3)));
         checkCudaErrors(cudaMemset((void*)d_output_cuda[i], 0, w * h * sizeof(float3)));
 
-        checkCudaErrors(cudaMalloc((void**)&d_raycount, sizeof(size_t)));
+        checkCudaErrors(cudaMalloc((void**)&d_raycount[i], sizeof(size_t)));
 
         checkCudaErrors(cudaMallocHost((void**)&h_output_cuda[i], w * h * sizeof(float3)));
     }
 
-    for (int i = num_gpus - 1; i > 0; --i)
+#if CUDA_USE_MULTIGPU
+    for (int i = num_gpus - 1; i >= 0; --i)
     {
+#else
+    {
+        int i = num_gpus - 1;
+#endif
         checkCudaErrors(cudaSetDevice(i));
 
         int threads_per_row = sqrt(gpu_properties[i].maxThreadsPerBlock);
         int block_depth = 1;
 
+#if CUDA_USE_MULTIGPU
+        int gpu_split = num_gpus;
+#else
+        int gpu_split = 1;
+#endif
+
         dim3 dimBlock(threads_per_row, threads_per_row, 1);
         dim3 dimGrid(w / dimBlock.x + 1, h / dimBlock.y + 1, block_depth);
         
-        CUDALOG("raytrace<<<(%d,%d,%d), (%d,%d,%d)>>> on gpu %d\n", dimBlock.x, dimBlock.y, dimBlock.z, dimGrid.x, dimGrid.y, dimGrid.z, i + 1);
+        CUDALOG("raytrace<<<(%d,%d,%d), (%d,%d,%d)>>> on gpu %d\n", dimBlock.x, dimBlock.y, dimBlock.z, dimGrid.x, dimGrid.y, dimGrid.z, i);
 #if CUDA_USE_STREAMS
-        raytrace<<<dimGrid, dimBlock, 0, d_stream[i]>>>(w, h, ns / block_depth /* / num_gpus */, d_output_cuda[i]);
-
-        checkCudaErrors(cudaMemcpyAsync(h_output_cuda[i], d_output_cuda[i], w * h * sizeof(float3), cudaMemcpyDeviceToHost, d_stream[i]));
+        raytrace<<<dimGrid, dimBlock, 0, d_stream[i]>>>(w, h, ns / block_depth / gpu_split, d_output_cuda[i], d_raycount[i]);
 #else
-        raytrace<<<dimGrid, dimBlock>>>(w, h, ns / block_depth /* / num_gpus */, d_output_cuda[i], d_raycount);
+        raytrace<<<dimGrid, dimBlock>>>(w, h, ns / block_depth / gpu_split, d_output_cuda[i], d_raycount[i]);
 #endif
     }
 
-    for (int i = num_gpus - 1; i > 0; --i)
+#if CUDA_USE_MULTIGPU
+    for (int i = num_gpus - 1; i >= 0; --i)
     {
+#else
+    {
+        int i = num_gpus - 1;
+#endif
         checkCudaErrors(cudaSetDevice(i));
 
 #if CUDA_USE_STREAMS
-        checkCudaErrors(cudaStreamSynchronize(d_stream[i]));
-#endif
+        checkCudaErrors(cudaMemcpyAsync(h_output_cuda[i], d_output_cuda[i], w * h * sizeof(float3), cudaMemcpyDeviceToHost, d_stream[i]));
 
+        checkCudaErrors(cudaStreamSynchronize(d_stream[i]));
+#else
         checkCudaErrors(cudaDeviceSynchronize());
 
-        checkCudaErrors(cudaMemcpy(out_buffer, d_output_cuda[i], w * h * sizeof(float3), cudaMemcpyDeviceToHost));
-        checkCudaErrors(cudaMemcpy(&raycount, d_raycount, sizeof(size_t), cudaMemcpyDeviceToHost));
+        checkCudaErrors(cudaMemcpy(h_output_cuda[i], d_output_cuda[i], w * h * sizeof(float3), cudaMemcpyDeviceToHost));
+#endif
+        
+        for (int j = 0; j < w * h * 3; ++j)
+        {
+            out_buffer[j] += h_output_cuda[i][j];
+        }
 
-        //for (int c = 0; c < w * h * 3; ++c)
-        //{
-        //    out_buffer[c] += h_output_cuda[i][c];
-        //}
+        size_t tmp;
+        checkCudaErrors(cudaMemcpy(&tmp, d_raycount[i], sizeof(size_t), cudaMemcpyDeviceToHost));
+        raycount += tmp;
 
-        CUDALOG("cuda compute (%d/%d) completed!\n", i + 1, num_gpus);
+        CUDALOG("cuda compute (%d/%d) completed!\n", i, num_gpus - 1);
 
-        checkCudaErrors(cudaFree(d_raycount));
+        checkCudaErrors(cudaFree(d_raycount[i]));
         checkCudaErrors(cudaFree(d_output_cuda[i]));
         checkCudaErrors(cudaFreeHost(h_output_cuda[i]));
 

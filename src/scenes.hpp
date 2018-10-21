@@ -126,7 +126,7 @@ hitable* gpu_scene()
     material* green = new lambertian(new constant_texture(vec3(.05f, .85f, .02f)));
     material* grey = new lambertian(new constant_texture(vec3(0.2f, 0.2f, 0.2f)));
     material* glass = new dielectric(1.5);
-    material* alluminium = new metal(vec3(.8f, .85f, .88f), .05f);
+    material* alluminium = new metal(vec3(.8f, .85f, .88f), .0f);
     material* gold = new metal(vec3(1.f, .71f, .29f), .05f);
 
     list[i++] = new sphere(vec3(0.f, 0.f, -1.f), .5f, blu);

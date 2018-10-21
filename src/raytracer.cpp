@@ -156,8 +156,8 @@ void progbar(size_t total, size_t samples, size_t* value, bool* quit)
 
 int MAINCALLCONV main(int argc, char** argv)
 {
-    const int nx = 800; // w
-    const int ny = 600; // h
+    const int nx = 1024; // w
+    const int ny = 768; // h
     const int ns = 250; // samples
 
     camera cam;
@@ -247,7 +247,7 @@ int MAINCALLCONV main(int argc, char** argv)
                 // not really interested in correctness
                 pixel_idx++;
 
-                //#pragma omp atomic
+                #pragma omp atomic
                 totrays += raycount;
             }
         }

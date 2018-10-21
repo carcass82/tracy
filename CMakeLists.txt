@@ -6,6 +6,8 @@ set(CMAKE_VERBOSE_MAKEFILE ON)
 set(CMAKE_RUNTIME_OUTPUT_DIRECTORY ${Tracy_SOURCE_DIR}/bin/)
 
 option(BUILD_WITH_CUDA "Build CUDA support." ON)
+option(CUDA_USE_STREAMS "Use async streams" OFF)
+option(CUDA_USE_MULTIGPU "Use all available CUDA enabled GPUs" OFF)
 set(CUDA_COMPUTECAPABILITY "-arch=sm_30" CACHE STRING "Cuda Arch Compile Option")
 
 #
@@ -61,9 +63,17 @@ add_executable(${PROJECT_NAME} ${SRC_MAIN} ${INC_LIST} ${INC_SHAPES} ${INC_SHAPE
 
 target_compile_features(${PROJECT_NAME} PUBLIC cxx_std_17)
 
-if(BUILD_WITH_CUDA)
+if (BUILD_WITH_CUDA)
 	add_definitions(-DUSE_CUDA)
 	set(CMAKE_CUDA_FLAGS ${CUDA_COMPUTECAPABILITY})
+
+	if (CUDA_USE_STREAMS)
+		add_definitions(-DCUDA_USE_STREAMS)
+	endif (CUDA_USE_STREAMS)
+
+	if (CUDA_USE_MULTIGPU)
+		add_definitions(-DCUDA_USE_MULTIGPU)
+	endif(CUDA_USE_MULTIGPU)
 	
 	file(GLOB SRC_CUDA "./src/cuda/*.cu" "./src/cuda/*.cuh")
 
