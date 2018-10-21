@@ -264,7 +264,7 @@ int MAINCALLCONV main(int argc, char** argv)
 
     t.end();
 
-    std::cout << "Average: " << std::fixed << std::setprecision(2) << (totrays / 1000000.0) / t.duration() << " MRays/s\n";
+    std::cout << "Average: " << std::fixed << std::setprecision(2) << (totrays / 1'000'000.0) / t.duration() << " MRays/s\n";
 
     //
     // output to ppm (y inverted)
@@ -286,5 +286,5 @@ int MAINCALLCONV main(int argc, char** argv)
 
     delete[] output;
 
-    std::cerr << "finished in " << std::fixed << std::setprecision(1) << t.duration() << " secs\n" << std::endl;
+    std::cerr << "finished in " << std::fixed << std::setprecision(2) << t.duration() << " secs\n" << std::endl;
 }

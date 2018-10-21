@@ -17,7 +17,7 @@ using cc::util::max;
 
 float fastrand()
 {
-    static uint32_t s_RndState = 1;
+    static uint32_t s_RndState = 123456789;
 #pragma omp threadprivate(s_RndState)
     
     uint32_t x = s_RndState;

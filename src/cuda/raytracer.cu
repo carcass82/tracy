@@ -659,13 +659,13 @@ __global__ void raytrace(int width, int height, int samples, float3* pixels, siz
     //color.z = .0f;
     
     float3& pixel = *(&pixels[j * width + i]);
-    pixel.x = color.x;
-    pixel.y = color.y;
-    pixel.z = color.z;
+    //pixel.x = color.x;
+    //pixel.y = color.y;
+    //pixel.z = color.z;
 
-    //atomicAdd(&pixel.x, color.x);
-    //atomicAdd(&pixel.y, color.y);
-    //atomicAdd(&pixel.z, color.z);
+    atomicAdd(&pixel.x, color.x);
+    atomicAdd(&pixel.y, color.y);
+    atomicAdd(&pixel.z, color.z);
 
     // just to be sure we're running
     if (i == 0 && j == 0 && blockIdx.z == 0) { CUDALOG("[CUDA] running kernel...\n"); }
@@ -777,11 +777,15 @@ extern "C" void cuda_trace(int w, int h, int ns, float* out_buffer, size_t& rayc
 
         checkCudaErrors(cudaMemcpy(h_output_cuda[i], d_output_cuda[i], w * h * sizeof(float3), cudaMemcpyDeviceToHost));
 #endif
-        
+      
+#if CUDA_USE_MULTIGPU
         for (int j = 0; j < w * h * 3; ++j)
         {
             out_buffer[j] += h_output_cuda[i][j];
         }
+#else
+        memcpy(out_buffer, h_output_cuda[i], w * h * 3 * sizeof(float));
+#endif
 
         size_t tmp;
         checkCudaErrors(cudaMemcpy(&tmp, d_raycount[i], sizeof(size_t), cudaMemcpyDeviceToHost));
