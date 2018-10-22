@@ -29,13 +29,14 @@ public:
         {
             outward_normal = rec.normal * -1;
             ni_over_nt = ref_idx;
-            cosine = ref_idx * dot(r_in.GetDirection(), rec.normal) / length(r_in.GetDirection());
+            cosine = dot(r_in.GetDirection(), rec.normal) / length(r_in.GetDirection());
+			cosine = sqrtf(1.f - ref_idx * ref_idx * (1.f - cosine - cosine));
         }
         else
         {
             outward_normal = rec.normal;
             ni_over_nt = 1.0f / ref_idx;
-            cosine = (dot(r_in.GetDirection(), rec.normal) * -1) / length(r_in.GetDirection());
+            cosine = -dot(r_in.GetDirection(), rec.normal) / length(r_in.GetDirection());
         }
 
         vec3 refracted = refract(normalize(r_in.GetDirection()), normalize(outward_normal), ni_over_nt);

@@ -23,7 +23,7 @@ public:
 
     vec3 emitted(const Ray& r_in, const HitData& rec, const vec2& uv, const vec3& p) const override final
     {
-        return (dot(rec.normal, r_in.GetDirection()) < .0f)? emit->value(uv, p) : ZERO;
+        return emit->value(uv, p);
     }
 
 private:
