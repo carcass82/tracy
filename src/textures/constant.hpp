@@ -8,11 +8,17 @@
 #pragma once
 #include "texture.hpp"
 
-class constant_texture : public Texture
+class Constant : public ITexture
 {
 public:
-    constant_texture() {}
-    constant_texture(const vec3& c) : color(c) {}
+    Constant()
+    {
+    }
+
+    Constant(const vec3& c)
+        : color(c)
+    {
+    }
 
     virtual vec3 value(const vec2& uv, const vec3& p) const override
     {

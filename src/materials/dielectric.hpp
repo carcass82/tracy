@@ -8,17 +8,16 @@
 #pragma once
 #include "material.hpp"
 
-class dielectric : public material
+class Dielectric : public IMaterial
 {
 public:
-    dielectric(float ri)
+    Dielectric(float ri)
         : ref_idx(ri)
     {
     }
 
-    virtual bool scatter(const Ray& r_in, const hit_record& rec, scatter_record& s_rec) const override
+    bool scatter(const Ray& r_in, const HitData& rec, ScatterData& s_rec) const override final
     {
-        s_rec.is_specular = true;
         s_rec.attenuation = vec3(1.0f, 1.0f, 1.0f);
 
         vec3 reflected = reflect(normalize(r_in.GetDirection()), rec.normal);
@@ -39,28 +38,17 @@ public:
             cosine = (dot(r_in.GetDirection(), rec.normal) * -1) / length(r_in.GetDirection());
         }
 
-        float reflect_prob;
-        vec3 refracted;
-        refracted = refract(normalize(r_in.GetDirection()), normalize(outward_normal), ni_over_nt);
-        if (refracted != ZERO)
-        {
-            reflect_prob = schlick(cosine, ref_idx);
-        }
-        else
-        {
-            reflect_prob = 1.0f;
-        }
+        vec3 refracted = refract(normalize(r_in.GetDirection()), normalize(outward_normal), ni_over_nt);
+        float reflect_prob = (refracted != ZERO)? schlick(cosine, ref_idx) : 1.f;
 
-        if (fastrand() < reflect_prob)
-        {
-            s_rec.specular = Ray(rec.p, reflected);
-        }
-        else
-        {
-            s_rec.specular = Ray(rec.p, refracted);
-        }
+        s_rec.scattered = (fastrand() < reflect_prob)? Ray(rec.p, reflected) : Ray(rec.p, refracted);
 
         return true;
+    }
+
+    vec3 emitted(const Ray& r_in, const HitData& rec, const vec2& uv, const vec3& p) const override final
+    {
+        return ZERO;
     }
 
 private:

@@ -8,31 +8,30 @@
 #pragma once
 #include "material.hpp"
 
-class lambertian : public material
+class Lambertian : public IMaterial
 {
 public:
-    lambertian(Texture* a)
+    Lambertian(ITexture* a)
         : albedo(a)
     {
     }
 
-    virtual bool scatter(const Ray& r_in, const hit_record& rec, scatter_record& srec) const override
+    bool scatter(const Ray& r_in, const HitData& rec, ScatterData& srec) const override final
     {
-        srec.is_specular = false;
+        vec3 target = rec.p + rec.normal + random_on_unit_sphere();
+        srec.scattered = Ray(rec.p, normalize(target - rec.p));
         srec.attenuation = albedo->value(rec.uv, rec.p);
 
         return true;
     }
 
-    virtual float scattering_pdf(const Ray &r_in, const hit_record &rec, const Ray &scattered) const
+    vec3 emitted(const Ray& r_in, const HitData& rec, const vec2& uv, const vec3& p) const override final
     {
-        float cosine = max(.0f, dot(rec.normal, normalize(scattered.GetDirection())));
-        return cosine / PI;
+        return ZERO;
     }
 
-    virtual bool islambertian() const override { return true; }
-
 private:
-    Texture* albedo;
+    const vec3 ZERO;
+    ITexture* albedo;
 };
 

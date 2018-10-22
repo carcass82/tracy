@@ -8,28 +8,32 @@
 #pragma once
 #include "material.hpp"
 
-class metal : public material
+class Metal : public IMaterial
 {
 public:
-    metal(const vec3& a, float f)
+    Metal(const vec3& a, float f)
         : albedo(a)
+        , roughness(f)
     {
-        fuzz = min(f, 1.0f);
     }
 
-    virtual bool scatter(const Ray& r_in, const hit_record& rec, scatter_record& s_rec) const override
+    bool scatter(const Ray& r_in, const HitData& rec, ScatterData& s_rec) const override final
     {
         vec3 reflected = reflect(normalize(r_in.GetDirection()), rec.normal);
-
-        s_rec.is_specular = true;
-        s_rec.specular = Ray(rec.p, reflected + random_on_unit_sphere() * fuzz);
+        s_rec.scattered = Ray(rec.p, reflected + roughness * random_on_unit_sphere());
         s_rec.attenuation = albedo;
 
         return true;
     }
 
+    vec3 emitted(const Ray& r_in, const HitData& rec, const vec2& uv, const vec3& p) const override final
+    {
+        return ZERO;
+    }
+
 private:
+    const vec3 ZERO;
     vec3 albedo;
-    float fuzz;
+    float roughness;
 };
 

@@ -8,27 +8,26 @@
 #pragma once
 #include "material.hpp"
 
-class emissive : public material
+class Emissive : public IMaterial
 {
 public:
-    emissive(Texture* a)
+    Emissive(ITexture* a)
         : emit(a)
     {
     }
 
-    virtual vec3 emitted(const Ray& r_in, const hit_record& rec, const vec2& uv, const vec3& p) const override
+    bool scatter(const Ray &, const HitData &, ScatterData &) const override final
     {
-        if (dot(rec.normal, r_in.GetDirection()) < .0f)
-        {
-            return emit->value(uv, p);
-        }
-        else
-        {
-            return vec3();
-        }
+        return false;
+    }
+
+    vec3 emitted(const Ray& r_in, const HitData& rec, const vec2& uv, const vec3& p) const override final
+    {
+        return (dot(rec.normal, r_in.GetDirection()) < .0f)? emit->value(uv, p) : ZERO;
     }
 
 private:
-    Texture* emit;
+    ITexture* emit;
+    const vec3 ZERO;
 };
 

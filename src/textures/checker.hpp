@@ -8,11 +8,18 @@
 #pragma once
 #include "texture.hpp"
 
-class checker_texture : public Texture
+class Checker : public ITexture
 {
 public:
-    checker_texture() {}
-    checker_texture(Texture* t0, Texture* t1): even(t0), odd(t1) {}
+    Checker()
+    {
+    }
+
+    Checker(ITexture* t0, ITexture* t1)
+        : even(t0)
+        , odd(t1)
+    {
+    }
 
     virtual vec3 value(const vec2& uv, const vec3& p) const override
     {
@@ -21,7 +28,7 @@ public:
     }
 
 private:
-    Texture* even;
-    Texture* odd;
+    ITexture* even;
+    ITexture* odd;
 };
 

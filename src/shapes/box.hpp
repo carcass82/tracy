@@ -6,44 +6,91 @@
  */
 
 #pragma once
-#include "hitable.hpp"
-#include "hitablelist.hpp"
-#include "rect.hpp"
-#include "modifiers/flipnormals.hpp"
+#include "shape.hpp"
 
-class box : public hitable
+class Box : public IShape
 {
 public:
-    box() {}
-    box(const vec3& p0, const vec3& p1, material* ptr)
-        : pmin(p0), pmax(p1)
+    Box()
     {
-        hitable** list = new hitable*[6];
-
-        list[0] = new xy_rect(p0.x, p1.x, p0.y, p1.y, p1.z, ptr);
-        list[1] = new flip_normals(new xy_rect(p0.x, p1.x, p0.y, p1.y, p0.z, ptr));
-        list[2] = new xz_rect(p0.x, p1.x, p0.z, p1.z, p1.y, ptr);
-        list[3] = new flip_normals(new xz_rect(p0.x, p1.x, p0.z, p1.z, p0.y, ptr));
-        list[4] = new yz_rect(p0.y, p1.y, p0.z, p1.z, p1.x, ptr);
-        list[5] = new flip_normals(new yz_rect(p0.y, p1.y, p0.z, p1.z, p0.x, ptr));
-
-        list_ptr = new hitable_list(list, 6);
     }
 
-    virtual bool hit(const Ray& r, float t_min, float t_max, hit_record& rec) const override
+    Box(const vec3& p0, const vec3& p1, IMaterial* ptr)
+        : pmin(p0)
+        , pmax(p1)
+        , mat(ptr)
     {
-        return list_ptr->hit(r, t_min, t_max, rec);
     }
 
-    virtual bool bounding_box(float t0, float t1, aabb& box) const override
+    virtual bool hit(const Ray& r, float t_min, float t_max, HitData& rec) const override
     {
-        box = aabb(pmin, pmax);
+        float tmin = t_min;
+        float tmax = FLT_MAX;
+
+        for (int i = 0; i < 3; ++i)
+        {
+            float direction = r.GetDirection()[i];
+            float origin = r.GetOrigin()[i];
+            float minbound = pmin[i];
+            float maxbound = pmax[i];
+
+            if (fabsf(direction) < .0001f)
+            {
+                if (origin < minbound || origin > maxbound) return false;
+            }
+            else
+            {
+                float ood = cc::math::fast::rcp(direction);
+                float t1 = (minbound - origin) * ood;
+                float t2 = (maxbound - origin) * ood;
+
+                if (t1 > t2) cc::util::swap(t1, t2);
+
+                tmin = max(tmin, t1);
+                tmax = min(tmax, t2);
+
+                if (tmin > tmax || tmin > t_max) return false;
+            }
+        }
+
+        rec.t = tmin;
         return true;
     }
 
+    virtual void get_hit_data(const Ray& r, HitData& rec) const
+    {
+        rec.p = r.PointAt(rec.t);
+        rec.normal = get_normal(rec.p);
+        rec.uv = get_uv(rec.p);
+        rec.mat_ptr = mat;
+    }
+
 private:
+    vec3 get_normal(const vec3& point) const
+    {
+        if (fabsf(pmin.x - point.x) < cc::math::EPS) return vec3(-1.f, .0f, .0f);
+        if (fabsf(pmax.x - point.x) < cc::math::EPS) return vec3(1.f, .0f, .0f);
+        if (fabsf(pmin.y - point.y) < cc::math::EPS) return vec3(.0f, -1.f, .0f);
+        if (fabsf(pmax.y - point.y) < cc::math::EPS) return vec3(.0f, 1.f, .0f);
+        if (fabsf(pmin.z - point.z) < cc::math::EPS) return vec3(.0f, .0f, -1.f);
+        return vec3(.0f, .0f, 1.f);
+    }
+
+    vec2 get_uv(const vec3& point) const
+    {
+        if ((fabsf(pmin.x - point.x) < cc::math::EPS) || (fabsf(pmax.x - point.x) < cc::math::EPS))
+        {
+            return vec2((point.y - pmin.y) / (pmax.y - pmin.y), (point.z - pmin.z) / (pmax.z - pmin.z));
+        }
+        if ((fabsf(pmin.y - point.y) < cc::math::EPS) || (fabsf(pmax.y - point.y) < cc::math::EPS))
+        {
+            return vec2((point.x - pmin.x) / (pmax.x - pmin.x), (point.z - pmin.z) / (pmax.z - pmin.z));
+        }
+        return vec2((point.x - pmin.x) / (pmax.x - pmin.x), (point.y - pmin.y) / (pmax.y - pmin.y));
+    }
+
     vec3 pmin;
     vec3 pmax;
-    hitable* list_ptr;
+    IMaterial* mat;
 };
 

@@ -6,14 +6,14 @@
  */
 
 #pragma once
-#include "hitable.hpp"
+#include "shape.hpp"
 
 using cc::math::vec2;
 
-class sphere : public hitable
+class Sphere : public IShape
 {
 public:
-    sphere(vec3 c, float r, material* m)
+    Sphere(vec3 c, float r, IMaterial* m)
         : center(c)
         , radius(r)
         , radius2(r * r)
@@ -21,75 +21,51 @@ public:
     {
     }
 
-    virtual bool hit(const Ray& r, float t_min, float t_max, hit_record& rec) const override final
+    virtual bool hit(const Ray& r, float t_min, float t_max, HitData& rec) const override final
     {
         vec3 oc = r.GetOrigin() - center;
 
         float a = dot(r.GetDirection(), r.GetDirection());
         float b = dot(oc, r.GetDirection());
         float c = dot(oc, oc) - radius2;
-        float discriminant = b * b - a * c;
 
         //
         // b > 0     - ray pointing away from sphere
         // c > 0     - ray does not start inside sphere
         // discr < 0 - ray does not hit the sphere
         //
-        if (!(discriminant < .0f))
+        if (b <= .0f || c <= .0f)
         {
-            float sq_bac = sqrtf(discriminant);
-
-            float temp = (-b - sq_bac) / a;
-            if (temp < t_max && temp > t_min)
+            float discriminant = b * b - a * c;
+            if (discriminant > .0f)
             {
-                rec.t = temp;
-                return true;
-            }
+                float sq_bac = sqrtf(discriminant);
 
-            temp = (-b + sq_bac) / a;
-            if (temp < t_max && temp > t_min)
-            {
-                rec.t = temp;
-                return true;
+                float t0 = (-b - sq_bac) / a;
+                if (t0 < t_max && t0 > t_min)
+                {
+                    rec.t = t0;
+                    return true;
+                }
+
+                float t1 = (-b + sq_bac) / a;
+                if (t1 < t_max && t1 > t_min)
+                {
+                    rec.t = t1;
+                    return true;
+                }
             }
         }
 
         return false;
     }
 
-    virtual void get_hit_data(const Ray& r, hit_record& rec) const
+    virtual void get_hit_data(const Ray& r, HitData& rec) const
     {
         rec.p = r.PointAt(rec.t);
         rec.normal = (rec.p - center) / radius;
         rec.uv = get_uv_at((rec.p - center) / radius);
         rec.mat_ptr = mat;
-    }
-
-    virtual bool bounding_box(float t0, float t1, aabb& box) const override final
-    {
-        box = aabb(center - vec3(radius), center + vec3(radius));
-        return true;
-    }
-
-    virtual float pdf_value(const vec3& o, const vec3& v) const override final
-    {
-        hit_record rec;
-        if (hit(Ray(o, v), 0.001f, FLT_MAX, rec))
-        {
-            float cos_theta_max = sqrtf(1.f - radius2 / length2(center - o));
-            float solid_angle = 2.f * PI * (1.f - cos_theta_max);
-            return 1.f / solid_angle;
-        }
-        return .0f;
-    }
-
-    virtual vec3 random(const vec3& o) const override final
-    {
-        vec3 direction = center - o;
-        float d2 = length2(direction);
-
-        mat3 onb = build_orthonormal_basis(direction);
-        return random_to_sphere(radius, d2) * onb;
     }
 
 private:
@@ -104,6 +80,6 @@ private:
     vec3 center;
     float radius;
     float radius2;
-    material* mat;
+    IMaterial* mat;
 };
 

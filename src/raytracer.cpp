@@ -31,86 +31,40 @@ using cc::math::vec3;
 using cc::util::clamp;
 
 #if defined(_MSC_VER)
- #define MAINCALLCONV __cdecl
  #define NOVTABLE __declspec(novtable)
 #else
- #define MAINCALLCONV
  #define NOVTABLE
 #endif
 
 #if defined(USE_CUDA)
-extern "C" void MAINCALLCONV cuda_trace(int, int, int, float*, size_t&);
+extern "C" void cuda_trace(int, int, int, float*, size_t&);
 #endif
 
 #include "timer.hpp"
-#include "material.hpp"
+#include "materials/material.hpp"
 #include "camera.hpp"
-#include "hitable.hpp"
+#include "shapes/shape.hpp"
+#include "shapes/shapelist.hpp"
 #include "ray.hpp"
 #include "geom.hpp"
-#include "pdf.hpp"
-#include "pdf/hitable.hpp"
-#include "pdf/cosine.hpp"
-#include "pdf/mix.hpp"
 #include "scenes.hpp"
 
 // max "bounces" for tracing
-#define MAX_DEPTH 30
+#define MAX_DEPTH 10
 
-class custom_pdf : public pdf
-{
-public:
-    float value(const vec3& direction) const override final { return .5f; }
-    vec3 generate() const override final { return vec3{1, 0, 0}; }
-
-    //
-    // avoid memleaks or simply out-of-memory for too many new PDFs
-    // (at the cost of objects created and destoyed each loop - profiler does seem happy though!)
-    //
-    static void generate_all(hitable* shape, const vec3& o, const vec3& w, Ray& out_scattered, float& out_pdf)
-    {
-        if (shape)
-        {
-            hitable_pdf objectpdf(shape, o);
-            cosine_pdf cospdf(w);
-
-            mix_pdf mixpdf(&cospdf, &objectpdf, .45f);
-
-            out_scattered = Ray(o, mixpdf.generate());
-            out_pdf = mixpdf.value(out_scattered.GetDirection());
-        }
-        else
-        {
-            cosine_pdf cospdf(w);
-            out_scattered = Ray(o, cospdf.generate());
-            out_pdf = cospdf.value(out_scattered.GetDirection());
-        }
-    }
-};
-
-
-vec3 color(const Ray& r, hitable* world, int depth, hitable* light_shape, size_t& raycount)
+vec3 color(const Ray& r, IShape* world, int depth, size_t& raycount)
 {
     ++raycount;
 
-    hit_record rec;
-    if (world->hit(r, 0.01f, std::numeric_limits<float>::max(), rec))
+    HitData rec;
+    if (world->hit(r, 0.001f, std::numeric_limits<float>::max(), rec))
     {
-        scatter_record srec;
         vec3 emitted = rec.mat_ptr->emitted(r, rec, rec.uv, rec.p);
 
+        ScatterData srec;
         if (depth < MAX_DEPTH && rec.mat_ptr->scatter(r, rec, srec))
         {
-            if (srec.is_specular)
-            {
-                return srec.attenuation * color(srec.specular, world, depth + 1, light_shape, raycount);
-            }
-
-            Ray scattered;
-            float pdf_val;
-            custom_pdf::generate_all(light_shape, rec.p, rec.normal, scattered, pdf_val);
-
-            return emitted + srec.attenuation * rec.mat_ptr->scattering_pdf(r, rec, scattered) * color(scattered, world, depth + 1, light_shape, raycount) / pdf_val;
+            return emitted + srec.attenuation * color(srec.scattered, world, depth + 1, raycount);
         }
         else
         {
@@ -118,17 +72,15 @@ vec3 color(const Ray& r, hitable* world, int depth, hitable* light_shape, size_t
         }
 
     }
-    else
-    {
-        //
-        // fake sky-ish gradient
-        //
-        //vec3 unit_direction = normalize(r.GetDirection());
-        //float t = (unit_direction.y + 1.f) * .5;
-        //return (1.f - t) * vec3{1.f, 1.f, 1.f} + t * vec3{.5f, .7f, 1.f};
 
-        return vec3{ .0f, .0f, .0f };
-    }
+    //
+    // fake sky-ish gradient
+    //
+    //vec3 unit_direction = normalize(r.GetDirection());
+    //float t = (unit_direction.y + 1.f) * .5;
+    //return (1.f - t) * vec3{1.f, 1.f, 1.f} + t * vec3{.5f, .7f, 1.f};
+
+    return vec3{ .0f, .0f, .0f };
 }
 
 #if !defined(USE_CUDA)
@@ -154,32 +106,22 @@ void progbar(size_t total, size_t samples, size_t* value, bool* quit)
 }
 #endif
 
-int MAINCALLCONV main(int argc, char** argv)
+int main(int argc, char** argv)
 {
     const int nx = 1024; // w
     const int ny = 768; // h
     const int ns = 250; // samples
 
-    camera cam;
+    Camera cam;
 
     // test
     //hitable* world = load_scene(eRANDOM, cam, float(nx) / float(ny));
-    //hitable* list[] =
-    //{
-    //    new xz_rect(-20, 20, -20, 20, 10, nullptr) // light
-    //};
-    //hitable_list* hlist = new hitable_list(list, cc::util::array_size(list));
     
     // modified cornell box
     //hitable* world = load_scene(eCORNELLBOX, cam, float(nx) / float(ny));
-    hitable* world = load_scene(eTESTGPU, cam, float(nx) / float(ny));
-    hitable* list[] =
-    {
-        new xz_rect(213, 343, 227, 332, 554, nullptr)
-        /*, // light
-        new sphere(vec3(130 + 82.5 - 25, 215, 65 + 82.5 - 25), 50.0, nullptr) // glass sphere*/
-    };
-    hitable_list* hlist = new hitable_list(list, cc::util::array_size(list));
+
+    // test same scene as gpu version
+    IShape* world = load_scene(eTESTGPU, cam, float(nx) / float(ny));
 
 #if !defined(USE_CUDA)
     char filename[256] = { "output.ppm" };
@@ -232,8 +174,7 @@ int MAINCALLCONV main(int argc, char** argv)
             {
                 size_t raycount = 0;
                 vec2 uv{ (i + fastrand()) / float(nx), (j + fastrand()) / float(ny) };
-                Ray r = cam.get_ray(uv.x, uv.y);
-                vec3 sampled_col = color(r, world, 0, hlist, raycount);
+                vec3 sampled_col = color(cam.get_ray(uv.x, uv.y), world, 0, raycount);
 
                 #pragma omp atomic
                 output[j * nx + i].r += sampled_col.r;

@@ -13,12 +13,12 @@ using cc::math::radians;
 using cc::math::cross;
 using cc::math::normalize;
 
-class camera
+class Camera
 {
 public:
-    camera() {}
+    Camera() {}
 
-    camera(const vec3& lookfrom, const vec3& lookat, const vec3& vup, float vfov, float aspect, float aperture, float focus_dist)
+    Camera(const vec3& lookfrom, const vec3& lookat, const vec3& vup, float vfov, float aspect, float aperture, float focus_dist)
     {
         setup(lookfrom, lookat, vup, vfov, aspect, aperture, focus_dist);
     }
