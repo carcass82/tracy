@@ -60,7 +60,7 @@ IShape* random_scene()
 
     
     // area light
-    //list[i++] = new flip_normals(new xz_rect(-20, 20, -20, 20, 10, new emissive(new Constant(vec3(2,2,2)))));
+    list[i++] = new Box(vec3(-20.f, 10.f, -20.f), vec3(20.f, 10.1f, 20.f), new Emissive(new Constant(vec3(2, 2, 2))));
 
     // lambertian
     list[i++] = new Sphere(vec3(0.f, 1.f, 0.f), 1.0f, new Lambertian(new Constant(vec3(0.4f, 0.2f, 0.1f))));
@@ -81,42 +81,38 @@ IShape* random_scene()
 
 IShape* cornellbox_scene()
 {
-    /*
     const int n = 500;
-    hitable** list = new hitable*[n + 1];
+    IShape** list = new IShape*[n + 1];
 
-    material* red = new Lambertian(new constant_texture(vec3(0.65f, 0.05f, 0.05f)));
-    material* white = new Lambertian(new constant_texture(vec3(0.73f, 0.73f, 0.73f)));
-    material* green = new Lambertian(new constant_texture(vec3(0.12f, 0.45f, 0.15f)));
-    material* light = new emissive(new constant_texture(vec3(15.f, 15.f, 15.f)));
+    IMaterial* red = new Lambertian(new Constant(vec3(0.65f, 0.05f, 0.05f)));
+    IMaterial* white = new Lambertian(new Constant(vec3(0.73f, 0.73f, 0.73f)));
+    IMaterial* green = new Lambertian(new Constant(vec3(0.12f, 0.45f, 0.15f)));
+    IMaterial* light = new Emissive(new Constant(vec3(15.f, 15.f, 15.f)));
     
     int i = 0;
-    list[i++] = new flip_normals(new yz_rect(0, 555, 0, 555, 555, green));
-    list[i++] = new yz_rect(0, 555, 0, 555, 0, red);
-    list[i++] = new flip_normals(new xz_rect(213, 343, 227, 332, 554, light));
-    list[i++] = new flip_normals(new xz_rect(0, 555, 0, 555, 555, white));
-    list[i++] = new xz_rect(0, 555, 0, 555, 0, white);
-    list[i++] = new flip_normals(new xy_rect(0, 555, 0, 555, 555, white));
-
-    // large box
-    list[i++] = new translate(new rotate_y(new box(vec3(0, 0, 0), vec3(165, 330, 165), white), 15), vec3(265, 0, 295));
-
-    // small box
-    list[i++] = new translate(new rotate_y(new box(vec3(0, 0, 0), vec3(165, 165, 165), white), -18), vec3(130, 0, 65));
+    //list[i++] = new flip_normals(new yz_rect(0, 555, 0, 555, 555, green));
+    //list[i++] = new yz_rect(0, 555, 0, 555, 0, red);
+    //list[i++] = new flip_normals(new xz_rect(213, 343, 227, 332, 554, light));
+    //list[i++] = new flip_normals(new xz_rect(0, 555, 0, 555, 555, white));
+    //list[i++] = new xz_rect(0, 555, 0, 555, 0, white);
+    //list[i++] = new flip_normals(new xy_rect(0, 555, 0, 555, 555, white));
+    
+    //// large box
+    //list[i++] = new translate(new rotate_y(new box(vec3(0, 0, 0), vec3(165, 330, 165), white), 15), vec3(265, 0, 295));
+    //
+    //// small box
+    //list[i++] = new translate(new rotate_y(new box(vec3(0, 0, 0), vec3(165, 165, 165), white), -18), vec3(130, 0, 65));
 
     // "custom" spheres to test materials
-    material* alluminium = new Metal(vec3(.8f, .85f, .88f), .05f);
-    material* glass = new Dielectric(1.5);
-    material* gold = new Metal(vec3(1.f, .71f, .29f), .05f);
+    IMaterial* alluminium = new Metal(vec3(.8f, .85f, .88f), .05f);
+    IMaterial* glass = new Dielectric(1.5);
+    IMaterial* gold = new Metal(vec3(1.f, .71f, .29f), .05f);
 
     list[i++] = new Sphere(vec3(130 + 82.5 - 25, 215, 65 + 82.5 - 25), 50.0, glass);
     list[i++] = new Sphere(vec3(265 + 82.5 + 35, 400, 295 + 82.5 - 35), 70.0, alluminium);
     list[i++] = new Sphere(vec3(265 + 82.5 + 15, 30, 80), 30.0, gold);
 
     return new ShapeList(list, i);
-    */
-
-    return nullptr;
 }
 
 IShape* gpu_scene()
@@ -128,7 +124,7 @@ IShape* gpu_scene()
     IMaterial* light = new Emissive(new Constant(vec3(2.f, 2.f, 2.f)));
     IMaterial* blu = new Lambertian(new Constant(vec3(0.1f, 0.2f, 0.5f)));
     IMaterial* red = new Lambertian(new Constant(vec3(.85f, .05f, .02f)));
-    IMaterial* green = new Lambertian(new Constant(vec3(.05f, .85f, .02f)));
+    IMaterial* green = new Lambertian(new Checker(new Constant(vec3(0.85f, 0.1f, 0.1f)), new Constant(vec3(0.1f, 0.1f, 0.9f))));
     IMaterial* grey = new Lambertian(new Constant(vec3(0.2f, 0.2f, 0.2f)));
     IMaterial* glass = new Dielectric(1.5);
     IMaterial* alluminium = new Metal(vec3(.8f, .85f, .88f), .0f);
