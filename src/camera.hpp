@@ -18,43 +18,35 @@ class Camera
 public:
     Camera() {}
 
-    Camera(const vec3& lookfrom, const vec3& lookat, const vec3& vup, float vfov, float aspect, float aperture, float focus_dist)
+    Camera(const vec3& eye, const vec3& center, const vec3& up, float fov, float ratio)
     {
-        setup(lookfrom, lookat, vup, vfov, aspect, aperture, focus_dist);
+        setup(eye, center, up, fov, ratio);
     }
 
-    void setup(const vec3& lookfrom, const vec3& lookat, const vec3& vup, float vfov, float aspect, float aperture, float focus_dist)
+    void setup(const vec3& eye, const vec3& center, const vec3& up, float fov, float ratio)
     {
-        lens_radius = aperture / 2.0f;
-
-        float theta = radians(vfov);
+        float theta = radians(fov);
         float half_height = tanf(theta / 2.0f);
-        float half_width = aspect * half_height;
+        float half_width = ratio * half_height;
 
-        origin = lookfrom;
-        vec3 w = normalize(lookfrom - lookat);
-        vec3 u = normalize(cross(vup, w));
+		position = eye;
+        vec3 w = normalize(eye - center);
+        vec3 u = normalize(cross(up, w));
         vec3 v = cross(w, u);
 
-        lower_left_corner = origin - half_width * focus_dist * u - half_height * focus_dist * v - focus_dist * w;
-        horizontal = 2.0f * half_width * focus_dist * u;
-        vertical = 2.0f * half_height * focus_dist * v;
+        lower_left_corner = eye - half_width * u - half_height * v - w;
+        horizontal = 2.0f * half_width * u;
+        vertical = 2.0f * half_height * v;
     }
 
     Ray get_ray(float s, float t) const
     {
-        vec3 rd = lens_radius * random_in_unit_disk();
-        vec3 offset = u * rd.x + v * rd.y;
-        return Ray(origin + offset, normalize(lower_left_corner + s * horizontal + t * vertical - origin - offset));
+        return Ray(position, normalize(lower_left_corner + s * horizontal + t * vertical - position));
     }
 
 private:
-    vec3 origin;
+	vec3 position;
     vec3 lower_left_corner;
     vec3 horizontal;
     vec3 vertical;
-    vec3 u;
-    vec3 v;
-    vec3 w;
-    float lens_radius;
 };
