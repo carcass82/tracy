@@ -19,6 +19,7 @@
 #include <vector>
 #include <cfloat>
 #include <cassert>
+#include <ctime>
 #include <thread>
 #include <chrono>
 
@@ -59,6 +60,11 @@ vec3 color(const Ray& r, IShape* world, int depth, size_t& raycount)
     HitData rec;
     if (world->hit(r, 0.001f, std::numeric_limits<float>::max(), rec))
     {
+        //
+        // debug - show normals
+        //
+        //return .5f * (1.f + normalize(rec.normal));
+
         vec3 emitted = rec.mat_ptr->emitted(r, rec, rec.uv, rec.p);
 
         ScatterData srec;
@@ -76,7 +82,7 @@ vec3 color(const Ray& r, IShape* world, int depth, size_t& raycount)
     //
     // fake sky-ish gradient
     //
-    //vec3 unit_direction = normalize(r.GetDirection());
+    //vec3 unit_direction = normalize(r.get_direction());
     //float t = (unit_direction.y + 1.f) * .5;
     //return (1.f - t) * vec3{1.f, 1.f, 1.f} + t * vec3{.5f, .7f, 1.f};
 
@@ -123,15 +129,20 @@ int main(int argc, char** argv)
     // test same scene as gpu version
     IShape* world = load_scene(eTESTGPU, cam, float(nx) / float(ny));
 
-#if !defined(USE_CUDA)
-    char filename[256] = { "output.ppm" };
-#else
-    char filename[256] = { "output_cuda.ppm" };
-#endif
-    if (argc == 2)
+    char filename[256];
     {
-        memset(filename, 0, 256);
-        strncpy(filename, argv[1], 255);
+        time_t t = time(nullptr);
+#if !defined(USE_CUDA)
+        strftime(filename, 256, "output-%Y%m%d-%H.%M.%S.ppm", localtime(&t));
+#else
+        strftime(filename, 256, "output-cuda-%Y%m%d-%H.%M.%S.ppm", localtime(&t));
+#endif
+
+        if (argc == 2)
+        {
+            memset(filename, 0, 256);
+            strncpy(filename, argv[1], 255);
+        }
     }
 
     std::ofstream ppm_stream(filename, std::ios::binary);

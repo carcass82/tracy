@@ -23,10 +23,10 @@ public:
 
     virtual bool hit(const Ray& r, float t_min, float t_max, HitData& rec) const override final
     {
-        vec3 oc = r.GetOrigin() - center;
+        vec3 oc{ r.get_origin() - center };
 
-        float a = dot(r.GetDirection(), r.GetDirection());
-        float b = dot(oc, r.GetDirection());
+        float a = dot(r.get_direction(), r.get_direction());
+        float b = dot(oc, r.get_direction());
         float c = dot(oc, oc) - radius2;
 
         //
@@ -62,7 +62,7 @@ public:
 
     virtual void get_hit_data(const Ray& r, HitData& rec) const
     {
-        rec.p = r.PointAt(rec.t);
+        rec.p = r.point_at(rec.t);
         rec.normal = (rec.p - center) / radius;
         rec.uv = get_uv_at((rec.p - center) / radius);
         rec.mat_ptr = mat;

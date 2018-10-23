@@ -29,8 +29,8 @@ public:
 
         for (int i = 0; i < 3; ++i)
         {
-            float direction = r.GetDirection()[i];
-            float origin = r.GetOrigin()[i];
+            float direction = r.get_direction()[i];
+            float origin = r.get_origin()[i];
             float minbound = pmin[i];
             float maxbound = pmax[i];
 
@@ -59,7 +59,7 @@ public:
 
     virtual void get_hit_data(const Ray& r, HitData& rec) const
     {
-        rec.p = r.PointAt(rec.t);
+        rec.p = r.point_at(rec.t);
         rec.normal = get_normal(rec.p);
         rec.uv = get_uv(rec.p);
         rec.mat_ptr = mat;

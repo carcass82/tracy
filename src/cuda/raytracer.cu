@@ -133,13 +133,14 @@ struct DMaterial
             {
                 outward_normal = -1.f * hit.normal;
                 ni_nt = ior;
-                cosine = ior * dot(ray.direction, hit.normal);
+                cosine = dot(ray.direction, hit.normal) / length(ray.direction);
+                cosine = sqrtf(1.f - ior * ior * (1.f - cosine - cosine));
             }
             else
             {
                 outward_normal = hit.normal;
                 ni_nt = 1.f / ior;
-                cosine = -dot(ray.direction, hit.normal);
+                cosine = -dot(ray.direction, hit.normal) / length(ray.direction);
             }
 
             float3 refracted;

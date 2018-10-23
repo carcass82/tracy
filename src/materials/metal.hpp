@@ -19,7 +19,7 @@ public:
 
     bool scatter(const Ray& r_in, const HitData& rec, ScatterData& s_rec) const override final
     {
-        vec3 reflected = reflect(normalize(r_in.GetDirection()), rec.normal);
+        vec3 reflected = reflect(normalize(r_in.get_direction()), rec.normal);
         s_rec.scattered = Ray(rec.p, reflected + roughness * random_on_unit_sphere());
         s_rec.attenuation = albedo;
 
