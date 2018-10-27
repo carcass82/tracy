@@ -10,12 +10,6 @@
 #include "textures/texture.hpp"
 #include "ray.hpp"
 
-using cc::math::vec3;
-using cc::math::vec2;
-using cc::math::normalize;
-using cc::math::dot;
-using cc::util::min;
-
 class IMaterial;
 
 struct HitData

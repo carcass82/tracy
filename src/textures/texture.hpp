@@ -7,11 +7,6 @@
 
 #pragma once
 
-#include "ext/cclib/cclib.h"
-using cc::math::vec2;
-using cc::math::vec3;
-using cc::util::clamp;
-
 class NOVTABLE ITexture
 {
 public:

@@ -40,11 +40,11 @@ public:
             }
             else
             {
-                float ood = cc::math::fast::rcp(direction);
+                float ood = rcp(direction);
                 float t1 = (minbound - origin) * ood;
                 float t2 = (maxbound - origin) * ood;
 
-                if (t1 > t2) cc::util::swap(t1, t2);
+                if (t1 > t2) swap(t1, t2);
 
                 tmin = max(tmin, t1);
                 tmax = min(tmax, t2);
@@ -68,21 +68,21 @@ public:
 private:
     vec3 get_normal(const vec3& point) const
     {
-        if (fabsf(pmin.x - point.x) < cc::math::EPS) return vec3(-1.f, .0f, .0f);
-        if (fabsf(pmax.x - point.x) < cc::math::EPS) return vec3(1.f, .0f, .0f);
-        if (fabsf(pmin.y - point.y) < cc::math::EPS) return vec3(.0f, -1.f, .0f);
-        if (fabsf(pmax.y - point.y) < cc::math::EPS) return vec3(.0f, 1.f, .0f);
-        if (fabsf(pmin.z - point.z) < cc::math::EPS) return vec3(.0f, .0f, -1.f);
+        if (fabsf(pmin.x - point.x) < EPS) return vec3(-1.f, .0f, .0f);
+        if (fabsf(pmax.x - point.x) < EPS) return vec3(1.f, .0f, .0f);
+        if (fabsf(pmin.y - point.y) < EPS) return vec3(.0f, -1.f, .0f);
+        if (fabsf(pmax.y - point.y) < EPS) return vec3(.0f, 1.f, .0f);
+        if (fabsf(pmin.z - point.z) < EPS) return vec3(.0f, .0f, -1.f);
         return vec3(.0f, .0f, 1.f);
     }
 
     vec2 get_uv(const vec3& point) const
     {
-        if ((fabsf(pmin.x - point.x) < cc::math::EPS) || (fabsf(pmax.x - point.x) < cc::math::EPS))
+        if ((fabsf(pmin.x - point.x) < EPS) || (fabsf(pmax.x - point.x) < EPS))
         {
             return vec2((point.y - pmin.y) / (pmax.y - pmin.y), (point.z - pmin.z) / (pmax.z - pmin.z));
         }
-        if ((fabsf(pmin.y - point.y) < cc::math::EPS) || (fabsf(pmax.y - point.y) < cc::math::EPS))
+        if ((fabsf(pmin.y - point.y) < EPS) || (fabsf(pmax.y - point.y) < EPS))
         {
             return vec2((point.x - pmin.x) / (pmax.x - pmin.x), (point.z - pmin.z) / (pmax.z - pmin.z));
         }

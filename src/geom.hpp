@@ -7,14 +7,6 @@
 
 #pragma once
 
-#include <vector>
-#include "ext/cclib/cclib.h"
-using cc::math::PI;
-using cc::math::vec3;
-using cc::math::mat3;
-using cc::math::length2;
-using cc::util::max;
-
 float fastrand()
 {
     static uint32_t s_RndState = 123456789;

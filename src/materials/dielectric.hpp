@@ -27,7 +27,7 @@ public:
         vec3 outward_normal;
         if (dot(r_in.get_direction(), rec.normal) > 0.0f)
         {
-            outward_normal = rec.normal * -1;
+            outward_normal = -rec.normal;
             ni_over_nt = ref_idx;
             cosine = dot(r_in.get_direction(), rec.normal) / length(r_in.get_direction());
 			cosine = sqrtf(1.f - ref_idx * ref_idx * (1.f - cosine - cosine));

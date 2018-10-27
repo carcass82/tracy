@@ -7,15 +7,11 @@
 
 #pragma once
 
-#include "ext/cclib/cclib.h"
 #include "geom.hpp"
 #include "ray.hpp"
 #include "materials/material.hpp"
 #include "textures/texture.hpp"
 
-using cc::util::max;
-using cc::math::radians;
-using cc::math::PI;
 
 class NOVTABLE IShape
 {

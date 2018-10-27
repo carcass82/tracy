@@ -7,12 +7,6 @@
 
 #pragma once
 
-#include "ext/cclib/cclib.h"
-using cc::math::vec3;
-using cc::math::radians;
-using cc::math::cross;
-using cc::math::normalize;
-
 class Camera
 {
 public:

@@ -8,8 +8,6 @@
 #pragma once
 #include "shape.hpp"
 
-using cc::math::vec2;
-
 class Sphere : public IShape
 {
 public:
@@ -71,7 +69,7 @@ public:
 private:
     vec2 get_uv_at(const vec3& p) const
     {
-        float phi = cc::math::fast::atan2f(p.z, p.x);
+        float phi = atan2f(p.z, p.x);
         float theta = asinf(p.y);
 
         return vec2{ 1.0f - (phi + PI) / (2.0f * PI), (theta + PI / 2.0f) / PI };

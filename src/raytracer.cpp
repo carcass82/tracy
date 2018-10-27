@@ -26,10 +26,32 @@
 #define STB_IMAGE_IMPLEMENTATION
 #include "ext/stb_image.h"
 
+#if USE_GLM
+#include <glm/glm.hpp>
+constexpr float PI = 3.1415926535897932f;
+constexpr float EPS = 1.e-8f;
+using glm::vec3;
+using glm::vec2;
+using glm::max;
+using glm::min;
+using glm::clamp;
+using glm::radians;
+template<typename T> constexpr inline void swap(T& a, T& b) { T tmp(a); a = b; b = tmp; }
+#define rcp(x) (1.f / x)
+#else
 #include "ext/cclib/cclib.h"
-using cc::math::vec2;
+using cc::math::PI;
+using cc::math::EPS;
 using cc::math::vec3;
+using cc::math::vec2;
+using cc::util::max;
+using cc::util::min;
 using cc::util::clamp;
+using cc::math::radians;
+using cc::util::swap;
+#define atan2f(x, y) cc::math::fast::atan2f(x, y)
+#define rcp(x) cc::math::fast::rcp(x)
+#endif
 
 #if defined(_MSC_VER)
  #define NOVTABLE __declspec(novtable)

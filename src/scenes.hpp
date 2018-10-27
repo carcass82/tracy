@@ -7,9 +7,6 @@
 
 #pragma once
 
-#include "ext/cclib/cclib.h"
-using cc::math::vec3;
-
 #include "shapes/box.hpp"
 #include "shapes/sphere.hpp"
 

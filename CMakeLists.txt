@@ -5,7 +5,9 @@ project(Tracy LANGUAGES CXX CUDA)
 set(CMAKE_VERBOSE_MAKEFILE ON)
 set(CMAKE_RUNTIME_OUTPUT_DIRECTORY ${Tracy_SOURCE_DIR}/bin/)
 
-option(BUILD_WITH_CUDA "Build CUDA support." ON)
+option(USE_GLM "Use GLM instead of cclib" OFF)
+
+option(BUILD_WITH_CUDA "Build with CUDA support" ON)
 option(CUDA_USE_STREAMS "Use async streams" OFF)
 option(CUDA_USE_MULTIGPU "Use all available CUDA enabled GPUs" OFF)
 set(CUDA_COMPUTECAPABILITY "-arch=sm_30" CACHE STRING "Cuda Arch Compile Option")
@@ -36,7 +38,7 @@ source_group("Ext\\CCLib" FILES ${INC_CCLIB})
 
 file(GLOB SRC_MAIN "./src/*.cpp")
 
-include_directories(. ./src)
+include_directories(. ./src ./ext)
 
 if (MSVC)
     message(STATUS "Found MSVC: " ${CMAKE_CXX_COMPILER})
@@ -69,11 +71,11 @@ if (BUILD_WITH_CUDA)
 
 	if (CUDA_USE_STREAMS)
 		add_definitions(-DCUDA_USE_STREAMS)
-	endif (CUDA_USE_STREAMS)
+	endif()
 
 	if (CUDA_USE_MULTIGPU)
 		add_definitions(-DCUDA_USE_MULTIGPU)
-	endif(CUDA_USE_MULTIGPU)
+	endif()
 	
 	file(GLOB SRC_CUDA "./src/cuda/*.cu" "./src/cuda/*.cuh")
 
@@ -82,4 +84,8 @@ if (BUILD_WITH_CUDA)
 	
 	set_target_properties(${PROJECT_NAME} PROPERTIES CUDA_SEPARABLE_COMPILATION ON)
 	set_target_properties(${PROJECT_NAME} PROPERTIES CUDA_PROPAGATE_HOST_FLAGS OFF)
-endif(BUILD_WITH_CUDA)
+endif()
+
+if (USE_GLM)
+	add_definitions(-DUSE_GLM)
+endif()

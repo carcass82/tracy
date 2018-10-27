@@ -7,9 +7,6 @@
 
 #pragma once
 
-#include "ext/cclib/cclib.h"
-using cc::math::vec3;
-
 //
 // a ray represented in its parametric form
 // A - ray origin
