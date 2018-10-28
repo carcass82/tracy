@@ -68,6 +68,8 @@ target_compile_features(${PROJECT_NAME} PUBLIC cxx_std_17)
 if (BUILD_WITH_CUDA)
 	add_definitions(-DUSE_CUDA)
 	set(CMAKE_CUDA_FLAGS ${CUDA_COMPUTECAPABILITY})
+	set(CMAKE_CUDA_FLAGS_DEBUG ${CMAKE_CUDA_FLAGS_DEBUG} " -G")
+	set(CMAKE_CUDA_FLAGS_RELEASE ${CMAKE_CUDA_FLAGS_RELEASE} " --use_fast_math -O2 -lineinfo")
 
 	if (CUDA_USE_STREAMS)
 		add_definitions(-DCUDA_USE_STREAMS)
