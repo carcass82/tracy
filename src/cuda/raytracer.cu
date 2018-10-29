@@ -50,16 +50,15 @@ __device__ float schlick_fresnel(float costheta, float ior)
 }
 
 __device__ curandState curand_ctx;
-
-__device__ static float fastrand()
+__device__ float cuda_fastrand()
 {
     return curand_uniform(&curand_ctx);
 }
 
 __device__ float3 cuda_random_on_unit_sphere()
 {
-    float z = fastrand() * 2.f - 1.f;
-    float a = fastrand() * 2.f * PI;
+    float z = cuda_fastrand() * 2.f - 1.f;
+    float a = cuda_fastrand() * 2.f * PI;
     float r = sqrtf(max(.0f, 1.f - z * z));
 
     return make_float3(r * cosf(a), r * sinf(a), z);
@@ -76,8 +75,6 @@ struct DRay
 
     __device__ float3 point_at(float t) const { return origin + t * direction; }
 };
-
-enum { eSPHERE, eBOX };
 
 struct DMaterial;
 struct DIntersection
@@ -148,7 +145,7 @@ struct DMaterial
             float reflect_chance = (is_refracted) ? schlick_fresnel(cosine, ior) : 1.0f;
             
             scattered.origin = hit.point;
-            scattered.direction = normalize((fastrand() < reflect_chance) ? reflect(ray.direction, hit.normal) : refracted);
+            scattered.direction = normalize((cuda_fastrand() < reflect_chance) ? reflect(ray.direction, hit.normal) : refracted);
 
             return true;
         }
@@ -168,37 +165,6 @@ struct DSphere
     float radius;
     DMaterial material;
 
-    __device__ bool intersects(const DRay& ray, DIntersection& hit)
-    {
-        float3 oc = ray.origin - center;
-        float b = dot(oc, ray.direction);
-        float c = dot(oc, oc) - radius * radius;
-        
-        if (b <= .0f || c <= .0f)
-        {
-            float discriminant = b * b - c;
-            if (discriminant > 0.f)
-            {
-                discriminant = sqrtf(discriminant);
-                
-                float t0 = -b - discriminant;
-                if (t0 > .0001f && t0 < hit.t)
-                {
-                    hit.t = t0;
-                    return true;
-                }
-
-                float t1 = -b + discriminant;
-                if (t1 > .0001f && t1 < hit.t)
-                {
-                    hit.t = t1;
-                    return true;
-                }
-            }
-        }
-        return false;
-    }
-
     __device__ void hit_data(const DRay& ray, DIntersection& hit)
     {
         hit.point = ray.point_at(hit.t);
@@ -213,42 +179,6 @@ struct DBox
     float3 max_limit;
     float3 rot;
     DMaterial material;
-
-    __device__ bool intersects(const DRay& ray, DIntersection& hit)
-    {
-        float tmin = .0001f;
-        float tmax = FLT_MAX;
-
-        for (int i = 0; i < 3; ++i)
-        {
-            // TODO: think something better
-            float direction = (i == 0)? ray.direction.x : (i == 1)? ray.direction.y : ray.direction.z;
-            float origin =    (i == 0)? ray.origin.x    : (i == 1)? ray.origin.y    : ray.origin.z;
-            float minbound =  (i == 0)? min_limit.x     : (i == 1)? min_limit.y     : min_limit.z;
-            float maxbound =  (i == 0)? max_limit.x     : (i == 1)? max_limit.y     : max_limit.z;
-
-            if (fabs(direction) < .0001f)
-            {
-                if (origin < minbound || origin > maxbound) return false;
-            }
-            else
-            {
-                float ood = 1.f / direction;
-                float t1 = (minbound - origin) * ood;
-                float t2 = (maxbound - origin) * ood;
-
-                if (t1 > t2) swap(t1, t2);
-
-                tmin = max(tmin, t1);
-                tmax = min(tmax, t2);
-
-                if (tmin > tmax || tmin > hit.t) return false;
-            }
-        }
-
-        hit.t = tmin;
-        return true;
-    }
 
     __device__ void hit_data(const DRay& ray, DIntersection& hit)
     {
@@ -270,6 +200,7 @@ struct DBox
     }
 };
 
+enum { eSPHERE, eBOX };
 __device__ bool intersect_spheres(DRay ray, DSphere* spheres, int sphere_count, DIntersection& hit_data)
 {
     bool hit_something = false;
@@ -380,28 +311,7 @@ __device__ float3 get_color_for(DRay ray, DSphere* spheres, int sphere_count, DB
     DIntersection hit_data;
     hit_data.t = FLT_MAX;
 
-    //for (int i = 0; i < sphere_count; ++i)
-    //{
-    //    DSphere& sphere = spheres[i];
-    //    if (sphere.intersects(ray, hit_data))
-    //    {
-    //        hit_data.type = eSPHERE;
-    //        hit_data.index = i;
-    //        hitspheres = true;
-    //    }
-    //}
     hitspheres = intersect_spheres(ray, spheres, sphere_count, hit_data);
-
-    //for (int i = 0; i < box_count; ++i)
-    //{
-    //    DBox& box = boxes[i];
-    //    if (box.intersects(ray, hit_data))
-    //    {
-    //        hit_data.type = eBOX;
-    //        hit_data.index = i;
-    //        hitboxes = true;
-    //    }
-    //}
     hitboxes = intersect_boxes(ray, boxes, box_count, hit_data);
 
     ++(*raycount);
@@ -640,8 +550,8 @@ __global__ void raytrace(int width, int height, int samples, float3* pixels, siz
     float3 color{ .0f, .0f, .0f };
     for (int sample = 0; sample < samples; ++sample)
     {
-        float s = ((i + fastrand()) / static_cast<float>(width));
-        float t = ((j + fastrand()) / static_cast<float>(height));
+        float s = ((i + cuda_fastrand()) / static_cast<float>(width));
+        float t = ((j + cuda_fastrand()) / static_cast<float>(height));
 
         DRay ray;
         ray.origin = center;
