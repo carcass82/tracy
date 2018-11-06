@@ -22,7 +22,7 @@ public:
     {
     }
 
-    virtual vec3 value(const vec2& uv, const vec3& p) const override
+    virtual vec3 sample(const vec2& uv, const vec3& p) const override
     {
         int i = clamp(static_cast<int>((uv.s) * nx),                 0, nx - 1);
         int j = clamp(static_cast<int>((1.0f - uv.t) * ny - 0.001f), 0, ny - 1);

@@ -189,13 +189,11 @@ struct DBox
 
     __device__ float3 normal(const float3& point)
     {
-        const float eps = .001f;
-
-        if (fabs(min_limit.x - point.x) < eps) return make_float3(-1.f,  .0f,  .0f);
-        if (fabs(max_limit.x - point.x) < eps) return make_float3( 1.f,  .0f,  .0f);
-        if (fabs(min_limit.y - point.y) < eps) return make_float3( .0f, -1.f,  .0f);
-        if (fabs(max_limit.y - point.y) < eps) return make_float3( .0f,  1.f,  .0f);
-        if (fabs(min_limit.z - point.z) < eps) return make_float3( .0f,  .0f, -1.f);
+        if (fabs(min_limit.x - point.x) < EPS) return make_float3(-1.f,  .0f,  .0f);
+        if (fabs(max_limit.x - point.x) < EPS) return make_float3( 1.f,  .0f,  .0f);
+        if (fabs(min_limit.y - point.y) < EPS) return make_float3( .0f, -1.f,  .0f);
+        if (fabs(max_limit.y - point.y) < EPS) return make_float3( .0f,  1.f,  .0f);
+        if (fabs(min_limit.z - point.z) < EPS) return make_float3( .0f,  .0f, -1.f);
         return make_float3(.0f, .0f, 1.f);
     }
 };
@@ -221,7 +219,7 @@ __device__ bool intersect_spheres(DRay ray, DSphere* spheres, int sphere_count, 
                 discriminant = sqrtf(discriminant);
 
                 float t0 = -b - discriminant;
-                if (t0 > .0001f && t0 < hit_data.t)
+                if (t0 > EPS && t0 < hit_data.t)
                 {
                     hit_data.t = t0;
                     hit_data.type = eSPHERE;
@@ -230,7 +228,7 @@ __device__ bool intersect_spheres(DRay ray, DSphere* spheres, int sphere_count, 
                 }
 
                 float t1 = -b + discriminant;
-                if (t1 > .0001f && t1 < hit_data.t)
+                if (t1 > EPS && t1 < hit_data.t)
                 {
                     hit_data.t = t1;
                     hit_data.type = eSPHERE;
@@ -252,7 +250,7 @@ __device__ bool intersect_boxes(DRay ray, DBox* boxes, int box_count, DIntersect
     {
         DBox& box = boxes[i];
 
-        float tmin = .0001f;
+        float tmin = EPS;
         float tmax = FLT_MAX;
 
         bool boxhit = false;
@@ -264,7 +262,7 @@ __device__ bool intersect_boxes(DRay ray, DBox* boxes, int box_count, DIntersect
             float minbound = (side == 0) ? box.min_limit.x : (side == 1) ? box.min_limit.y : box.min_limit.z;
             float maxbound = (side == 0) ? box.max_limit.x : (side == 1) ? box.max_limit.y : box.max_limit.z;
 
-            if (fabs(direction) < .0001f)
+            if (fabs(direction) < EPS)
             {
                 if (origin < minbound || origin > maxbound) { boxhit = false; break; }
             }

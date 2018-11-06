@@ -22,8 +22,6 @@ public:
     virtual bool hit(const Ray& r, float t_min, float t_max, HitData& rec) const override final
     {
         vec3 oc{ r.get_origin() - center };
-
-        float a = dot(r.get_direction(), r.get_direction());
         float b = dot(oc, r.get_direction());
         float c = dot(oc, oc) - radius2;
 
@@ -34,19 +32,19 @@ public:
         //
         if (b <= .0f || c <= .0f)
         {
-            float discriminant = b * b - a * c;
+            float discriminant = b * b - c;
             if (discriminant > .0f)
             {
-                float sq_bac = sqrtf(discriminant);
+                discriminant = sqrtf(discriminant);
 
-                float t0 = (-b - sq_bac) / a;
+                float t0 = -b - discriminant;
                 if (t0 < t_max && t0 > t_min)
                 {
                     rec.t = t0;
                     return true;
                 }
 
-                float t1 = (-b + sq_bac) / a;
+                float t1 = -b + discriminant;
                 if (t1 < t_max && t1 > t_min)
                 {
                     rec.t = t1;

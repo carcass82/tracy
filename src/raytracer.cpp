@@ -8,7 +8,6 @@
  * TODO:
  * - read scene desc from file
  * - support for triangular meshes
- * - openmp -> gpu
  * - realtime preview of result
  */
 
@@ -29,7 +28,7 @@
 #if USE_GLM
 #include <glm/glm.hpp>
 constexpr float PI = 3.1415926535897932f;
-constexpr float EPS = 1.e-8f;
+constexpr float EPS = 1.e-4f;
 using glm::vec3;
 using glm::vec2;
 using glm::max;
@@ -80,7 +79,7 @@ vec3 color(const Ray& r, IShape* world, int depth, size_t& raycount)
     ++raycount;
 
     HitData rec;
-    if (world->hit(r, 0.001f, std::numeric_limits<float>::max(), rec))
+    if (world->hit(r, EPS, std::numeric_limits<float>::max(), rec))
     {
         //
         // debug - show normals
@@ -143,10 +142,10 @@ int main(int argc, char** argv)
     Camera cam;
 
     // test
-    //hitable* world = load_scene(eRANDOM, cam, float(nx) / float(ny));
+    //IShape* world = load_scene(eRANDOM, cam, float(nx) / float(ny));
     
     // modified cornell box
-    //hitable* world = load_scene(eCORNELLBOX, cam, float(nx) / float(ny));
+    //IShape* world = load_scene(eCORNELLBOX, cam, float(nx) / float(ny));
 
     // test same scene as gpu version
     IShape* world = load_scene(eTESTGPU, cam, float(nx) / float(ny));

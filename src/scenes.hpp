@@ -121,7 +121,8 @@ IShape* gpu_scene()
     IMaterial* light = new Emissive(new Constant(vec3(2.f, 2.f, 2.f)));
     IMaterial* blu = new Lambertian(new Constant(vec3(0.1f, 0.2f, 0.5f)));
     IMaterial* red = new Lambertian(new Constant(vec3(.85f, .05f, .02f)));
-    IMaterial* green = new Lambertian(new Checker(new Constant(vec3(0.85f, 0.1f, 0.1f)), new Constant(vec3(0.1f, 0.1f, 0.9f))));
+    //IMaterial* green = new Lambertian(new Checker(new Constant(vec3(0.85f, 0.1f, 0.1f)), new Constant(vec3(0.1f, 0.1f, 0.9f))));
+	IMaterial* green = new Lambertian(new Constant(vec3(.05f, .85f, .02f)));
     IMaterial* grey = new Lambertian(new Constant(vec3(0.2f, 0.2f, 0.2f)));
     IMaterial* glass = new Dielectric(1.5);
     IMaterial* alluminium = new Metal(vec3(.8f, .85f, .88f), .0f);

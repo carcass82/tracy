@@ -20,7 +20,7 @@ public:
     {
     }
 
-    virtual vec3 value(const vec2& uv, const vec3& p) const override
+    virtual vec3 sample(const vec2& uv, const vec3& p) const override
     {
         return color;
     }

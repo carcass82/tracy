@@ -20,7 +20,7 @@ public:
     {
         vec3 target = rec.p + rec.normal + random_on_unit_sphere();
         srec.scattered = Ray(rec.p, normalize(target - rec.p));
-        srec.attenuation = albedo->value(rec.uv, rec.p);
+        srec.attenuation = albedo->sample(rec.uv, rec.p);
 
         return true;
     }

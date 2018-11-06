@@ -23,11 +23,10 @@ public:
 
     vec3 emitted(const Ray& r_in, const HitData& rec, const vec2& uv, const vec3& p) const override final
     {
-        return emit->value(uv, p);
+        return emit->sample(uv, p);
     }
 
 private:
     ITexture* emit;
-    const vec3 ZERO;
 };
 

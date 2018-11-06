@@ -34,7 +34,7 @@ public:
             float minbound = pmin[i];
             float maxbound = pmax[i];
 
-            if (fabsf(direction) < .0001f)
+            if (fabsf(direction) < EPS)
             {
                 if (origin < minbound || origin > maxbound) return false;
             }
@@ -68,12 +68,12 @@ public:
 private:
     vec3 get_normal(const vec3& point) const
     {
-        if (fabsf(pmin.x - point.x) < EPS) return vec3(-1.f, .0f, .0f);
-        if (fabsf(pmax.x - point.x) < EPS) return vec3(1.f, .0f, .0f);
-        if (fabsf(pmin.y - point.y) < EPS) return vec3(.0f, -1.f, .0f);
-        if (fabsf(pmax.y - point.y) < EPS) return vec3(.0f, 1.f, .0f);
-        if (fabsf(pmin.z - point.z) < EPS) return vec3(.0f, .0f, -1.f);
-        return vec3(.0f, .0f, 1.f);
+        if (fabsf(pmin.x - point.x) < EPS) return vec3{ -1.f,  .0f,  .0f };
+        if (fabsf(pmax.x - point.x) < EPS) return vec3{  1.f,  .0f,  .0f };
+        if (fabsf(pmin.y - point.y) < EPS) return vec3{  .0f, -1.f,  .0f };
+        if (fabsf(pmax.y - point.y) < EPS) return vec3{  .0f,  1.f,  .0f };
+        if (fabsf(pmin.z - point.z) < EPS) return vec3{  .0f,  .0f, -1.f };
+        return vec3{ .0f, .0f, 1.f };
     }
 
     vec2 get_uv(const vec3& point) const

@@ -9,6 +9,7 @@ template<> inline __device__ float max<float>(const float& a, const float& b) { 
 template<> inline __device__ float3 min<float3>(const float3& a, const float3& b) { return make_float3(fmin(a.x, b.x), fmin(a.y, b.y), fmin(a.z, b.z)); }
 template<> inline __device__ float3 max<float3>(const float3& a, const float3& b) { return make_float3(fmax(a.x, b.x), fmax(a.y, b.y), fmax(a.z, b.z)); }
 
+__device__ const float EPS = 1.e-4f;
 __device__ const float PI = 3.1415926535897932f;
 inline __device__ float radians(float deg) { return deg * PI / 180.0f; }
 
