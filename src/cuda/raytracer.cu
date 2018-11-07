@@ -109,7 +109,7 @@ struct DMaterial
         }
         else if (type == eMETAL)
         {
-            float3 reflected = reflect(normalize(ray.direction), hit.normal);
+            float3 reflected = reflect(ray.direction, hit.normal);
             scattered.origin = hit.point;
             scattered.direction = reflected + roughness * cuda_random_on_unit_sphere();
 
@@ -298,62 +298,67 @@ __device__ const int MAX_DEPTH = 5;
 __device__ const float3 WHITE = {1.f, 1.f, 1.f};
 __device__ const float3 BLACK = {0.f, 0.f, 0.f};
 
-template<int depth>
+
 __device__ float3 get_color_for(DRay ray, DSphere* spheres, int sphere_count, DBox* boxes, int box_count, size_t* raycount)
 {
-    //
-    // check for hits
-    //
-    bool hitspheres = false;
-    bool hitboxes = false;
-    DIntersection hit_data;
-    hit_data.t = FLT_MAX;
+    float3 total_color = WHITE;
+    DRay current_ray = ray;
 
-    hitspheres = intersect_spheres(ray, spheres, sphere_count, hit_data);
-    hitboxes = intersect_boxes(ray, boxes, box_count, hit_data);
-
-    ++(*raycount);
-
-    //
-    // return color or continue
-    //
-    if (hitspheres || hitboxes)
+    for (int i = 0; i < MAX_DEPTH; ++i)
     {
         //
-        // debug - show normals
+        // check for hits
         //
-        //return .5f * (1.f + normalize(hit_data.normal));
+        bool hitspheres = false;
+        bool hitboxes = false;
+        DIntersection hit_data;
+        hit_data.t = FLT_MAX;
 
-        if (hit_data.type == eSPHERE)
+        hitspheres = intersect_spheres(current_ray, spheres, sphere_count, hit_data);
+        hitboxes = intersect_boxes(current_ray, boxes, box_count, hit_data);
+
+        ++(*raycount);
+
+        //
+        // return color or continue
+        //
+        if (hitspheres || hitboxes)
         {
-            spheres[hit_data.index].hit_data(ray, hit_data);
+            //
+            // debug - show normals
+            //
+            //return .5f * (1.f + normalize(hit_data.normal));
+
+            if (hit_data.type == eSPHERE)
+            {
+                spheres[hit_data.index].hit_data(current_ray, hit_data);
+            }
+            else
+            {
+                boxes[hit_data.index].hit_data(current_ray, hit_data);
+            }
+
+            DRay scattered;
+            float3 attenuation;
+            float3 emission;
+            if (hit_data.material && hit_data.material->scatter(current_ray, hit_data, attenuation, emission, scattered))
+            {
+                total_color *= attenuation;
+                current_ray = scattered;
+                continue;
+            }
+            else
+            {
+                total_color *= emission;
+                return total_color;
+            }
         }
         else
         {
-            boxes[hit_data.index].hit_data(ray, hit_data);
-        }
-
-        DRay scattered;
-        float3 attenuation;
-        float3 emission;
-        if (hit_data.material && hit_data.material->scatter(ray, hit_data, attenuation, emission, scattered))
-        {
-            return emission + attenuation * get_color_for<depth + 1>(scattered, spheres, sphere_count, boxes, box_count, raycount);
-        }
-        else
-        {
-            return emission;
+            return BLACK;
         }
     }
 
-    //return WHITE;
-    return BLACK;
-}
-
-template<>
-__device__ float3 get_color_for<MAX_DEPTH>(DRay ray, DSphere* spheres, int sphere_count, DBox* boxes, int box_count, size_t* raycount)
-{
-    //return WHITE;
     return BLACK;
 }
 
@@ -555,7 +560,7 @@ __global__ void raytrace(int width, int height, int samples, float3* pixels, siz
         ray.origin = center;
         ray.direction = normalize(origin + s * horizontal + t * vertical - center);
 
-        color += get_color_for<0>(ray, spheres, spherecount, boxes, boxcount, &raycount_inst);
+        color += get_color_for(ray, spheres, spherecount, boxes, boxcount, &raycount_inst);
     }
 
     atomicAdd(raycount, raycount_inst);
