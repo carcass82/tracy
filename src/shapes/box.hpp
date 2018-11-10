@@ -22,7 +22,7 @@ public:
     {
     }
 
-    virtual bool hit(const Ray& r, float t_min, float t_max, HitData& rec) const override
+    virtual bool hit(const Ray& r, float t_min, float t_max, HitData& rec) const override final
     {
         float tmin = t_min;
         float tmax = FLT_MAX;
@@ -36,7 +36,10 @@ public:
 
             if (fabsf(direction) < .001f)
             {
-                if (origin < minbound || origin > maxbound) return false;
+                if (origin < minbound || origin > maxbound)
+                {
+                    return false;
+                }
             }
             else
             {
@@ -49,7 +52,10 @@ public:
                 tmin = max(tmin, t1);
                 tmax = min(tmax, t2);
 
-                if (tmin > tmax || tmin > t_max) return false;
+                if (tmin > tmax || tmin > t_max)
+                {
+                    return false;
+                }
             }
         }
 
@@ -57,12 +63,12 @@ public:
         return true;
     }
 
-    virtual void get_hit_data(const Ray& r, HitData& rec) const
+    virtual void get_hit_data(const Ray& r, HitData& rec) const override final
     {
-        rec.p = r.point_at(rec.t);
-        rec.normal = get_normal(rec.p);
-        rec.uv = get_uv(rec.p);
-        rec.mat_ptr = mat;
+        rec.point = r.point_at(rec.t);
+        rec.normal = get_normal(rec.point);
+        rec.uv = get_uv(rec.point);
+        rec.material = mat;
     }
 
 private:
@@ -70,12 +76,12 @@ private:
     {
         const float eps = .001f;
 
-        if (fabsf(pmin.x - point.x) < eps) return vec3{ -1.f,  .0f,  .0f };
-        if (fabsf(pmax.x - point.x) < eps) return vec3{  1.f,  .0f,  .0f };
-        if (fabsf(pmin.y - point.y) < eps) return vec3{  .0f, -1.f,  .0f };
-        if (fabsf(pmax.y - point.y) < eps) return vec3{  .0f,  1.f,  .0f };
-        if (fabsf(pmin.z - point.z) < eps) return vec3{  .0f,  .0f, -1.f };
-        return vec3{ .0f, .0f, 1.f };
+        if (fabsf(pmin.x - point.x) < eps) return vec3{ -1.0f,   .0f,   .0f };
+        if (fabsf(pmax.x - point.x) < eps) return vec3{  1.0f,   .0f,   .0f };
+        if (fabsf(pmin.y - point.y) < eps) return vec3{   .0f, -1.0f,   .0f };
+        if (fabsf(pmax.y - point.y) < eps) return vec3{   .0f,  1.0f,   .0f };
+        if (fabsf(pmin.z - point.z) < eps) return vec3{   .0f,   .0f, -1.0f };
+        return vec3{ .0f, .0f, 1.0f };
     }
 
     vec2 get_uv(const vec3& point) const
@@ -97,4 +103,3 @@ private:
     vec3 pmax;
     IMaterial* mat;
 };
-

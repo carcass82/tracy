@@ -13,14 +13,14 @@ public:
     ShapeList()
     {
     }
-
+    
     ShapeList(IShape** l, int n)
         : list(l)
         , list_size(n)
     {
     }
 
-    bool hit(const Ray& r, float t_min, float t_max, HitData& rec) const override final
+    virtual bool hit(const Ray& r, float t_min, float t_max, HitData& rec) const override final
     {
         HitData temp_rec;
         bool hit_anything = false;
@@ -46,7 +46,7 @@ public:
         return hit_anything;
     }
 
-    void get_hit_data(const Ray& /* r */, HitData& /* rec */) const override final
+    virtual void get_hit_data(const Ray& /* r */, HitData& /* rec */) const override final
     {
     }
 

@@ -12,7 +12,6 @@
 #include "materials/material.hpp"
 #include "textures/texture.hpp"
 
-
 class NOVTABLE IShape
 {
 public:

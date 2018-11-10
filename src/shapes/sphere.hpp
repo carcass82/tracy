@@ -56,12 +56,12 @@ public:
         return false;
     }
 
-    virtual void get_hit_data(const Ray& r, HitData& rec) const
+    virtual void get_hit_data(const Ray& r, HitData& rec) const override final
     {
-        rec.p = r.point_at(rec.t);
-        rec.normal = (rec.p - center) / radius;
-        rec.uv = get_uv_at((rec.p - center) / radius);
-        rec.mat_ptr = mat;
+        rec.point = r.point_at(rec.t);
+        rec.normal = (rec.point - center) / radius;
+        rec.uv = get_uv_at((rec.point - center) / radius);
+        rec.material = mat;
     }
 
 private:
@@ -78,4 +78,3 @@ private:
     float radius2;
     IMaterial* mat;
 };
-

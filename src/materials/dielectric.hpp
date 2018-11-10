@@ -16,7 +16,7 @@ public:
     {
     }
 
-    bool scatter(const Ray& r_in, const HitData& rec, ScatterData& s_rec) const override final
+    virtual bool scatter(const Ray& r_in, const HitData& rec, ScatterData& s_rec) const override final
     {
         s_rec.attenuation = vec3{ 1.0f, 1.0f, 1.0f };
 
@@ -40,12 +40,12 @@ public:
         vec3 refracted = refract(normalize(r_in.get_direction()), normalize(outward_normal), ni_over_nt);
         float reflect_prob = (refracted != ZERO)? schlick(cosine, ref_idx) : 1.f;
 
-        s_rec.scattered = (fastrand() < reflect_prob)? Ray(rec.p, reflect(r_in.get_direction(), rec.normal)) : Ray(rec.p, refracted);
+        s_rec.scattered = (fastrand() < reflect_prob)? Ray(rec.point, reflect(r_in.get_direction(), rec.normal)) : Ray(rec.point, refracted);
 
         return true;
     }
 
-    vec3 emitted(const Ray& r_in, const HitData& rec, const vec2& uv, const vec3& p) const override final
+    virtual vec3 emitted(const Ray& r_in, const HitData& rec, const vec2& uv, const vec3& p) const override final
     {
         return ZERO;
     }
@@ -54,4 +54,3 @@ private:
     const vec3 ZERO;
     float ref_idx;
 };
-

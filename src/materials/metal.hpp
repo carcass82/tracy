@@ -17,16 +17,16 @@ public:
     {
     }
 
-    bool scatter(const Ray& r_in, const HitData& rec, ScatterData& s_rec) const override final
+    virtual bool scatter(const Ray& r_in, const HitData& rec, ScatterData& s_rec) const override final
     {
         vec3 reflected = reflect(normalize(r_in.get_direction()), rec.normal);
-        s_rec.scattered = Ray(rec.p, reflected + roughness * random_on_unit_sphere());
+        s_rec.scattered = Ray(rec.point, reflected + roughness * random_on_unit_sphere());
         s_rec.attenuation = albedo;
 
         return true;
     }
 
-    vec3 emitted(const Ray& r_in, const HitData& rec, const vec2& uv, const vec3& p) const override final
+    virtual vec3 emitted(const Ray& r_in, const HitData& rec, const vec2& uv, const vec3& p) const override final
     {
         return ZERO;
     }
@@ -36,4 +36,3 @@ private:
     vec3 albedo;
     float roughness;
 };
-

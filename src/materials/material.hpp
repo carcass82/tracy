@@ -16,9 +16,9 @@ struct HitData
 {
     float t;
     vec2 uv;
-    vec3 p;
+    vec3 point;
     vec3 normal;
-    IMaterial* mat_ptr;
+    IMaterial* material;
 };
 
 struct ScatterData

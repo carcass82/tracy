@@ -14,13 +14,13 @@ public:
     Constant()
     {
     }
-
+    
     Constant(const vec3& c)
         : color(c)
     {
     }
 
-    virtual vec3 sample(const vec2& uv, const vec3& p) const override
+    virtual vec3 sample(const vec2& uv, const vec3& p) const override final
     {
         return color;
     }
@@ -28,4 +28,3 @@ public:
 private:
     vec3 color;
 };
-

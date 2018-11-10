@@ -86,10 +86,10 @@ vec3 color(const Ray& r, IShape* world, int depth, size_t& raycount)
         //
         //return .5f * (1.f + normalize(rec.normal));
 
-        vec3 emitted = rec.mat_ptr->emitted(r, rec, rec.uv, rec.p);
+        vec3 emitted = rec.material->emitted(r, rec, rec.uv, rec.point);
 
         ScatterData srec;
-        if (depth < MAX_DEPTH && rec.mat_ptr->scatter(r, rec, srec))
+        if (depth < MAX_DEPTH && rec.material->scatter(r, rec, srec))
         {
             return emitted + srec.attenuation * color(srec.scattered, world, depth + 1, raycount);
         }
@@ -145,10 +145,10 @@ int main(int argc, char** argv)
     //IShape* world = load_scene(eRANDOM, cam, float(nx) / float(ny));
     
     // modified cornell box
-    IShape* world = load_scene(eCORNELLBOX, cam, float(nx) / float(ny));
+    //IShape* world = load_scene(eCORNELLBOX, cam, float(nx) / float(ny));
 
     // test same scene as gpu version
-    //IShape* world = load_scene(eTESTGPU, cam, float(nx) / float(ny));
+    IShape* world = load_scene(eTESTGPU, cam, float(nx) / float(ny));
 
     char filename[256];
     {
