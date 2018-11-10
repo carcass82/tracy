@@ -6,6 +6,7 @@
  */
 #include <cstdio>
 #include <cfloat>
+#include <cstdint>
 
 #include <cuda_runtime.h>
 #include <curand.h>
@@ -38,6 +39,17 @@ void check(T result, char const *const func, const char *const file, int const l
 }
 #define checkCudaErrors(val) check((val), #val, __FILE__, __LINE__)
 
+void ensure(cudaError_t val, const char *const file, int const line)
+{
+    if (val != cudaSuccess)
+    {
+        CUDALOG("[CUDA error] at %s:%d code=%d (%s)\n", file, line, static_cast<unsigned int>(val), cudaGetErrorName(val));
+        cudaDeviceReset();
+        exit(EXIT_FAILURE);
+    }
+}
+#define checkCudaAssert(val) ensure((val), __FILE__, __LINE__)
+
 //
 // ----------------------------------------------------------------------------
 //
@@ -49,16 +61,15 @@ __device__ float schlick_fresnel(float costheta, float ior)
     return r0 + (1.f - r0) * powf(max(.0f, (1.f - costheta)), 5);
 }
 
-__device__ curandState curand_ctx;
-__device__ float cuda_fastrand()
+__device__ float cuda_fastrand(curandState* curand_ctx)
 {
-    return curand_uniform(&curand_ctx);
+    return curand_uniform(curand_ctx);
 }
 
-__device__ float3 cuda_random_on_unit_sphere()
+__device__ float3 cuda_random_on_unit_sphere(curandState* curand_ctx)
 {
-    float z = cuda_fastrand() * 2.f - 1.f;
-    float a = cuda_fastrand() * 2.f * PI;
+    float z = cuda_fastrand(curand_ctx) * 2.f - 1.f;
+    float a = cuda_fastrand(curand_ctx) * 2.f * PI;
     float r = sqrtf(max(.0f, 1.f - z * z));
 
     return make_float3(r * cosf(a), r * sinf(a), z);
@@ -95,11 +106,11 @@ struct DMaterial
     float roughness;
     float ior;
 
-    __device__ bool scatter(const DRay& ray, const DIntersection& hit, float3& attenuation, float3& emission, DRay& scattered)
+    __device__ bool scatter(const DRay& ray, const DIntersection& hit, float3& attenuation, float3& emission, DRay& scattered, curandState* curand_ctx)
     {
         if (type == eLAMBERTIAN)
         {
-            float3 target = hit.point + hit.normal + cuda_random_on_unit_sphere();
+            float3 target = hit.point + hit.normal + cuda_random_on_unit_sphere(curand_ctx);
             scattered.origin = hit.point;
             scattered.direction = normalize(target - hit.point);
             attenuation = albedo;
@@ -111,7 +122,7 @@ struct DMaterial
         {
             float3 reflected = reflect(ray.direction, hit.normal);
             scattered.origin = hit.point;
-            scattered.direction = reflected + roughness * cuda_random_on_unit_sphere();
+            scattered.direction = reflected + roughness * cuda_random_on_unit_sphere(curand_ctx);
 
             attenuation = albedo;
             emission = make_float3(.0f, .0f, .0f);
@@ -145,7 +156,7 @@ struct DMaterial
             float reflect_chance = (is_refracted) ? schlick_fresnel(cosine, ior) : 1.0f;
             
             scattered.origin = hit.point;
-            scattered.direction = normalize((cuda_fastrand() < reflect_chance) ? reflect(ray.direction, hit.normal) : refracted);
+            scattered.direction = normalize((cuda_fastrand(curand_ctx) < reflect_chance) ? reflect(ray.direction, hit.normal) : refracted);
 
             return true;
         }
@@ -254,13 +265,15 @@ __device__ bool intersect_boxes(DRay ray, DBox* boxes, int box_count, DIntersect
         float tmax = FLT_MAX;
 
         bool boxhit = false;
+
+        #pragma unroll
         for (int side = 0; side < 3; ++side)
         {
             // TODO: think something better
-            float direction = (side == 0) ? ray.direction.x : (side == 1) ? ray.direction.y : ray.direction.z;
-            float origin = (side == 0) ? ray.origin.x : (side == 1) ? ray.origin.y : ray.origin.z;
-            float minbound = (side == 0) ? box.min_limit.x : (side == 1) ? box.min_limit.y : box.min_limit.z;
-            float maxbound = (side == 0) ? box.max_limit.x : (side == 1) ? box.max_limit.y : box.max_limit.z;
+            float direction = (side == 0)? ray.direction.x : (side == 1)? ray.direction.y : ray.direction.z;
+            float origin = (side == 0)? ray.origin.x : (side == 1)? ray.origin.y : ray.origin.z;
+            float minbound = (side == 0)? box.min_limit.x : (side == 1)? box.min_limit.y : box.min_limit.z;
+            float maxbound = (side == 0)? box.max_limit.x : (side == 1)? box.max_limit.y : box.max_limit.z;
 
             if (fabs(direction) < EPS)
             {
@@ -299,7 +312,7 @@ __device__ const float3 WHITE = {1.f, 1.f, 1.f};
 __device__ const float3 BLACK = {0.f, 0.f, 0.f};
 
 
-__device__ float3 get_color_for(DRay ray, DSphere* spheres, int sphere_count, DBox* boxes, int box_count, size_t* raycount)
+__device__ float3 get_color_for(DRay ray, DSphere* spheres, int sphere_count, DBox* boxes, int box_count, size_t* raycount, curandState* curand_ctx)
 {
     float3 total_color = WHITE;
     DRay current_ray = ray;
@@ -341,7 +354,7 @@ __device__ float3 get_color_for(DRay ray, DSphere* spheres, int sphere_count, DB
             DRay scattered;
             float3 attenuation;
             float3 emission;
-            if (hit_data.material && hit_data.material->scatter(current_ray, hit_data, attenuation, emission, scattered))
+            if (hit_data.material && hit_data.material->scatter(current_ray, hit_data, attenuation, emission, scattered, curand_ctx))
             {
                 total_color *= attenuation;
                 current_ray = scattered;
@@ -367,12 +380,9 @@ __global__ void raytrace(int width, int height, int samples, float3* pixels, siz
     const int i = (blockIdx.x * blockDim.x) + threadIdx.x;
     const int j = (blockIdx.y * blockDim.y) + threadIdx.y;
 
-    if (i >= width || j >= height)
-    {
-        return;
-    }
-
+    curandState curand_ctx;
     curand_init(clock64(), i, 0, &curand_ctx);
+    curandState* local_curand_ctx = &curand_ctx;
 
     //
     // scene definition
@@ -553,14 +563,14 @@ __global__ void raytrace(int width, int height, int samples, float3* pixels, siz
     float3 color{ .0f, .0f, .0f };
     for (int sample = 0; sample < samples; ++sample)
     {
-        float s = ((i + cuda_fastrand()) / static_cast<float>(width));
-        float t = ((j + cuda_fastrand()) / static_cast<float>(height));
+        float s = ((i + cuda_fastrand(local_curand_ctx)) / static_cast<float>(width));
+        float t = ((j + cuda_fastrand(local_curand_ctx)) / static_cast<float>(height));
 
         DRay ray;
         ray.origin = center;
         ray.direction = normalize(origin + s * horizontal + t * vertical - center);
 
-        color += get_color_for(ray, spheres, spherecount, boxes, boxcount, &raycount_inst);
+        color += get_color_for(ray, spheres, spherecount, boxes, boxcount, &raycount_inst, local_curand_ctx);
     }
 
     atomicAdd(raycount, raycount_inst);
@@ -572,14 +582,11 @@ __global__ void raytrace(int width, int height, int samples, float3* pixels, siz
     //color.y = t;
     //color.z = .0f;
     
-    float3& pixel = *(&pixels[j * width + i]);
-    //pixel.x = color.x;
-    //pixel.y = color.y;
-    //pixel.z = color.z;
-
-    atomicAdd(&pixel.x, color.x);
-    atomicAdd(&pixel.y, color.y);
-    atomicAdd(&pixel.z, color.z);
+    if (i < width && j < height)
+    {
+        float3& pixel = *(&pixels[j * width + i]);
+        pixel = color;
+    }
 
     // just to be sure we're running
     if (i == 0 && j == 0 && blockIdx.z == 0) { CUDALOG("[CUDA] running kernel...\n"); }
@@ -622,7 +629,6 @@ extern "C" void cuda_trace(int w, int h, int ns, float* out_buffer, size_t& rayc
     size_t* d_raycount[MAX_GPU];
     float3* d_output_cuda[MAX_GPU];
     float* h_output_cuda[MAX_GPU];
-
 #if CUDA_USE_MULTIGPU
     for (int i = num_gpus - 1; i >= 0; --i)
     {
@@ -671,6 +677,7 @@ extern "C" void cuda_trace(int w, int h, int ns, float* out_buffer, size_t& rayc
 #else
         raytrace<<<dimGrid, dimBlock>>>(w, h, ns / block_depth / gpu_split, d_output_cuda[i], d_raycount[i]);
 #endif
+        checkCudaAssert(cudaGetLastError());
     }
 
 #if CUDA_USE_MULTIGPU

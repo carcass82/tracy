@@ -28,7 +28,7 @@
 #if USE_GLM
 #include <glm/glm.hpp>
 constexpr float PI = 3.1415926535897932f;
-constexpr float EPS = 1.e-4f;
+constexpr float EPS = 1.e-8f;
 using glm::vec3;
 using glm::vec2;
 using glm::max;
@@ -72,14 +72,14 @@ extern "C" void cuda_trace(int, int, int, float*, size_t&);
 #include "scenes.hpp"
 
 // max "bounces" for tracing
-#define MAX_DEPTH 10
+#define MAX_DEPTH 5
 
 vec3 color(const Ray& r, IShape* world, int depth, size_t& raycount)
 {
     ++raycount;
 
     HitData rec;
-    if (world->hit(r, EPS, std::numeric_limits<float>::max(), rec))
+    if (world->hit(r, .001f, std::numeric_limits<float>::max(), rec))
     {
         //
         // debug - show normals
@@ -145,10 +145,10 @@ int main(int argc, char** argv)
     //IShape* world = load_scene(eRANDOM, cam, float(nx) / float(ny));
     
     // modified cornell box
-    //IShape* world = load_scene(eCORNELLBOX, cam, float(nx) / float(ny));
+    IShape* world = load_scene(eCORNELLBOX, cam, float(nx) / float(ny));
 
     // test same scene as gpu version
-    IShape* world = load_scene(eTESTGPU, cam, float(nx) / float(ny));
+    //IShape* world = load_scene(eTESTGPU, cam, float(nx) / float(ny));
 
     char filename[256];
     {

@@ -87,6 +87,16 @@ IShape* cornellbox_scene()
     IMaterial* light = new Emissive(new Constant(vec3(15.f, 15.f, 15.f)));
     
     int i = 0;
+    list[i++] = new Box(vec3(213.f, 554.f, 227.f), vec3(343.f, 555.f, 332.f), light);
+    list[i++] = new Box(vec3(555.f, .0f, 0.f), vec3(555.1f, 555.f, 555.f), green);
+    list[i++] = new Box(vec3(-0.1f, .0f, 0.f), vec3(.0f, 555.f, 555.f), red);
+    list[i++] = new Box(vec3(.0f, -.1f, 0.f), vec3(555.f, 0.f, 555.f), white);      // floor
+    list[i++] = new Box(vec3(.0f, 555.f, 0.f), vec3(555.f, 555.1f, 555.f), white);  // roof
+    list[i++] = new Box(vec3(.0f, .0f, 554.9f), vec3(555.f, 555.f, 555.f), white);  // back
+    list[i++] = new Box(vec3(265.f, .0f, 295.f), vec3(430.f, 330.f, 460.f), white); // large box
+    list[i++] = new Box(vec3(130.f, .0f, 65.f), vec3(295.f, 165.f, 230.f), white);  // small box
+
+#if 0 // old version, with rects / flip_normals / rotations / translations
     //list[i++] = new flip_normals(new yz_rect(0, 555, 0, 555, 555, green));
     //list[i++] = new yz_rect(0, 555, 0, 555, 0, red);
     //list[i++] = new flip_normals(new xz_rect(213, 343, 227, 332, 554, light));
@@ -94,11 +104,12 @@ IShape* cornellbox_scene()
     //list[i++] = new xz_rect(0, 555, 0, 555, 0, white);
     //list[i++] = new flip_normals(new xy_rect(0, 555, 0, 555, 555, white));
     
-    //// large box
+    // large box
     //list[i++] = new translate(new rotate_y(new box(vec3(0, 0, 0), vec3(165, 330, 165), white), 15), vec3(265, 0, 295));
-    //
-    //// small box
+    
+    // small box
     //list[i++] = new translate(new rotate_y(new box(vec3(0, 0, 0), vec3(165, 165, 165), white), -18), vec3(130, 0, 65));
+#endif
 
     // "custom" spheres to test materials
     IMaterial* alluminium = new Metal(vec3(.8f, .85f, .88f), .05f);
@@ -121,7 +132,6 @@ IShape* gpu_scene()
     IMaterial* light = new Emissive(new Constant(vec3(2.f, 2.f, 2.f)));
     IMaterial* blu = new Lambertian(new Constant(vec3(0.1f, 0.2f, 0.5f)));
     IMaterial* red = new Lambertian(new Constant(vec3(.85f, .05f, .02f)));
-    //IMaterial* green = new Lambertian(new Checker(new Constant(vec3(0.85f, 0.1f, 0.1f)), new Constant(vec3(0.1f, 0.1f, 0.9f))));
 	IMaterial* green = new Lambertian(new Constant(vec3(.05f, .85f, .02f)));
     IMaterial* grey = new Lambertian(new Constant(vec3(0.2f, 0.2f, 0.2f)));
     IMaterial* glass = new Dielectric(1.5);
