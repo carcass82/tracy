@@ -90,7 +90,9 @@ struct DRay
 struct DMaterial;
 struct DIntersection
 {
-    int type;
+    enum Type { eSPHERE, eBOX };
+
+    Type type;
     int index;
     float t;
     float3 point;
@@ -98,10 +100,11 @@ struct DIntersection
     DMaterial* material;
 };
 
-enum { eLAMBERTIAN, eMETAL, eDIELECTRIC, eEMISSIVE };
 struct DMaterial
 {
-    int type;
+    enum Type { eLAMBERTIAN, eMETAL, eDIELECTRIC, eISOTROPIC, eEMISSIVE };
+
+    Type type;
     float3 albedo;
     float roughness;
     float ior;
@@ -141,14 +144,14 @@ struct DMaterial
             {
                 outward_normal = -1.f * hit.normal;
                 ni_nt = ior;
-                cosine = dot(ray.direction, hit.normal) / length(ray.direction);
+                cosine = dot(ray.direction, hit.normal);
                 cosine = sqrtf(1.f - ior * ior * (1.f - cosine - cosine));
             }
             else
             {
                 outward_normal = hit.normal;
                 ni_nt = 1.f / ior;
-                cosine = -dot(ray.direction, hit.normal) / length(ray.direction);
+                cosine = -dot(ray.direction, hit.normal);
             }
 
             float3 refracted;
@@ -156,8 +159,16 @@ struct DMaterial
             float reflect_chance = (is_refracted) ? schlick_fresnel(cosine, ior) : 1.0f;
             
             scattered.origin = hit.point;
-            scattered.direction = normalize((cuda_fastrand(curand_ctx) < reflect_chance) ? reflect(ray.direction, hit.normal) : refracted);
+            scattered.direction = (cuda_fastrand(curand_ctx) < reflect_chance)? reflect(ray.direction, hit.normal) : refracted;
 
+            return true;
+        }
+        else if (type == eISOTROPIC)
+        {
+            scattered.origin = hit.point;
+            scattered.direction = cuda_random_on_unit_sphere(curand_ctx);
+            attenuation = albedo;
+            emission = make_float3(.0f, .0f, .0f);
             return true;
         }
         else if (type == eEMISSIVE)
@@ -209,7 +220,6 @@ struct DBox
     }
 };
 
-enum { eSPHERE, eBOX };
 __device__ bool intersect_spheres(DRay ray, DSphere* spheres, int sphere_count, DIntersection& hit_data)
 {
     bool hit_something = false;
@@ -233,7 +243,7 @@ __device__ bool intersect_spheres(DRay ray, DSphere* spheres, int sphere_count, 
                 if (t0 > EPS && t0 < hit_data.t)
                 {
                     hit_data.t = t0;
-                    hit_data.type = eSPHERE;
+                    hit_data.type = DIntersection::eSPHERE;
                     hit_data.index = i;
                     hit_something = true;
                 }
@@ -242,7 +252,7 @@ __device__ bool intersect_spheres(DRay ray, DSphere* spheres, int sphere_count, 
                 if (t1 > EPS && t1 < hit_data.t)
                 {
                     hit_data.t = t1;
-                    hit_data.type = eSPHERE;
+                    hit_data.type = DIntersection::eSPHERE;
                     hit_data.index = i;
                     hit_something = true;
                 }
@@ -277,7 +287,11 @@ __device__ bool intersect_boxes(DRay ray, DBox* boxes, int box_count, DIntersect
 
             if (fabs(direction) < EPS)
             {
-                if (origin < minbound || origin > maxbound) { boxhit = false; break; }
+                if (origin < minbound || origin > maxbound)
+                {
+                    boxhit = false;
+                    break;
+                }
             }
             else
             {
@@ -285,12 +299,19 @@ __device__ bool intersect_boxes(DRay ray, DBox* boxes, int box_count, DIntersect
                 float t1 = (minbound - origin) * ood;
                 float t2 = (maxbound - origin) * ood;
 
-                if (t1 > t2) swap(t1, t2);
+                if (t1 > t2)
+                {
+                    swap(t1, t2);
+                }
 
                 tmin = max(tmin, t1);
                 tmax = min(tmax, t2);
 
-                if (tmin > tmax || tmin > hit_data.t) { boxhit = false; break; }
+                if (tmin > tmax || tmin > hit_data.t)
+                {
+                    boxhit = false;
+                    break;
+                }
                 boxhit = true;
             }
         }
@@ -298,7 +319,7 @@ __device__ bool intersect_boxes(DRay ray, DBox* boxes, int box_count, DIntersect
         if (boxhit)
         {
             hit_data.t = tmin;
-            hit_data.type = eBOX;
+            hit_data.type = DIntersection::eBOX;
             hit_data.index = i;
             hit_something = true;
         }
@@ -342,7 +363,7 @@ __device__ float3 get_color_for(DRay ray, DSphere* spheres, int sphere_count, DB
             //
             //return .5f * (1.f + normalize(hit_data.normal));
 
-            if (hit_data.type == eSPHERE)
+            if (hit_data.type == DIntersection::eSPHERE)
             {
                 spheres[hit_data.index].hit_data(current_ray, hit_data);
             }
@@ -358,7 +379,6 @@ __device__ float3 get_color_for(DRay ray, DSphere* spheres, int sphere_count, DB
             {
                 total_color *= attenuation;
                 current_ray = scattered;
-                continue;
             }
             else
             {
@@ -479,27 +499,27 @@ __global__ void raytrace(int width, int height, int samples, float3* pixels, siz
     const float3 vup{ 0.f, 1.f, 0.f };
 
 #else
-    __shared__ DSphere spheres[8];
+    __shared__ DSphere spheres[9];
     int spherecount = array_size(spheres);
     spheres[0].center = { 0.f, 0.f, -1.f };
     spheres[0].radius = .5f;
-    spheres[0].material.type = eLAMBERTIAN;
+    spheres[0].material.type = DMaterial::eLAMBERTIAN;
     spheres[0].material.albedo = { 0.1f, 0.2f, 0.5f };
 
     spheres[1].center = { 0.f, -100.5f, -1.f };
     spheres[1].radius = 100.f;
-    spheres[1].material.type = eLAMBERTIAN;
+    spheres[1].material.type = DMaterial::eLAMBERTIAN;
     spheres[1].material.albedo = { 0.2f, 0.2f, 0.2f };
 
     spheres[2].center = { 1.f, 0.f, -1.f };
     spheres[2].radius = .5f;
-    spheres[2].material.type = eMETAL;
+    spheres[2].material.type = DMaterial::eMETAL;
     spheres[2].material.albedo = { .8f, .85f, .88f };
     spheres[2].material.roughness = .0f;
 
     spheres[3].center = { -1.f, 0.f, -1.f };
     spheres[3].radius = .5f;
-    spheres[3].material.type = eDIELECTRIC;
+    spheres[3].material.type = DMaterial::eDIELECTRIC;
     spheres[3].material.ior = 1.5f;
     //spheres[3].material.type = eMETAL;
     //spheres[3].material.albedo = { .8f, .85f, .88f };
@@ -507,32 +527,35 @@ __global__ void raytrace(int width, int height, int samples, float3* pixels, siz
 
     spheres[4].center = { 0.f, 150.f, -1.f };
     spheres[4].radius = 100.f;
-    spheres[4].material.type = eEMISSIVE;
+    spheres[4].material.type = DMaterial::eEMISSIVE;
     spheres[4].material.albedo = { 2.f, 2.f, 2.f };
 
     spheres[5].center = { 0.f, 0.f, 0.f };
     spheres[5].radius = .2f;
-    //spheres[5].material.type = eEMISSIVE;
-    //spheres[5].material.albedo = { 2.f, 2.f, 2.f };
-    spheres[5].material.type = eDIELECTRIC;
+    spheres[5].material.type = DMaterial::eDIELECTRIC;
     spheres[5].material.ior = 1.5f;
+
+    spheres[8].center = { 0.f, 0.f, 0.f };
+    spheres[8].radius = .15f;
+    spheres[8].material.type = DMaterial::eDIELECTRIC;
+    spheres[8].material.albedo = { 2.f, 2.f, 2.f };
 
     spheres[6].center = { 0.f, 1.f, -1.5f };
     spheres[6].radius = .3f;
-    spheres[6].material.type = eMETAL;
+    spheres[6].material.type = DMaterial::eMETAL;
     spheres[6].material.albedo = { 1.f, .71f, .29f };
     spheres[6].material.roughness = .05f;
 
     spheres[7].center = { 0.f, 0.f, -2.5f };
     spheres[7].radius = .5f;
-    spheres[7].material.type = eLAMBERTIAN;
+    spheres[7].material.type = DMaterial::eLAMBERTIAN;
     spheres[7].material.albedo = { .85f, .05f, .02f };
 
     __shared__ DBox boxes[1];
     int boxcount = array_size(boxes);
     boxes[0].min_limit = { -2.f, 0.f, -3.1f };
     boxes[0].max_limit = { 2.f, 2.f, -3.f };
-    boxes[0].material.type = eLAMBERTIAN;
+    boxes[0].material.type = DMaterial::eLAMBERTIAN;
     boxes[0].material.albedo = { .05f, .85f, .02f };
 
     //
