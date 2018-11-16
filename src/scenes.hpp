@@ -129,25 +129,32 @@ IShape* gpu_scene()
     int i = 0;
     IShape** list = new IShape*[n];
 
-    IMaterial* light = new Emissive(new Constant(vec3(2.f, 2.f, 2.f)));
-    IMaterial* blu = new Lambertian(new Constant(vec3(0.1f, 0.2f, 0.5f)));
+    IMaterial* light = new Emissive(new Constant(vec3(5.f, 5.f, 5.f)));
+    IMaterial* blue = new Lambertian(new Constant(vec3(0.1f, 0.2f, 0.5f)));
     IMaterial* red = new Lambertian(new Constant(vec3(.85f, .05f, .02f)));
 	IMaterial* green = new Lambertian(new Constant(vec3(.05f, .85f, .02f)));
     IMaterial* grey = new Lambertian(new Constant(vec3(0.2f, 0.2f, 0.2f)));
     IMaterial* glass = new Dielectric(1.5);
-    IMaterial* alluminium = new Metal(vec3(.8f, .85f, .88f), .0f);
+    IMaterial* alluminium = new Metal(vec3(.91f, .92f, .92f), .0f);
     IMaterial* gold = new Metal(vec3(1.f, .71f, .29f), .05f);
+    IMaterial* copper = new Metal(vec3(.95f, .64f, .54f), .2f);
 
-    list[i++] = new Sphere(vec3(0.f, 0.f, -1.f), .5f, blu);
-    list[i++] = new Sphere(vec3(0.f, -100.5f, -1.f), 100.f, grey);
+    list[i++] = new Sphere(vec3(0.f, 0.f, -1.f), .5f, blue);
+    list[i++] = new Sphere(vec3(0.f, 150.f, -1.f), 100.f, light);
     list[i++] = new Sphere(vec3(1.f, 0.f, -1.f), .5f, alluminium);
     list[i++] = new Sphere(vec3(-1.f, 0.f, -1.f), .5f, glass);
-    list[i++] = new Sphere(vec3(0.f, 150.f, -1.f), 100.f, light);
-    list[i++] = new Sphere(vec3(0.f, 0.f, 0.f), .2f, glass);
+    list[i++] = new Sphere(vec3(0.f, 0.f, 0.f), .2f, copper);
     list[i++] = new Sphere(vec3(0.f, 1.f, -1.5f), .3f, gold);
     list[i++] = new Sphere(vec3(0.f, 0.f, -2.5f), .5f, red);
 
-    list[i++] = new Box(vec3(-2.f, 0.f, -3.1f), vec3(2.f, 2.f, -3.f), green);
+    list[i++] = new Box(vec3(-4.f, -0.5f, -3.1f), vec3(4.f, 2.f, -3.f), grey);
+    list[i++] = new Box(vec3(-4.f, -0.5f, 1.6f), vec3(4.f, 2.f, 1.7f), grey);
+    list[i++] = new Box(vec3(-4.f, -0.6f, -3.f), vec3(4.f, -0.5f, 1.7f), grey);
+    list[i++] = new Box(vec3(-4.1f, -0.5f, -3.f), vec3(-4.f, 2.f, 1.7f), grey);
+    list[i++] = new Box(vec3(4.f, -0.5f, -3.f), vec3(4.1f, 2.f, 1.7f), grey);
+
+    list[i++] = new Box(vec3(-1.8f, 1.f, -3.f), vec3(1.8f, 1.1f, -2.9f), light);
+    list[i++] = new Box(vec3(-1.8f, 1.f, 1.6f), vec3(1.8f, 1.1f, 1.61f), light);
 
     return new ShapeList(list, i);
 }

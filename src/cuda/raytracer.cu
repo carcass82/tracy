@@ -493,7 +493,7 @@ __global__ void raytrace(int width, int height, int samples, float3* pixels, siz
     // camera setup
     //
     const float fov = radians(40.f);
-    const float aspect = width / fmax(1.f, static_cast<float>(height));
+    const float aspect = width / max(1.f, static_cast<float>(height));
     const float3 center{ 278.f, 278.f, -800.f };
     const float3 lookat{ 278.f, 278.f, 0.f };
     const float3 vup{ 0.f, 1.f, 0.f };
@@ -580,7 +580,7 @@ __global__ void raytrace(int width, int height, int samples, float3* pixels, siz
     // camera setup
     //
     const float fov = radians(60.f);
-    const float aspect = width / fmax(1.f, static_cast<float>(height));
+    const float aspect = width / max(1.f, static_cast<float>(height));
     const float3 center{ -.5f, 1.2f, 1.5f };
     const float3 lookat{ 0.f, 0.f, -1.f };
     const float3 vup{ 0.f, 1.f, 0.f };

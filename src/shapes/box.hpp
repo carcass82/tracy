@@ -25,7 +25,7 @@ public:
     virtual bool hit(const Ray& r, float t_min, float t_max, HitData& rec) const override final
     {
         float tmin = t_min;
-        float tmax = FLT_MAX;
+        float tmax = std::numeric_limits<float>::max();
 
         for (int i = 0; i < 3; ++i)
         {

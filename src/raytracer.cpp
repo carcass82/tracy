@@ -28,7 +28,6 @@
 #if USE_GLM
 #include <glm/glm.hpp>
 constexpr float PI = 3.1415926535897932f;
-constexpr float EPS = 1.e-8f;
 using glm::vec3;
 using glm::vec2;
 using glm::max;
@@ -40,7 +39,6 @@ template<typename T> constexpr inline void swap(T& a, T& b) { T tmp(a); a = b; b
 #else
 #include "ext/cclib/cclib.h"
 using cc::math::PI;
-using cc::math::EPS;
 using cc::math::vec3;
 using cc::math::vec2;
 using cc::util::max;
