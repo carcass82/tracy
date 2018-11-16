@@ -220,13 +220,13 @@ struct DBox
     }
 };
 
-__device__ bool intersect_spheres(DRay ray, DSphere* spheres, int sphere_count, DIntersection& hit_data)
+__device__ bool intersect_spheres(const DRay& ray, const DSphere* spheres, int sphere_count, DIntersection& hit_data)
 {
     bool hit_something = false;
 
     for (int i = 0; i < sphere_count; ++i)
     {
-        DSphere& sphere = spheres[i];
+        DSphere sphere = spheres[i];
 
         float3 oc = ray.origin - sphere.center;
         float b = dot(oc, ray.direction);
@@ -240,7 +240,7 @@ __device__ bool intersect_spheres(DRay ray, DSphere* spheres, int sphere_count, 
                 discriminant = sqrtf(discriminant);
 
                 float t0 = -b - discriminant;
-                if (t0 > EPS && t0 < hit_data.t)
+                if (t0 > 0.01f && t0 < hit_data.t)
                 {
                     hit_data.t = t0;
                     hit_data.type = DIntersection::eSPHERE;
@@ -249,7 +249,7 @@ __device__ bool intersect_spheres(DRay ray, DSphere* spheres, int sphere_count, 
                 }
 
                 float t1 = -b + discriminant;
-                if (t1 > EPS && t1 < hit_data.t)
+                if (t1 > 0.01f && t1 < hit_data.t)
                 {
                     hit_data.t = t1;
                     hit_data.type = DIntersection::eSPHERE;
@@ -263,15 +263,15 @@ __device__ bool intersect_spheres(DRay ray, DSphere* spheres, int sphere_count, 
     return hit_something;
 }
 
-__device__ bool intersect_boxes(DRay ray, DBox* boxes, int box_count, DIntersection& hit_data)
+__device__ bool intersect_boxes(const DRay& ray, const DBox* boxes, int box_count, DIntersection& hit_data)
 {
     bool hit_something = false;
 
     for (int i = 0; i < box_count; ++i)
     {
-        DBox& box = boxes[i];
+        DBox box = boxes[i];
 
-        float tmin = EPS;
+        float tmin = 0.01f;
         float tmax = FLT_MAX;
 
         bool boxhit = false;
@@ -413,14 +413,14 @@ __global__ void raytrace(int width, int height, int samples, float3* pixels, siz
     int spherecount = array_size(spheres);
     spheres[0].center = { 130 + 82.5 - 25, 215, 65 + 82.5 - 25 };
     spheres[0].radius = 50.f;
-    spheres[0].material.type = eDIELECTRIC;
+    spheres[0].material.type = DMaterial::eDIELECTRIC;
     spheres[0].material.ior = 1.5f;
     //spheres[0].material.type = eEMISSIVE;
     //spheres[0].material.albedo = { 15.f, 15.f, 15.f };
 
     spheres[1].center = { 265 + 82.5 + 35, 400, 295 + 82.5 - 35 };
     spheres[1].radius = 70.f;
-    spheres[1].material.type = eMETAL;
+    spheres[1].material.type = DMaterial::eMETAL;
     spheres[1].material.albedo = { .8f, .85f, .88f };
     spheres[1].material.roughness = .0f;
     //spheres[1].material.type = eEMISSIVE;
@@ -428,7 +428,7 @@ __global__ void raytrace(int width, int height, int samples, float3* pixels, siz
     
     spheres[2].center = { 265 + 82.5 + 15, 30, 80 };
     spheres[2].radius = 30.f;
-    spheres[2].material.type = eMETAL;
+    spheres[2].material.type = DMaterial::eMETAL;
     spheres[2].material.albedo = { 1.f, .71f, .29f };
     spheres[2].material.roughness = .05f;
     //spheres[2].material.type = eEMISSIVE;
@@ -441,26 +441,26 @@ __global__ void raytrace(int width, int height, int samples, float3* pixels, siz
     boxes[0].min_limit = { 213.f, 554.f, 227.f };
     boxes[0].max_limit = { 343.f, 555.f, 332.f };
     boxes[0].rot = { .0f, .0f, .0f };
-    boxes[0].material.type = eEMISSIVE;
+    boxes[0].material.type = DMaterial::eEMISSIVE;
     boxes[0].material.albedo = { 15.f, 15.f, 15.f };
     // green side
     boxes[1].min_limit = { 555.f,    .0f, 0.f};
     boxes[1].max_limit = { 555.1f, 555.f, 555.f};
     boxes[1].rot = { .0f, .0f, .0f };
-    boxes[1].material.type = eLAMBERTIAN;
+    boxes[1].material.type = DMaterial::eLAMBERTIAN;
     boxes[1].material.albedo = { 0.12f, 0.45f, .15f };
     // red side
     boxes[2].min_limit = { -0.1f,   .0f, 0.f };
     boxes[2].max_limit = {  .0f, 555.f, 555.f };
     boxes[2].rot = { .0f, .0f, .0f };
-    boxes[2].material.type = eLAMBERTIAN;
+    boxes[2].material.type = DMaterial::eLAMBERTIAN;
     boxes[2].material.roughness = .0f;
     boxes[2].material.albedo = { 0.65f, .05f, .05f };
     // floor
     boxes[3].min_limit = { .0f,    -.1f, 0.f };
     boxes[3].max_limit = { 555.f, 0.f, 555.f };
     boxes[3].rot = { .0f, .0f, .0f };
-    boxes[3].material.type = eLAMBERTIAN;
+    boxes[3].material.type = DMaterial::eLAMBERTIAN;
     boxes[3].material.albedo = { 0.73f, .73f, .73f };
     // roof
     boxes[4].min_limit = { .0f,    555.f, 0.f };
@@ -468,25 +468,25 @@ __global__ void raytrace(int width, int height, int samples, float3* pixels, siz
     boxes[4].rot = { .0f, .0f, .0f };
     //boxes[4].material.type = eEMISSIVE;
     //boxes[4].material.albedo = { 1.f, 1.f, 1.f };
-    boxes[4].material.type = eLAMBERTIAN;
+    boxes[4].material.type = DMaterial::eLAMBERTIAN;
     boxes[4].material.albedo = { 0.73f, .73f, .73f };
     //back
     boxes[5].min_limit = { .0f,    .0f, 554.9f };
     boxes[5].max_limit = { 555.f, 555.f, 555.f };
     boxes[5].rot = { .0f, .0f, .0f };
-    boxes[5].material.type = eLAMBERTIAN;
+    boxes[5].material.type = DMaterial::eLAMBERTIAN;
     boxes[5].material.albedo = { 0.73f, .73f, .73f };
     // higher block
     boxes[6].min_limit = { 265.f,   .0f, 295.f };
     boxes[6].max_limit = { 430.f, 330.f, 460.f };
     boxes[6].rot = { .0f, 15.0f, .0f };
-    boxes[6].material.type = eLAMBERTIAN;
+    boxes[6].material.type = DMaterial::eLAMBERTIAN;
     boxes[6].material.albedo = { 0.73f, .73f, .73f };
     // lower block
     boxes[7].min_limit = { 130.f,   .0f, 65.f };
     boxes[7].max_limit = { 295.f, 165.f, 230.f };
     boxes[7].rot = { .0f, -18.f, .0f };
-    boxes[7].material.type = eLAMBERTIAN;
+    boxes[7].material.type = DMaterial::eLAMBERTIAN;
     boxes[7].material.albedo = { 0.73f, .73f, .73f };
 
     //
@@ -499,64 +499,82 @@ __global__ void raytrace(int width, int height, int samples, float3* pixels, siz
     const float3 vup{ 0.f, 1.f, 0.f };
 
 #else
-    __shared__ DSphere spheres[9];
+    __shared__ DSphere spheres[7];
     int spherecount = array_size(spheres);
     spheres[0].center = { 0.f, 0.f, -1.f };
     spheres[0].radius = .5f;
     spheres[0].material.type = DMaterial::eLAMBERTIAN;
     spheres[0].material.albedo = { 0.1f, 0.2f, 0.5f };
 
-    spheres[1].center = { 0.f, -100.5f, -1.f };
+    spheres[1].center = { 0.f, 150.f, -1.f };
     spheres[1].radius = 100.f;
-    spheres[1].material.type = DMaterial::eLAMBERTIAN;
-    spheres[1].material.albedo = { 0.2f, 0.2f, 0.2f };
+    spheres[1].material.type = DMaterial::eEMISSIVE;
+    spheres[1].material.albedo = { 5.f, 5.f, 5.f };
 
     spheres[2].center = { 1.f, 0.f, -1.f };
     spheres[2].radius = .5f;
     spheres[2].material.type = DMaterial::eMETAL;
-    spheres[2].material.albedo = { .8f, .85f, .88f };
-    spheres[2].material.roughness = .0f;
+    spheres[2].material.albedo = { .91f, .92f, .92f };
+    spheres[2].material.roughness = .05f;
 
     spheres[3].center = { -1.f, 0.f, -1.f };
     spheres[3].radius = .5f;
     spheres[3].material.type = DMaterial::eDIELECTRIC;
     spheres[3].material.ior = 1.5f;
-    //spheres[3].material.type = eMETAL;
-    //spheres[3].material.albedo = { .8f, .85f, .88f };
-    //spheres[3].material.roughness = .05f;
 
-    spheres[4].center = { 0.f, 150.f, -1.f };
-    spheres[4].radius = 100.f;
-    spheres[4].material.type = DMaterial::eEMISSIVE;
-    spheres[4].material.albedo = { 2.f, 2.f, 2.f };
+    spheres[4].center = { 0.f, 0.f, 0.f };
+    spheres[4].radius = .2f;
+    spheres[4].material.type = DMaterial::eMETAL;
+    spheres[4].material.albedo = { .95f, .64f, .54f };
+    spheres[4].material.roughness = .2f;
 
-    spheres[5].center = { 0.f, 0.f, 0.f };
-    spheres[5].radius = .2f;
-    spheres[5].material.type = DMaterial::eDIELECTRIC;
-    spheres[5].material.ior = 1.5f;
+    spheres[5].center = { 0.f, 1.f, -1.5f };
+    spheres[5].radius = .3f;
+    spheres[5].material.type = DMaterial::eMETAL;
+    spheres[5].material.albedo = { 1.f, .71f, .29f };
+    spheres[5].material.roughness = .05f;
 
-    spheres[8].center = { 0.f, 0.f, 0.f };
-    spheres[8].radius = .15f;
-    spheres[8].material.type = DMaterial::eDIELECTRIC;
-    spheres[8].material.albedo = { 2.f, 2.f, 2.f };
+    spheres[6].center = { 0.f, 0.f, -2.5f };
+    spheres[6].radius = .5f;
+    spheres[6].material.type = DMaterial::eLAMBERTIAN;
+    spheres[6].material.albedo = { .85f, .05f, .02f };
 
-    spheres[6].center = { 0.f, 1.f, -1.5f };
-    spheres[6].radius = .3f;
-    spheres[6].material.type = DMaterial::eMETAL;
-    spheres[6].material.albedo = { 1.f, .71f, .29f };
-    spheres[6].material.roughness = .05f;
-
-    spheres[7].center = { 0.f, 0.f, -2.5f };
-    spheres[7].radius = .5f;
-    spheres[7].material.type = DMaterial::eLAMBERTIAN;
-    spheres[7].material.albedo = { .85f, .05f, .02f };
-
-    __shared__ DBox boxes[1];
+    __shared__ DBox boxes[7];
     int boxcount = array_size(boxes);
-    boxes[0].min_limit = { -2.f, 0.f, -3.1f };
-    boxes[0].max_limit = { 2.f, 2.f, -3.f };
+    boxes[0].min_limit = { -4.f, -0.5f, -3.1f };
+    boxes[0].max_limit = { 4.f, 2.f, -3.f };
     boxes[0].material.type = DMaterial::eLAMBERTIAN;
-    boxes[0].material.albedo = { .05f, .85f, .02f };
+    boxes[0].material.albedo = { .2f, .2f, .2f };
+
+    boxes[1].min_limit = { -4.f, -0.5f, 1.6f };
+    boxes[1].max_limit = { 4.f, 2.f, 1.7f };
+    boxes[1].material.type = DMaterial::eLAMBERTIAN;
+    boxes[1].material.albedo = { .2f, .2f, .2f };
+
+    boxes[2].min_limit = { -4.f, -0.6f, -3.f };
+    boxes[2].max_limit = { 4.f, -0.5f, 1.7f };
+    boxes[2].material.type = DMaterial::eLAMBERTIAN;
+    boxes[2].material.albedo = { .2f, .2f, .2f };
+
+    boxes[3].min_limit = { -4.1f, -0.5f, -3.f };
+    boxes[3].max_limit = { -4.f, 2.f, 1.7f };
+    boxes[3].material.type = DMaterial::eLAMBERTIAN;
+    boxes[3].material.albedo = { .2f, .2f, .2f };
+
+    boxes[4].min_limit = { 4.f, -0.5f, -3.f };
+    boxes[4].max_limit = { 4.1f, 2.f, 1.7f };
+    boxes[4].material.type = DMaterial::eLAMBERTIAN;
+    boxes[4].material.albedo = { .2f, .2f, .2f };
+
+    boxes[5].min_limit = { -1.8f, 1.f, -3.f };
+    boxes[5].max_limit = { 1.8f, 1.1f, -2.9f };
+    boxes[5].material.type = DMaterial::eEMISSIVE;
+    boxes[5].material.albedo = { 2.f, 2.f, 2.f };
+
+    boxes[6].min_limit = { -1.8f, 1.f, 1.6f };
+    boxes[6].max_limit = { 1.8f, 1.1f, 1.61f };
+    boxes[6].material.type = DMaterial::eEMISSIVE;
+    boxes[6].material.albedo = { 2.f, 2.f, 2.f };
 
     //
     // camera setup
