@@ -46,6 +46,8 @@ using cc::util::min;
 using cc::util::clamp;
 using cc::math::radians;
 using cc::util::swap;
+#define cosf(x) cc::math::fast::cosf(x)
+#define sinf(x) cc::math::fast::sinf(x)
 #define atan2f(x, y) cc::math::fast::atan2f(x, y)
 #define rcp(x) cc::math::fast::rcp(x)
 #endif
