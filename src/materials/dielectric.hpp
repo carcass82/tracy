@@ -39,8 +39,7 @@ public:
 
         vec3 refracted = refract(normalize(r_in.get_direction()), normalize(outward_normal), ni_over_nt);
         float reflect_prob = (refracted != ZERO)? schlick(cosine, ref_idx) : 1.f;
-
-        s_rec.scattered = (fastrand() < reflect_prob)? Ray(rec.point, reflect(r_in.get_direction(), rec.normal)) : Ray(rec.point, refracted);
+        s_rec.scattered = Ray(rec.point, ((fastrand() < reflect_prob)? reflect(r_in.get_direction(), rec.normal) : refracted));
 
         return true;
     }

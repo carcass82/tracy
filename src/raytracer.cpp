@@ -22,9 +22,6 @@
 #include <thread>
 #include <chrono>
 
-#define STB_IMAGE_IMPLEMENTATION
-#include "ext/stb_image.h"
-
 #if USE_GLM
 #include <glm/glm.hpp>
 constexpr float PI = 3.1415926535897932f;
@@ -35,7 +32,7 @@ using glm::min;
 using glm::clamp;
 using glm::radians;
 template<typename T> constexpr inline void swap(T& a, T& b) { T tmp(a); a = b; b = tmp; }
-#define rcp(x) (1.f / x)
+#define rcp(x) (1.f / (x))
 #else
 #include "ext/cclib/cclib.h"
 using cc::math::PI;

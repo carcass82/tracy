@@ -11,17 +11,17 @@
 class Triangle : public IShape
 {
 public:
-    Triangle(vec3 a, vec3 b, vec3 c, IMaterial* m)
-        : vert{a, b, c}
-        , mat(m)
+    Triangle(vec3 a, vec3 b, vec3 c, IMaterial* ptr)
+        : vertices{a, b, c}
+        , mat(ptr)
     {
-        normal = normalize(cross(vert[1] - vert[0], vert[2] - vert[0]));
+        normal = normalize(cross(vertices[1] - vertices[0], vertices[2] - vertices[0]));
     }
 
     virtual bool hit(const Ray& r, float t_min, float t_max, HitData& rec) const override final
     {
-        vec3 v0v1 = vert[1] - vert[0];
-        vec3 v0v2 = vert[2] - vert[0];
+        vec3 v0v1 = vertices[1] - vertices[0];
+        vec3 v0v2 = vertices[2] - vertices[0];
         vec3 pvec = cross(r.get_direction(), v0v2);
         float det = dot(v0v1, pvec);
 
@@ -34,16 +34,16 @@ public:
 
         float invDet = rcp(det);
 
-        vec3 tvec = r.get_origin() - vert[0];
+        vec3 tvec = r.get_origin() - vertices[0];
         float u = dot(tvec, pvec) * invDet;
-        if (u < 0 || u > 1)
+        if (u < .0f || u > 1.f)
         {
             return false;
         }
 
         vec3 qvec = cross(tvec, v0v1);
         float v = dot(r.get_direction(), qvec) * invDet;
-        if (v < 0 || u + v > 1)
+        if (v < .0f || u + v > 1.f)
         {
             return false;
         }
@@ -60,8 +60,14 @@ public:
         rec.material = mat;
     }
 
+    virtual void get_bounds(vec3& min, vec3& max) const override final
+    {
+        min = min3(vertices[0], min3(vertices[1], vertices[2]));
+        max = max3(vertices[0], max3(vertices[1], vertices[2]));
+    }
+
 private:
-    vec3 vert[3];
+    vec3 vertices[3];
     vec3 normal;
     IMaterial* mat;
 };

@@ -24,14 +24,14 @@ public:
 
     virtual vec3 sample(const vec2& uv, const vec3& p) const override final
     {
-        int i = clamp(static_cast<int>((uv.s) * nx),                 0, nx - 1);
-        int j = clamp(static_cast<int>((1.0f - uv.t) * ny - 0.001f), 0, ny - 1);
+        int i = clamp(int((uv.s) * nx),                 0, nx - 1);
+        int j = clamp(int((1.0f - uv.t) * ny - 0.001f), 0, ny - 1);
+        
+        float r = data[3 * (i + nx * j) + 0] / 255.0f;
+        float g = data[3 * (i + nx * j) + 1] / 255.0f;
+        float b = data[3 * (i + nx * j) + 2] / 255.0f;
 
-        float r = data[3 * i + 3 * nx * j + 0] / 255.0f;
-        float g = data[3 * i + 3 * nx * j + 1] / 255.0f;
-        float b = data[3 * i + 3 * nx * j + 2] / 255.0f;
-
-        return vec3(r, g, b);
+        return vec3{ r, g, b };
     }
 
 private:

@@ -7,6 +7,12 @@
 
 #pragma once
 
+#define STB_IMAGE_IMPLEMENTATION
+#include "ext/stb_image.h"
+
+#define TINYOBJLOADER_IMPLEMENTATION
+#include "ext/tiny_obj_loader.h"
+
 #include "shapes/box.hpp"
 #include "shapes/sphere.hpp"
 #include "shapes/triangle.hpp"
@@ -20,6 +26,44 @@
 #include "textures/constant.hpp"
 #include "textures/checker.hpp"
 
+
+IShape* load_mesh(const char* obj_path)
+{
+    tinyobj::attrib_t attrib;
+    std::vector<tinyobj::shape_t> shapes;
+    std::vector<tinyobj::material_t> materials;
+    std::string warn, err;
+
+    if (!tinyobj::LoadObj(&attrib, &shapes, &materials, &warn, &err, obj_path))
+    {
+        return nullptr;
+    }
+
+    IMaterial* green = new Lambertian(new Constant(vec3(.05f, .85f, .02f)));
+    
+    IShape** list = new IShape*[1024];
+
+    vec3 verts[3];
+    int i = 0;
+    int v = 0;
+    for (const auto& shape : shapes)
+    {
+        for (const auto& index : shape.mesh.indices)
+        {
+            verts[v++] = { attrib.vertices[3 * index.vertex_index + 0],
+                           attrib.vertices[3 * index.vertex_index + 1],
+                           attrib.vertices[3 * index.vertex_index + 2] };
+        }
+
+        if (v == 3)
+        {
+            list[i++] = new Triangle(verts[0], verts[1], verts[2], green);
+            v = 0;
+        }
+    }
+
+    return new ShapeList(list, i);
+}
 
 IShape* random_scene()
 {
@@ -159,6 +203,8 @@ IShape* gpu_scene()
 
     ITexture* checker_texture = new Checker(new Constant(vec3(0.2f, 0.3f, 0.1f)), new Constant(vec3(0.9f, 0.9f, 0.9f)));
     list[i++] = new Triangle(vec3(-1.f, .5f, -2.9f), vec3(1.f, .5f, -2.9f), vec3(1.f, 1.5f, -2.9f), new Lambertian(checker_texture));
+
+    list[i++] = load_mesh("data/bunny.obj");
 
     return new ShapeList(list, i);
 }

@@ -71,6 +71,18 @@ public:
         rec.material = mat;
     }
 
+    virtual void get_bounds(vec3& min, vec3& max) const override final
+    {
+        min = pmin;
+        max = pmax;
+    }
+
+    void expand(const vec3& v)
+    {
+        pmin = min3(pmin, v);
+        pmax = max3(pmax, v);
+    }
+
 private:
     vec3 get_normal(const vec3& point) const
     {

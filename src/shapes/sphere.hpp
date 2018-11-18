@@ -11,11 +11,11 @@
 class Sphere : public IShape
 {
 public:
-    Sphere(vec3 c, float r, IMaterial* m)
+    Sphere(vec3 c, float r, IMaterial* ptr)
         : center(c)
         , radius(r)
         , radius2(r * r)
-        , mat(m)
+        , mat(ptr)
     {
     }
 
@@ -62,6 +62,12 @@ public:
         rec.normal = (rec.point - center) / radius;
         rec.uv = get_uv_at((rec.point - center) / radius);
         rec.material = mat;
+    }
+
+    virtual void get_bounds(vec3& min, vec3& max) const override final
+    {
+        min = center - radius;
+        max = center + radius;
     }
 
 private:
