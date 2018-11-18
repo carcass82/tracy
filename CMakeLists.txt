@@ -1,16 +1,23 @@
 cmake_minimum_required(VERSION 3.10)
 
-project(Tracy LANGUAGES CXX CUDA)
+project(Tracy LANGUAGES CXX)
 
 set(CMAKE_VERBOSE_MAKEFILE ON)
 set(CMAKE_RUNTIME_OUTPUT_DIRECTORY ${Tracy_SOURCE_DIR}/bin/)
 
-option(USE_GLM "Use GLM instead of cclib" OFF)
+set(CMAKE_CXX_STANDARD 17)
+set(CMAKE_CXX_STANDARD_REQUIRED ON)
+set(CMAKE_CXX_EXTENSIONS OFF)
 
-option(BUILD_WITH_CUDA "Build with CUDA support" ON)
+include(CheckLanguage)
+check_language(CUDA)
+
+option(USE_GLM "Use GLM instead of cclib" OFF)
+option(BUILD_WITH_CUDA "Build with CUDA support" CMAKE_CUDA_COMPILER)
 option(CUDA_USE_STREAMS "Use async streams" OFF)
 option(CUDA_USE_MULTIGPU "Use all available CUDA enabled GPUs" OFF)
 set(CUDA_COMPUTECAPABILITY "-arch=sm_30" CACHE STRING "Cuda Arch Compile Option")
+
 
 #
 # sources + headers (grouped)
@@ -40,11 +47,14 @@ file(GLOB SRC_MAIN "./src/*.cpp")
 
 include_directories(. ./src ./ext)
 
+#
+# Compiler options
+#
 if (MSVC)
     message(STATUS "Found MSVC: " ${CMAKE_CXX_COMPILER})
     set(CMAKE_CXX_FLAGS "/nologo /W3 /D_CRT_SECURE_NO_WARNINGS")
 	set(CMAKE_CXX_FLAGS_DEBUG ${CMAKE_CXX_FLAGS_DEBUG} " /EHsc /Zi /Od /D_DEBUG")
-    set(CMAKE_CXX_FLAGS_RELEASE ${CMAKE_CXX_FLAGS_RELEASE} " /EHsc /Zi /GR- /GL /O2 /Ob1 /Oi /Ot /arch:AVX2 /fp:fast /openmp /DNDEBUG")
+    set(CMAKE_CXX_FLAGS_RELEASE ${CMAKE_CXX_FLAGS_RELEASE} " /EHsc /Zi /GR- /GL /O2 /Ob1 /Oi /Ot /fp:fast /openmp /DNDEBUG")
     set(CMAKE_EXE_LINKER_FLAGS_RELEASE "${CMAKE_EXE_LINKER_FLAGS_RELEASE} /DEBUG /LTCG /INCREMENTAL:NO /OPT:REF")
 else()
     message(STATUS "Found C++ Compiler: " ${CMAKE_CXX_COMPILER})
@@ -63,9 +73,11 @@ endif()
 
 add_executable(${PROJECT_NAME} ${SRC_MAIN} ${INC_LIST} ${INC_SHAPES} ${INC_SHAPES_MOD} ${INC_MATERIALS} ${INC_TEXTURES} ${INC_PDF} ${INC_CCLIB})
 
-target_compile_features(${PROJECT_NAME} PUBLIC cxx_std_17)
-
+#
+# CUDA related settings
+#
 if (BUILD_WITH_CUDA)
+	enable_language(CUDA)
 	add_definitions(-DUSE_CUDA)
 	set(CMAKE_CUDA_FLAGS ${CUDA_COMPUTECAPABILITY})
 	set(CMAKE_CUDA_FLAGS_DEBUG ${CMAKE_CUDA_FLAGS_DEBUG} " -G")
