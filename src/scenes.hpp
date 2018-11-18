@@ -9,6 +9,7 @@
 
 #include "shapes/box.hpp"
 #include "shapes/sphere.hpp"
+#include "shapes/triangle.hpp"
 
 #include "materials/lambertian.hpp"
 #include "materials/metal.hpp"
@@ -155,6 +156,9 @@ IShape* gpu_scene()
 
     list[i++] = new Box(vec3(-1.8f, 1.f, -3.f), vec3(1.8f, 1.1f, -2.9f), light);
     list[i++] = new Box(vec3(-1.8f, 1.f, 1.6f), vec3(1.8f, 1.1f, 1.61f), light);
+
+    ITexture* checker_texture = new Checker(new Constant(vec3(0.2f, 0.3f, 0.1f)), new Constant(vec3(0.9f, 0.9f, 0.9f)));
+    list[i++] = new Triangle(vec3(-1.f, .5f, -2.9f), vec3(1.f, .5f, -2.9f), vec3(1.f, 1.5f, -2.9f), new Lambertian(checker_texture));
 
     return new ShapeList(list, i);
 }
