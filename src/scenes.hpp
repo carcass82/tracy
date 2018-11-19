@@ -115,7 +115,7 @@ IShape* random_scene()
     
     // lambertian textured
     int nx, ny, nn;
-    unsigned char* tex_data = stbi_load("data/earth.jpg", &nx, &ny, &nn, 0);
+    unsigned char* tex_data = stbi_load("../data/earth.jpg", &nx, &ny, &nn, 0);
     list[i++] = new Sphere(vec3(6.f, 1.f, 0.f), 1.0, new Lambertian(new Bitmap(tex_data, nx, ny)));
 
     return new ShapeList(list, i);
@@ -204,7 +204,7 @@ IShape* gpu_scene()
     //ITexture* checker_texture = new Checker(new Constant(vec3(0.2f, 0.3f, 0.1f)), new Constant(vec3(0.9f, 0.9f, 0.9f)));
     //list[i++] = new Triangle(vec3(-1.f, .5f, -2.9f), vec3(1.f, .5f, -2.9f), vec3(1.f, 1.5f, -2.9f), new Lambertian(checker_texture));
 
-    list[i++] = load_mesh("data/teapot.obj");
+    list[i++] = load_mesh("../data/teapot.obj");
 
     return new ShapeList(list, i);
 }

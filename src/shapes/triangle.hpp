@@ -12,16 +12,16 @@ class Triangle : public IShape
 {
 public:
     Triangle(vec3 a, vec3 b, vec3 c, IMaterial* ptr)
-        : vertices{a, b, c}
+        : vertices{ a, b, c }
         , mat(ptr)
     {
-        normal = normalize(cross(vertices[1] - vertices[0], vertices[2] - vertices[0]));
+        normal = normalize(cross(v0v1, v0v2));
+        v0v1 = vertices[1] - vertices[0];
+        v0v2 = vertices[2] - vertices[0];
     }
 
     virtual bool hit(const Ray& r, float t_min, float t_max, HitData& rec) const override final
     {
-        vec3 v0v1 = vertices[1] - vertices[0];
-        vec3 v0v2 = vertices[2] - vertices[0];
         vec3 pvec = cross(r.get_direction(), v0v2);
         float det = dot(v0v1, pvec);
 
@@ -69,5 +69,7 @@ public:
 private:
     vec3 vertices[3];
     vec3 normal;
+    vec3 v0v1;
+    vec3 v0v2;
     IMaterial* mat;
 };
