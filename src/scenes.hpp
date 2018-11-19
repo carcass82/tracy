@@ -41,7 +41,7 @@ IShape* load_mesh(const char* obj_path)
 
     IMaterial* green = new Lambertian(new Constant(vec3(.05f, .85f, .02f)));
     
-    IShape** list = new IShape*[1024];
+    IShape** list = new IShape*[attrib.vertices.size()];
 
     vec3 verts[3];
     int i = 0;
@@ -53,16 +53,16 @@ IShape* load_mesh(const char* obj_path)
             verts[v++] = { attrib.vertices[3 * index.vertex_index + 0],
                            attrib.vertices[3 * index.vertex_index + 1],
                            attrib.vertices[3 * index.vertex_index + 2] };
-        }
 
-        if (v == 3)
-        {
-            list[i++] = new Triangle(verts[0], verts[1], verts[2], green);
-            v = 0;
+            if (v == 3)
+            {
+                list[i++] = new Triangle(verts[0], verts[1], verts[2], green);
+                v = 0;
+            }
         }
     }
 
-    return new ShapeList(list, i);
+    return new ShapeList(list, i, true);
 }
 
 IShape* random_scene()
@@ -184,27 +184,27 @@ IShape* gpu_scene()
     IMaterial* gold = new Metal(vec3(1.f, .71f, .29f), .05f);
     IMaterial* copper = new Metal(vec3(.95f, .64f, .54f), .2f);
 
-    list[i++] = new Sphere(vec3(0.f, 0.f, -1.f), .5f, blue);
+    //list[i++] = new Sphere(vec3(0.f, 0.f, -1.f), .5f, blue);
     list[i++] = new Sphere(vec3(0.f, 150.f, -1.f), 100.f, light);
-    list[i++] = new Sphere(vec3(1.f, 0.f, -1.f), .5f, alluminium);
-    list[i++] = new Sphere(vec3(-1.f, 0.f, -1.f), .5f, glass);
-    list[i++] = new Sphere(vec3(0.f, 0.f, 0.f), .2f, copper);
-    list[i++] = new Sphere(vec3(0.f, 1.f, -1.5f), .3f, gold);
-    list[i++] = new Sphere(vec3(0.f, 0.f, -2.5f), .5f, red);
+    //list[i++] = new Sphere(vec3(1.f, 0.f, -1.f), .5f, alluminium);
+    //list[i++] = new Sphere(vec3(-1.f, 0.f, -1.f), .5f, glass);
+    //list[i++] = new Sphere(vec3(0.f, 0.f, 0.f), .2f, copper);
+    //list[i++] = new Sphere(vec3(0.f, 1.f, -1.5f), .3f, gold);
+    //list[i++] = new Sphere(vec3(0.f, 0.f, -2.5f), .5f, red);
+    //
+    //list[i++] = new Box(vec3(-4.f, -0.5f, -3.1f), vec3(4.f, 2.f, -3.f), grey);
+    //list[i++] = new Box(vec3(-4.f, -0.5f, 1.6f), vec3(4.f, 2.f, 1.7f), grey);
+    //list[i++] = new Box(vec3(-4.f, -0.6f, -3.f), vec3(4.f, -0.5f, 1.7f), grey);
+    //list[i++] = new Box(vec3(-4.1f, -0.5f, -3.f), vec3(-4.f, 2.f, 1.7f), grey);
+    //list[i++] = new Box(vec3(4.f, -0.5f, -3.f), vec3(4.1f, 2.f, 1.7f), grey);
+    //
+    //list[i++] = new Box(vec3(-1.8f, 1.f, -3.f), vec3(1.8f, 1.1f, -2.9f), light);
+    //list[i++] = new Box(vec3(-1.8f, 1.f, 1.6f), vec3(1.8f, 1.1f, 1.61f), light);
+    //
+    //ITexture* checker_texture = new Checker(new Constant(vec3(0.2f, 0.3f, 0.1f)), new Constant(vec3(0.9f, 0.9f, 0.9f)));
+    //list[i++] = new Triangle(vec3(-1.f, .5f, -2.9f), vec3(1.f, .5f, -2.9f), vec3(1.f, 1.5f, -2.9f), new Lambertian(checker_texture));
 
-    list[i++] = new Box(vec3(-4.f, -0.5f, -3.1f), vec3(4.f, 2.f, -3.f), grey);
-    list[i++] = new Box(vec3(-4.f, -0.5f, 1.6f), vec3(4.f, 2.f, 1.7f), grey);
-    list[i++] = new Box(vec3(-4.f, -0.6f, -3.f), vec3(4.f, -0.5f, 1.7f), grey);
-    list[i++] = new Box(vec3(-4.1f, -0.5f, -3.f), vec3(-4.f, 2.f, 1.7f), grey);
-    list[i++] = new Box(vec3(4.f, -0.5f, -3.f), vec3(4.1f, 2.f, 1.7f), grey);
-
-    list[i++] = new Box(vec3(-1.8f, 1.f, -3.f), vec3(1.8f, 1.1f, -2.9f), light);
-    list[i++] = new Box(vec3(-1.8f, 1.f, 1.6f), vec3(1.8f, 1.1f, 1.61f), light);
-
-    ITexture* checker_texture = new Checker(new Constant(vec3(0.2f, 0.3f, 0.1f)), new Constant(vec3(0.9f, 0.9f, 0.9f)));
-    list[i++] = new Triangle(vec3(-1.f, .5f, -2.9f), vec3(1.f, .5f, -2.9f), vec3(1.f, 1.5f, -2.9f), new Lambertian(checker_texture));
-
-    list[i++] = load_mesh("data/bunny.obj");
+    list[i++] = load_mesh("data/teapot.obj");
 
     return new ShapeList(list, i);
 }
@@ -226,7 +226,7 @@ IShape* load_scene(eScene scene, Camera& cam, float ratio)
 
     case eTESTGPU:
         std::cerr << "'testGPU' scene selected\n";
-        cam.setup(vec3(-.5f, 1.2f, 1.5f), vec3(.0f, .0f, -1.f), vec3(0.0f, 1.0f, 0.0f), 60.0f, ratio);
+        cam.setup(vec3(7.f, 6.5f, 5.3f), vec3(.0f, .0f, -1.f), vec3(0.0f, 1.0f, 0.0f), 60.0f, ratio);
         return gpu_scene();
 
     default:
