@@ -11,9 +11,7 @@
 class Box : public IShape
 {
 public:
-    Box()
-    {
-    }
+    Box() {}
 
     Box(const vec3& p0, const vec3& p1, IMaterial* ptr)
         : pmin(p0)
@@ -81,6 +79,26 @@ public:
     {
         pmin = min3(pmin, v);
         pmax = max3(pmax, v);
+    }
+
+    bool contains(IShape* object)
+    {
+        bool contained(false);
+
+        if (object)
+        {
+            vec3 bmin, bmax;
+            object->get_bounds(bmin, bmax);
+
+            contained = (bmin.x >= pmin.x && bmin.x <= pmax.x) ||
+                        (bmin.y >= pmin.y && bmin.y <= pmax.y) ||
+                        (bmin.z >= pmin.z && bmin.z <= pmax.z) ||
+                        (bmax.x >= pmin.x && bmax.x <= pmax.x) ||
+                        (bmax.y >= pmin.y && bmax.y <= pmax.y) ||
+                        (bmax.z >= pmin.z && bmax.z <= pmax.z);
+        }
+
+        return contained;
     }
 
 private:

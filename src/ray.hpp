@@ -15,9 +15,7 @@
 class Ray
 {
 public:
-    Ray()
-    {
-    }
+    Ray() {}
 
     Ray(const vec3& a, const vec3& b)
         : origin_(a)

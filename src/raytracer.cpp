@@ -12,6 +12,7 @@
  */
 
 #include <iostream>
+#include <cstdint>
 #include <fstream>
 #include <string>
 #include <iomanip>
@@ -43,6 +44,7 @@ using cc::util::min;
 using cc::util::clamp;
 using cc::math::radians;
 using cc::util::swap;
+using cc::util::array_size;
 #define cosf(x) cc::math::fast::cosf(x)
 #define sinf(x) cc::math::fast::sinf(x)
 #define atan2f(x, y) cc::math::fast::atan2f(x, y)

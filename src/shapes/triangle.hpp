@@ -15,9 +15,9 @@ public:
         : vertices{ a, b, c }
         , mat(ptr)
     {
-        normal = normalize(cross(v0v1, v0v2));
         v0v1 = vertices[1] - vertices[0];
         v0v2 = vertices[2] - vertices[0];
+        normal = normalize(cross(v0v1, v0v2));
     }
 
     virtual bool hit(const Ray& r, float t_min, float t_max, HitData& rec) const override final

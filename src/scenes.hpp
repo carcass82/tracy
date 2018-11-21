@@ -36,6 +36,7 @@ IShape* load_mesh(const char* obj_path)
 
     if (!tinyobj::LoadObj(&attrib, &shapes, &materials, &warn, &err, obj_path))
     {
+        std::cerr << "unable to load model '" << obj_path << "'\n";
         return nullptr;
     }
 
@@ -62,7 +63,7 @@ IShape* load_mesh(const char* obj_path)
         }
     }
 
-    return new ShapeList(list, i, true);
+    return new ShapeList(list, i);
 }
 
 IShape* random_scene()
@@ -170,10 +171,6 @@ IShape* cornellbox_scene()
 
 IShape* gpu_scene()
 {
-    const int n = 50;
-    int i = 0;
-    IShape** list = new IShape*[n];
-
     IMaterial* light = new Emissive(new Constant(vec3(5.f, 5.f, 5.f)));
     IMaterial* blue = new Lambertian(new Constant(vec3(0.1f, 0.2f, 0.5f)));
     IMaterial* red = new Lambertian(new Constant(vec3(.85f, .05f, .02f)));
@@ -184,29 +181,29 @@ IShape* gpu_scene()
     IMaterial* gold = new Metal(vec3(1.f, .71f, .29f), .05f);
     IMaterial* copper = new Metal(vec3(.95f, .64f, .54f), .2f);
 
-    //list[i++] = new Sphere(vec3(0.f, 0.f, -1.f), .5f, blue);
-    list[i++] = new Sphere(vec3(0.f, 150.f, -1.f), 100.f, light);
-    //list[i++] = new Sphere(vec3(1.f, 0.f, -1.f), .5f, alluminium);
-    //list[i++] = new Sphere(vec3(-1.f, 0.f, -1.f), .5f, glass);
-    //list[i++] = new Sphere(vec3(0.f, 0.f, 0.f), .2f, copper);
-    //list[i++] = new Sphere(vec3(0.f, 1.f, -1.5f), .3f, gold);
-    //list[i++] = new Sphere(vec3(0.f, 0.f, -2.5f), .5f, red);
-    //
-    //list[i++] = new Box(vec3(-4.f, -0.5f, -3.1f), vec3(4.f, 2.f, -3.f), grey);
-    //list[i++] = new Box(vec3(-4.f, -0.5f, 1.6f), vec3(4.f, 2.f, 1.7f), grey);
-    //list[i++] = new Box(vec3(-4.f, -0.6f, -3.f), vec3(4.f, -0.5f, 1.7f), grey);
-    //list[i++] = new Box(vec3(-4.1f, -0.5f, -3.f), vec3(-4.f, 2.f, 1.7f), grey);
-    //list[i++] = new Box(vec3(4.f, -0.5f, -3.f), vec3(4.1f, 2.f, 1.7f), grey);
-    //
-    //list[i++] = new Box(vec3(-1.8f, 1.f, -3.f), vec3(1.8f, 1.1f, -2.9f), light);
-    //list[i++] = new Box(vec3(-1.8f, 1.f, 1.6f), vec3(1.8f, 1.1f, 1.61f), light);
-    //
-    //ITexture* checker_texture = new Checker(new Constant(vec3(0.2f, 0.3f, 0.1f)), new Constant(vec3(0.9f, 0.9f, 0.9f)));
-    //list[i++] = new Triangle(vec3(-1.f, .5f, -2.9f), vec3(1.f, .5f, -2.9f), vec3(1.f, 1.5f, -2.9f), new Lambertian(checker_texture));
+    std::vector<IShape*> objects;
+    objects.emplace_back(new Sphere(vec3(0.f, 0.f, -1.f), .5f, blue));
+    objects.emplace_back(new Sphere(vec3(0.f, 150.f, -1.f), 100.f, light));
+    objects.emplace_back(new Sphere(vec3(1.f, 0.f, -1.f), .5f, alluminium));
+    objects.emplace_back(new Sphere(vec3(-1.f, 0.f, -1.f), .5f, glass));
+    objects.emplace_back(new Sphere(vec3(0.f, 0.f, 0.f), .2f, copper));
+    objects.emplace_back(new Sphere(vec3(0.f, 1.f, -1.5f), .3f, gold));
+    objects.emplace_back(new Sphere(vec3(0.f, 0.f, -2.5f), .5f, red));
+    
+    objects.emplace_back(new Box(vec3(-4.f, -0.5f, -3.1f), vec3(4.f, 2.f, -3.f), grey));
+    objects.emplace_back(new Box(vec3(-4.f, -0.5f, 1.6f), vec3(4.f, 2.f, 1.7f), grey));
+    objects.emplace_back(new Box(vec3(-4.f, -0.6f, -3.f), vec3(4.f, -0.5f, 1.7f), grey));
+    objects.emplace_back(new Box(vec3(-4.1f, -0.5f, -3.f), vec3(-4.f, 2.f, 1.7f), grey));
+    objects.emplace_back(new Box(vec3(4.f, -0.5f, -3.f), vec3(4.1f, 2.f, 1.7f), grey));
+    
+    objects.emplace_back(new Box(vec3(-1.8f, 1.f, -3.f), vec3(1.8f, 1.1f, -2.9f), light));
+    objects.emplace_back(new Box(vec3(-1.8f, 1.f, 1.6f), vec3(1.8f, 1.1f, 1.61f), light));
+    
+    objects.emplace_back(new Triangle(vec3(-1.f, .5f, -2.5f), vec3(1.f, .5f, -2.5f), vec3(1.f, 1.5f, -2.5f), green));
 
-    list[i++] = load_mesh("../data/teapot.obj");
+    //objects.emplace_back(load_mesh("../data/teapot.obj"));
 
-    return new ShapeList(list, i);
+    return new ShapeList(&objects[0], objects.size());
 }
 
 enum eScene { eRANDOM, eCORNELLBOX, eTESTGPU, eNUM_SCENES };

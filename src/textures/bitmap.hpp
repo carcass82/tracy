@@ -11,10 +11,6 @@
 class Bitmap : public ITexture
 {
 public:
-    Bitmap()
-    {
-    }
-
     Bitmap(uint8_t* pixels, int width, int height)
         : data(pixels)
         , nx(width)

@@ -11,10 +11,6 @@
 class Checker : public ITexture
 {
 public:
-    Checker()
-    {
-    }
-
     Checker(ITexture* t0, ITexture* t1)
         : even(t0)
         , odd(t1)

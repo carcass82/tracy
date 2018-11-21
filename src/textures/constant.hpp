@@ -11,10 +11,6 @@
 class Constant : public ITexture
 {
 public:
-    Constant()
-    {
-    }
-    
     Constant(const vec3& c)
         : color(c)
     {
