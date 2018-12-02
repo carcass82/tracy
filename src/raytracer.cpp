@@ -61,14 +61,14 @@ using cc::util::array_size;
 extern "C" void cuda_trace(int, int, int, float*, size_t&);
 #endif
 
-#include "timer.hpp"
-#include "materials/material.hpp"
-#include "camera.hpp"
-#include "shapes/shape.hpp"
-#include "shapes/shapelist.hpp"
 #include "ray.hpp"
 #include "geom.hpp"
+#include "textures/texture.hpp"
+#include "materials/material.hpp"
+#include "shapes/shape.hpp"
+#include "camera.hpp"
 #include "scenes.hpp"
+#include "timer.hpp"
 
 // max "bounces" for tracing
 #define MAX_DEPTH 5
@@ -136,7 +136,7 @@ int main(int argc, char** argv)
 {
     const int nx = 1024; // w
     const int ny = 768; // h
-    const int ns = 250; // samples
+    const int ns = 10; // samples
 
     Camera cam;
 

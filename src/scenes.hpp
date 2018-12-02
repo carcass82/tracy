@@ -13,6 +13,7 @@
 #define TINYOBJLOADER_IMPLEMENTATION
 #include "ext/tiny_obj_loader.h"
 
+#include "shapes/shapelist.hpp"
 #include "shapes/box.hpp"
 #include "shapes/sphere.hpp"
 #include "shapes/triangle.hpp"
@@ -45,19 +46,35 @@ IShape* load_mesh(const char* obj_path)
     IShape** list = new IShape*[attrib.vertices.size()];
 
     vec3 verts[3];
+    vec3 norms[3];
+    vec2 uvs[3];
     int i = 0;
     int v = 0;
-    for (const auto& shape : shapes)
+    for (const tinyobj::shape_t& shape : shapes)
     {
-        for (const auto& index : shape.mesh.indices)
+        for (const tinyobj::index_t& index : shape.mesh.indices)
         {
-            verts[v++] = { attrib.vertices[3 * index.vertex_index + 0],
-                           attrib.vertices[3 * index.vertex_index + 1],
-                           attrib.vertices[3 * index.vertex_index + 2] };
+            float v0 = attrib.vertices[3 * index.vertex_index + 0];
+            float v1 = attrib.vertices[3 * index.vertex_index + 1];
+            float v2 = attrib.vertices[3 * index.vertex_index + 2];
+
+            float n0 = attrib.vertices[3 * index.normal_index + 0];
+            float n1 = attrib.vertices[3 * index.normal_index + 1];
+            float n2 = attrib.vertices[3 * index.normal_index + 2];
+
+            float s = attrib.vertices[2 * index.texcoord_index + 0];
+            float t = attrib.vertices[2 * index.texcoord_index + 1];
+
+            norms[v] = { n0, n1, n2 };
+            uvs[v] = { s, t };
+            verts[v++] = { v0, v1, v2 };
 
             if (v == 3)
             {
-                list[i++] = new Triangle(verts[0], verts[1], verts[2], green);
+                list[i++] = new Triangle(verts[0], verts[1], verts[2],
+                                         norms[0], norms[1], norms[2],
+                                         uvs[0], uvs[1], uvs[2],
+                                         green);
                 v = 0;
             }
         }
@@ -181,29 +198,30 @@ IShape* gpu_scene()
     IMaterial* gold = new Metal(vec3(1.f, .71f, .29f), .05f);
     IMaterial* copper = new Metal(vec3(.95f, .64f, .54f), .2f);
 
-    std::vector<IShape*> objects;
-    objects.emplace_back(new Sphere(vec3(0.f, 0.f, -1.f), .5f, blue));
-    objects.emplace_back(new Sphere(vec3(0.f, 150.f, -1.f), 100.f, light));
-    objects.emplace_back(new Sphere(vec3(1.f, 0.f, -1.f), .5f, alluminium));
-    objects.emplace_back(new Sphere(vec3(-1.f, 0.f, -1.f), .5f, glass));
-    objects.emplace_back(new Sphere(vec3(0.f, 0.f, 0.f), .2f, copper));
-    objects.emplace_back(new Sphere(vec3(0.f, 1.f, -1.5f), .3f, gold));
-    objects.emplace_back(new Sphere(vec3(0.f, 0.f, -2.5f), .5f, red));
+    int i = 0;
+    IShape** objects = new IShape*[50];
+    objects[i++] = new Sphere(vec3(0.f, 0.f, -1.f), .5f, blue);
+    objects[i++] = new Sphere(vec3(0.f, 150.f, -1.f), 100.f, light);
+    objects[i++] = new Sphere(vec3(1.f, 0.f, -1.f), .5f, alluminium);
+    objects[i++] = new Sphere(vec3(-1.f, 0.f, -1.f), .5f, glass);
+    objects[i++] = new Sphere(vec3(0.f, 0.f, 0.f), .2f, copper);
+    objects[i++] = new Sphere(vec3(0.f, 1.f, -1.5f), .3f, gold);
+    objects[i++] = new Sphere(vec3(0.f, 0.f, -2.5f), .5f, red);
     
-    objects.emplace_back(new Box(vec3(-4.f, -0.5f, -3.1f), vec3(4.f, 2.f, -3.f), grey));
-    objects.emplace_back(new Box(vec3(-4.f, -0.5f, 1.6f), vec3(4.f, 2.f, 1.7f), grey));
-    objects.emplace_back(new Box(vec3(-4.f, -0.6f, -3.f), vec3(4.f, -0.5f, 1.7f), grey));
-    objects.emplace_back(new Box(vec3(-4.1f, -0.5f, -3.f), vec3(-4.f, 2.f, 1.7f), grey));
-    objects.emplace_back(new Box(vec3(4.f, -0.5f, -3.f), vec3(4.1f, 2.f, 1.7f), grey));
+    objects[i++] = new Box(vec3(-4.f, -0.5f, -3.1f), vec3(4.f, 2.f, -3.f), grey);
+    objects[i++] = new Box(vec3(-4.f, -0.5f, 1.6f), vec3(4.f, 2.f, 1.7f), grey);
+    objects[i++] = new Box(vec3(-4.f, -0.6f, -3.f), vec3(4.f, -0.5f, 1.7f), grey);
+    objects[i++] = new Box(vec3(-4.1f, -0.5f, -3.f), vec3(-4.f, 2.f, 1.7f), grey);
+    objects[i++] = new Box(vec3(4.f, -0.5f, -3.f), vec3(4.1f, 2.f, 1.7f), grey);
     
-    objects.emplace_back(new Box(vec3(-1.8f, 1.f, -3.f), vec3(1.8f, 1.1f, -2.9f), light));
-    objects.emplace_back(new Box(vec3(-1.8f, 1.f, 1.6f), vec3(1.8f, 1.1f, 1.61f), light));
+    objects[i++] = new Box(vec3(-1.8f, 1.f, -3.f), vec3(1.8f, 1.1f, -2.9f), light);
+    objects[i++] = new Box(vec3(-1.8f, 1.f, 1.6f), vec3(1.8f, 1.1f, 1.61f), light);
     
-    objects.emplace_back(new Triangle(vec3(-1.f, .5f, -2.5f), vec3(1.f, .5f, -2.5f), vec3(1.f, 1.5f, -2.5f), green));
+    objects[i++] = new Triangle(vec3(-1.f, .5f, -2.5f), vec3(1.f, .5f, -2.5f), vec3(1.f, 1.5f, -2.5f), green);
 
-    //objects.emplace_back(load_mesh("../data/teapot.obj"));
+    objects[i++] = load_mesh("./data/teapot.obj");
 
-    return new ShapeList(&objects[0], objects.size());
+    return new ShapeList(objects, i);
 }
 
 enum eScene { eRANDOM, eCORNELLBOX, eTESTGPU, eNUM_SCENES };

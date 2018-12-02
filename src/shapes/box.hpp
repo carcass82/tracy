@@ -23,7 +23,7 @@ public:
     virtual bool hit(const Ray& r, float t_min, float t_max, HitData& rec) const override final
     {
         float tmin = t_min;
-        float tmax = std::numeric_limits<float>::max();
+        float tmax = t_max;
 
         for (int i = 0; i < 3; ++i)
         {
@@ -32,28 +32,18 @@ public:
             float minbound = pmin[i];
             float maxbound = pmax[i];
 
-            if (fabsf(direction) < .001f)
+            float ood = rcp(direction);
+            float t1 = (minbound - origin) * ood;
+            float t2 = (maxbound - origin) * ood;
+
+            if (t1 > t2) swap(t1, t2);
+
+            tmin = max(tmin, t1);
+            tmax = min(tmax, t2);
+
+            if (tmin > tmax || tmin > t_max)
             {
-                if (origin < minbound || origin > maxbound)
-                {
-                    return false;
-                }
-            }
-            else
-            {
-                float ood = rcp(direction);
-                float t1 = (minbound - origin) * ood;
-                float t2 = (maxbound - origin) * ood;
-
-                if (t1 > t2) swap(t1, t2);
-
-                tmin = max(tmin, t1);
-                tmax = min(tmax, t2);
-
-                if (tmin > tmax || tmin > t_max)
-                {
-                    return false;
-                }
+                return false;
             }
         }
 

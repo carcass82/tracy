@@ -10,5 +10,7 @@
 class NOVTABLE ITexture
 {
 public:
+    virtual ~ITexture() {}
+
     virtual vec3 sample(const vec2& uv, const vec3& p) const = 0;
 };
