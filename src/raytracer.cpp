@@ -43,6 +43,7 @@ using cc::util::max;
 using cc::util::min;
 using cc::util::clamp;
 using cc::math::radians;
+using cc::math::lerp;
 using cc::util::swap;
 using cc::util::array_size;
 #define cosf(x) cc::math::fast::cosf(x)
@@ -100,11 +101,12 @@ vec3 color(const Ray& r, IShape* world, int depth, size_t& raycount)
     }
 
     //
-    // fake sky-ish gradient
+    // gradient
     //
-    //vec3 unit_direction = normalize(r.get_direction());
-    //float t = (unit_direction.y + 1.f) * .5;
-    //return (1.f - t) * vec3{1.f, 1.f, 1.f} + t * vec3{.5f, .7f, 1.f};
+    static const vec3 WHITE{ 1.f, 1.f, 1.f };
+    static const vec3 SKYISH{ .5f, .7f, 1.f };
+    float t = (normalize(r.get_direction()).y + 1.f) * .5f;
+    return lerp(WHITE, SKYISH, t);
 
     return vec3{ .0f, .0f, .0f };
 }

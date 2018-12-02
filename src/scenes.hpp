@@ -43,12 +43,16 @@ IShape* load_mesh(const char* obj_path)
 
     IMaterial* green = new Lambertian(new Constant(vec3(.05f, .85f, .02f)));
     
-    IShape** list = new IShape*[attrib.vertices.size()];
-
+    IShape** tmplist = new IShape*[attrib.vertices.size()];
+    
+    constexpr unsigned MAX_SPLIT = 50;
+    IShape** list = new IShape*[MAX_SPLIT];
+    
     vec3 verts[3];
     vec3 norms[3];
     vec2 uvs[3];
     int i = 0;
+    int n = 0;
     int v = 0;
     for (const tinyobj::shape_t& shape : shapes)
     {
@@ -77,10 +81,23 @@ IShape* load_mesh(const char* obj_path)
                                          green);
                 v = 0;
             }
+
+            if (i >= MAX_SPLIT)
+            {
+                tmplist[n++] = new ShapeList(list, i);
+                
+                i = 0;
+                list = new IShape*[MAX_SPLIT];
+            }
         }
     }
 
-    return new ShapeList(list, i);
+    if (i > 0)
+    {
+        tmplist[n++] = new ShapeList(list, i);
+    }
+
+    return new ShapeList(tmplist, n);
 }
 
 IShape* random_scene()
@@ -200,24 +217,24 @@ IShape* gpu_scene()
 
     int i = 0;
     IShape** objects = new IShape*[50];
-    objects[i++] = new Sphere(vec3(0.f, 0.f, -1.f), .5f, blue);
-    objects[i++] = new Sphere(vec3(0.f, 150.f, -1.f), 100.f, light);
-    objects[i++] = new Sphere(vec3(1.f, 0.f, -1.f), .5f, alluminium);
-    objects[i++] = new Sphere(vec3(-1.f, 0.f, -1.f), .5f, glass);
-    objects[i++] = new Sphere(vec3(0.f, 0.f, 0.f), .2f, copper);
-    objects[i++] = new Sphere(vec3(0.f, 1.f, -1.5f), .3f, gold);
-    objects[i++] = new Sphere(vec3(0.f, 0.f, -2.5f), .5f, red);
+    //objects[i++] = new Sphere(vec3(0.f, 0.f, -1.f), .5f, blue);
+    objects[i++] = new Sphere(vec3(0.f, 300.f, -1.f), 100.f, light);
+    //objects[i++] = new Sphere(vec3(1.f, 0.f, -1.f), .5f, alluminium);
+    //objects[i++] = new Sphere(vec3(-1.f, 0.f, -1.f), .5f, glass);
+    //objects[i++] = new Sphere(vec3(0.f, 0.f, 0.f), .2f, copper);
+    //objects[i++] = new Sphere(vec3(0.f, 1.f, -1.5f), .3f, gold);
+    //objects[i++] = new Sphere(vec3(0.f, 0.f, -2.5f), .5f, red);
     
-    objects[i++] = new Box(vec3(-4.f, -0.5f, -3.1f), vec3(4.f, 2.f, -3.f), grey);
-    objects[i++] = new Box(vec3(-4.f, -0.5f, 1.6f), vec3(4.f, 2.f, 1.7f), grey);
-    objects[i++] = new Box(vec3(-4.f, -0.6f, -3.f), vec3(4.f, -0.5f, 1.7f), grey);
-    objects[i++] = new Box(vec3(-4.1f, -0.5f, -3.f), vec3(-4.f, 2.f, 1.7f), grey);
-    objects[i++] = new Box(vec3(4.f, -0.5f, -3.f), vec3(4.1f, 2.f, 1.7f), grey);
+    //objects[i++] = new Box(vec3(-4.f, -0.5f, -3.1f), vec3(4.f, 2.f, -3.f), grey);
+    //objects[i++] = new Box(vec3(-4.f, -0.5f, 1.6f), vec3(4.f, 2.f, 1.7f), grey);
+    //objects[i++] = new Box(vec3(-4.f, -0.6f, -3.f), vec3(4.f, -0.5f, 1.7f), grey);
+    //objects[i++] = new Box(vec3(-4.1f, -0.5f, -3.f), vec3(-4.f, 2.f, 1.7f), grey);
+    //objects[i++] = new Box(vec3(4.f, -0.5f, -3.f), vec3(4.1f, 2.f, 1.7f), grey);
+    //
+    //objects[i++] = new Box(vec3(-1.8f, 1.f, -3.f), vec3(1.8f, 1.1f, -2.9f), light);
+    //objects[i++] = new Box(vec3(-1.8f, 1.f, 1.6f), vec3(1.8f, 1.1f, 1.61f), light);
     
-    objects[i++] = new Box(vec3(-1.8f, 1.f, -3.f), vec3(1.8f, 1.1f, -2.9f), light);
-    objects[i++] = new Box(vec3(-1.8f, 1.f, 1.6f), vec3(1.8f, 1.1f, 1.61f), light);
-    
-    objects[i++] = new Triangle(vec3(-1.f, .5f, -2.5f), vec3(1.f, .5f, -2.5f), vec3(1.f, 1.5f, -2.5f), green);
+    //objects[i++] = new Triangle(vec3(-1.f, .5f, -2.5f), vec3(1.f, .5f, -2.5f), vec3(1.f, 1.5f, -2.5f), green);
 
     objects[i++] = load_mesh("./data/teapot.obj");
 
@@ -241,7 +258,7 @@ IShape* load_scene(eScene scene, Camera& cam, float ratio)
 
     case eTESTGPU:
         std::cerr << "'testGPU' scene selected\n";
-        cam.setup(vec3(7.f, 6.5f, 5.3f), vec3(.0f, .0f, -1.f), vec3(0.0f, 1.0f, 0.0f), 60.0f, ratio);
+        cam.setup(vec3(3.f, 5.5f, 5.f), vec3(.0f, .0f, -1.f), vec3(0.0f, 1.0f, 0.0f), 45.0f, ratio);
         return gpu_scene();
 
     default:
