@@ -18,3 +18,8 @@ materials to make result more interesting:
 
 This is another scene inspired by one of those present in minibook (500 spp) showing different materials and textured objects:
 ![random](doc/output2.jpg)
+
+
+Now Tracy is able to render triangle meshes (cpu version only). Coming next: extension to gpu code, optimization using a decent BVH implementation.
+![triangles](doc/output3.jpg)
+
