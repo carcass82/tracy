@@ -103,10 +103,10 @@ vec3 color(const Ray& r, IShape* world, int depth, size_t& raycount)
     //
     // gradient
     //
-    static const vec3 WHITE{ 1.f, 1.f, 1.f };
-    static const vec3 SKYISH{ .5f, .7f, 1.f };
-    float t = (normalize(r.get_direction()).y + 1.f) * .5f;
-    return lerp(WHITE, SKYISH, t);
+    //static const vec3 WHITE{ 1.f, 1.f, 1.f };
+    //static const vec3 SKYISH{ .5f, .7f, 1.f };
+    //float t = (normalize(r.get_direction()).y + 1.f) * .5f;
+    //return lerp(WHITE, SKYISH, t);
 
     return vec3{ .0f, .0f, .0f };
 }
@@ -138,7 +138,7 @@ int main(int argc, char** argv)
 {
     const int nx = 1024; // w
     const int ny = 768; // h
-    const int ns = 10; // samples
+    const int ns = 50; // samples
 
     Camera cam;
 

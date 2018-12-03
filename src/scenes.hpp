@@ -69,9 +69,9 @@ IShape* load_mesh(const char* obj_path)
             float s = attrib.vertices[2 * index.texcoord_index + 0];
             float t = attrib.vertices[2 * index.texcoord_index + 1];
 
-            norms[v] = { n0, n1, n2 };
-            uvs[v] = { s, t };
-            verts[v++] = { v0, v1, v2 };
+            norms[v] = vec3{ n0, n1, n2 };
+            uvs[v] = vec2{ s, t };
+            verts[v++] = vec3{ v0, v1, v2 };
 
             if (v == 3)
             {

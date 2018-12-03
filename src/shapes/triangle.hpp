@@ -79,7 +79,7 @@ public:
         }
 
         rec.t = dot(v0v2, qvec) * invDet;
-        rec.uv = { u, v };
+        rec.uv = vec2{ u, v };
         return true;
     }
 
