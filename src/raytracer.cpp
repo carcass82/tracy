@@ -13,6 +13,7 @@
 
 #include <iostream>
 #include <cstdint>
+#include <cstring>
 #include <fstream>
 #include <string>
 #include <iomanip>
@@ -59,9 +60,10 @@ using cc::util::array_size;
 #endif
 
 #if defined(USE_CUDA)
-extern "C" void cuda_trace(int, int, int, float*, size_t&);
+extern "C" void cuda_trace(int, int, int, float*, int&);
 #endif
 
+#if !defined(USE_CUDA)
 #include "ray.hpp"
 #include "geom.hpp"
 #include "textures/texture.hpp"
@@ -69,11 +71,14 @@ extern "C" void cuda_trace(int, int, int, float*, size_t&);
 #include "shapes/shape.hpp"
 #include "camera.hpp"
 #include "scenes.hpp"
+#endif
+
 #include "timer.hpp"
 
 // max "bounces" for tracing
 #define MAX_DEPTH 5
 
+#if !defined(USE_CUDA)
 vec3 color(const Ray& r, IShape* world, int depth, size_t& raycount)
 {
     ++raycount;
@@ -111,7 +116,6 @@ vec3 color(const Ray& r, IShape* world, int depth, size_t& raycount)
     return vec3{ .0f, .0f, .0f };
 }
 
-#if !defined(USE_CUDA)
 void progbar(size_t total, size_t samples, size_t* value, bool* quit)
 {
     const size_t progbarsize = 78;
@@ -140,6 +144,7 @@ int main(int argc, char** argv)
     const int ny = 768; // h
     const int ns = 50; // samples
 
+#if !defined(USE_CUDA)
     Camera cam;
 
     // test
@@ -150,6 +155,7 @@ int main(int argc, char** argv)
 
     // test same scene as gpu version
     IShape* world = load_scene(eTESTGPU, cam, float(nx) / float(ny));
+#endif
 
     char filename[256];
     {
@@ -181,7 +187,7 @@ int main(int argc, char** argv)
     Timer t;
     t.begin();
 
-    size_t totrays = 0;
+    int totrays = 0;
 
 #if !defined(USE_CUDA)
     // update progress bar using a separate thread

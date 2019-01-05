@@ -1,11 +1,17 @@
+/*
+ * Tracy, a simple raytracer
+ * inspired by "Ray Tracing in One Weekend" minibooks
+ *
+ * (c) Carlo Casta, 2018
+ */
 #pragma once
 
 #include <cuda_runtime.h>
 
-template<typename T> inline __device__ T min(const T& a, const T& b) { return !(b < a) ? a : b; }
-template<typename T> inline __device__ T max(const T& a, const T& b) { return (a < b) ? b : a; }
-template<> inline __device__ float min<float>(const float& a, const float& b) { return fmin(a, b); }
-template<> inline __device__ float max<float>(const float& a, const float& b) { return fmax(a, b); }
+template<typename T> inline __device__ T min(const T& a, const T& b)              { return !(b < a) ? a : b; }
+template<typename T> inline __device__ T max(const T& a, const T& b)              { return (a < b) ? b : a; }
+template<> inline __device__ float min<float>(const float& a, const float& b)     { return fmin(a, b); }
+template<> inline __device__ float max<float>(const float& a, const float& b)     { return fmax(a, b); }
 template<> inline __device__ float3 min<float3>(const float3& a, const float3& b) { return make_float3(fmin(a.x, b.x), fmin(a.y, b.y), fmin(a.z, b.z)); }
 template<> inline __device__ float3 max<float3>(const float3& a, const float3& b) { return make_float3(fmax(a.x, b.x), fmax(a.y, b.y), fmax(a.z, b.z)); }
 

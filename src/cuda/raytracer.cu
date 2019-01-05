@@ -333,7 +333,7 @@ __device__ const float3 WHITE = {1.f, 1.f, 1.f};
 __device__ const float3 BLACK = {0.f, 0.f, 0.f};
 
 
-__device__ float3 get_color_for(DRay ray, DSphere* spheres, int sphere_count, DBox* boxes, int box_count, size_t* raycount, curandState* curand_ctx)
+__device__ float3 get_color_for(DRay ray, DSphere* spheres, int sphere_count, DBox* boxes, int box_count, int* raycount, curandState* curand_ctx)
 {
     float3 total_color = WHITE;
     DRay current_ray = ray;
@@ -395,7 +395,7 @@ __device__ float3 get_color_for(DRay ray, DSphere* spheres, int sphere_count, DB
     return BLACK;
 }
 
-__global__ void raytrace(int width, int height, int samples, float3* pixels, size_t* raycount)
+__global__ void raytrace(int width, int height, int samples, float3* pixels, int* raycount)
 {
     const int i = (blockIdx.x * blockDim.x) + threadIdx.x;
     const int j = (blockIdx.y * blockDim.y) + threadIdx.y;
@@ -600,7 +600,7 @@ __global__ void raytrace(int width, int height, int samples, float3* pixels, siz
     //
     // main loop
     //
-    size_t raycount_inst = 0;
+    int raycount_inst = 0;
     float3 color{ .0f, .0f, .0f };
     for (int sample = 0; sample < samples; ++sample)
     {
@@ -636,7 +636,7 @@ __global__ void raytrace(int width, int height, int samples, float3* pixels, siz
 //
 // IFace for raytracer.cpp
 // 
-extern "C" void cuda_trace(int w, int h, int ns, float* out_buffer, size_t& raycount)
+extern "C" void cuda_trace(int w, int h, int ns, float* out_buffer, int& out_raycount)
 {
     // ensure output buffer is properly zeroed
     memset(out_buffer, 0, w * h * sizeof(float3));
@@ -667,7 +667,7 @@ extern "C" void cuda_trace(int w, int h, int ns, float* out_buffer, size_t& rayc
 
     num_gpus = min(num_gpus, MAX_GPU);
 
-    size_t* d_raycount[MAX_GPU];
+    int* d_raycount[MAX_GPU];
     float3* d_output_cuda[MAX_GPU];
     float* h_output_cuda[MAX_GPU];
 #if CUDA_USE_MULTIGPU
@@ -686,7 +686,7 @@ extern "C" void cuda_trace(int w, int h, int ns, float* out_buffer, size_t& rayc
         checkCudaErrors(cudaMalloc((void**)&d_output_cuda[i], w * h * sizeof(float3)));
         checkCudaErrors(cudaMemset((void*)d_output_cuda[i], 0, w * h * sizeof(float3)));
 
-        checkCudaErrors(cudaMalloc((void**)&d_raycount[i], sizeof(size_t)));
+        checkCudaErrors(cudaMalloc((void**)&d_raycount[i], sizeof(int)));
 
         checkCudaErrors(cudaMallocHost((void**)&h_output_cuda[i], w * h * sizeof(float3)));
     }
@@ -750,8 +750,8 @@ extern "C" void cuda_trace(int w, int h, int ns, float* out_buffer, size_t& rayc
 #endif
 
         size_t tmp;
-        checkCudaErrors(cudaMemcpy(&tmp, d_raycount[i], sizeof(size_t), cudaMemcpyDeviceToHost));
-        raycount += tmp;
+        checkCudaErrors(cudaMemcpy(&tmp, d_raycount[i], sizeof(int), cudaMemcpyDeviceToHost));
+        out_raycount += tmp;
 
         CUDALOG("cuda compute (%d/%d) completed!\n", i, num_gpus - 1);
 

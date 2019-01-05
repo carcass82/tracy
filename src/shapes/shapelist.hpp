@@ -11,8 +11,8 @@ class ShapeList : public IShape
 {
 public:
     ShapeList(IShape** objects, size_t num)
-        : list_size(num)
-        , list(objects)
+        : list(objects)
+        , list_size(num)
     {
         for (size_t i = 0; i < list_size; ++i)
         {

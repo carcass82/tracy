@@ -51,9 +51,9 @@ IShape* load_mesh(const char* obj_path)
     vec3 verts[3];
     vec3 norms[3];
     vec2 uvs[3];
-    int i = 0;
-    int n = 0;
-    int v = 0;
+    unsigned int i = 0;
+    unsigned int n = 0;
+    unsigned int v = 0;
     for (const tinyobj::shape_t& shape : shapes)
     {
         for (const tinyobj::index_t& index : shape.mesh.indices)
@@ -217,26 +217,26 @@ IShape* gpu_scene()
 
     int i = 0;
     IShape** objects = new IShape*[50];
-    //objects[i++] = new Sphere(vec3(0.f, 0.f, -1.f), .5f, blue);
+    objects[i++] = new Sphere(vec3(0.f, 0.f, -1.f), .5f, blue);
     objects[i++] = new Sphere(vec3(0.f, 300.f, -1.f), 100.f, light);
-    //objects[i++] = new Sphere(vec3(1.f, 0.f, -1.f), .5f, alluminium);
-    //objects[i++] = new Sphere(vec3(-1.f, 0.f, -1.f), .5f, glass);
-    //objects[i++] = new Sphere(vec3(0.f, 0.f, 0.f), .2f, copper);
-    //objects[i++] = new Sphere(vec3(0.f, 1.f, -1.5f), .3f, gold);
-    //objects[i++] = new Sphere(vec3(0.f, 0.f, -2.5f), .5f, red);
+    objects[i++] = new Sphere(vec3(1.f, 0.f, -1.f), .5f, alluminium);
+    objects[i++] = new Sphere(vec3(-1.f, 0.f, -1.f), .5f, glass);
+    objects[i++] = new Sphere(vec3(0.f, 0.f, 0.f), .2f, copper);
+    objects[i++] = new Sphere(vec3(0.f, 1.f, -1.5f), .3f, gold);
+    objects[i++] = new Sphere(vec3(0.f, 0.f, -2.5f), .5f, red);
     
-    //objects[i++] = new Box(vec3(-4.f, -0.5f, -3.1f), vec3(4.f, 2.f, -3.f), grey);
-    //objects[i++] = new Box(vec3(-4.f, -0.5f, 1.6f), vec3(4.f, 2.f, 1.7f), grey);
-    //objects[i++] = new Box(vec3(-4.f, -0.6f, -3.f), vec3(4.f, -0.5f, 1.7f), grey);
-    //objects[i++] = new Box(vec3(-4.1f, -0.5f, -3.f), vec3(-4.f, 2.f, 1.7f), grey);
-    //objects[i++] = new Box(vec3(4.f, -0.5f, -3.f), vec3(4.1f, 2.f, 1.7f), grey);
-    //
-    //objects[i++] = new Box(vec3(-1.8f, 1.f, -3.f), vec3(1.8f, 1.1f, -2.9f), light);
-    //objects[i++] = new Box(vec3(-1.8f, 1.f, 1.6f), vec3(1.8f, 1.1f, 1.61f), light);
+    objects[i++] = new Box(vec3(-4.f, -0.5f, -3.1f), vec3(4.f, 2.f, -3.f), grey);
+    objects[i++] = new Box(vec3(-4.f, -0.5f, 1.6f), vec3(4.f, 2.f, 1.7f), grey);
+    objects[i++] = new Box(vec3(-4.f, -0.6f, -3.f), vec3(4.f, -0.5f, 1.7f), grey);
+    objects[i++] = new Box(vec3(-4.1f, -0.5f, -3.f), vec3(-4.f, 2.f, 1.7f), grey);
+    objects[i++] = new Box(vec3(4.f, -0.5f, -3.f), vec3(4.1f, 2.f, 1.7f), grey);
     
-    //objects[i++] = new Triangle(vec3(-1.f, .5f, -2.5f), vec3(1.f, .5f, -2.5f), vec3(1.f, 1.5f, -2.5f), green);
+    objects[i++] = new Box(vec3(-1.8f, 1.f, -3.f), vec3(1.8f, 1.1f, -2.9f), light);
+    objects[i++] = new Box(vec3(-1.8f, 1.f, 1.6f), vec3(1.8f, 1.1f, 1.61f), light);
+    
+    objects[i++] = new Triangle(vec3(-1.f, .5f, -2.5f), vec3(1.f, .5f, -2.5f), vec3(1.f, 1.5f, -2.5f), green);
 
-    objects[i++] = load_mesh("./data/teapot.obj");
+    //objects[i++] = load_mesh("./data/teapot.obj");
 
     return new ShapeList(objects, i);
 }
