@@ -65,7 +65,7 @@ else()
     message(STATUS "Found C++ Compiler: " ${CMAKE_CXX_COMPILER})
     set(CMAKE_CXX_FLAGS "-Wall -no-pie -DNOVTABLE=")
     set(CMAKE_CXX_FLAGS_DEBUG "-O0 -g")
-    set(CMAKE_CXX_FLAGS_RELEASE "-O2 -fopenmp -ffast-math -march=native -flto")
+    set(CMAKE_CXX_FLAGS_RELEASE "-Ofast -fopenmp -march=native -flto -fno-rtti -funroll-loops -D_GLIBCXX_PARALLEL")
 endif()
 
 if (${CMAKE_BUILD_TYPE} MATCHES Release)
