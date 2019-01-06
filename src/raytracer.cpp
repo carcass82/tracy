@@ -53,12 +53,6 @@ using cc::util::array_size;
 #define rcp(x) cc::math::fast::rcp(x)
 #endif
 
-#if defined(_MSC_VER)
- #define NOVTABLE __declspec(novtable)
-#else
- #define NOVTABLE
-#endif
-
 #if defined(USE_CUDA)
 extern "C" void cuda_trace(int, int, int, float*, int&);
 #endif
