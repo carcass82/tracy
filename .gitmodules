@@ -1,3 +1,3 @@
 [submodule "ext/cclib"]
 	path = ext/cclib
-	url = https://bitbucket.org/carcass/cclib.git
+	url = https://github.com/carcass82/cclib.git
