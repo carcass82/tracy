@@ -33,6 +33,9 @@ inline __device__ float3  operator/(float b, const float3& a)         { return m
 inline __device__ float3  operator/(const float3& a, const float b)   { return make_float3(a.x / b, a.y / b, a.z / b); }
 inline __device__ float3  operator/(const float3& a, const float3& b) { return make_float3(a.x / b.x, a.y / b.y, a.z / b.z); }
 
+inline __device__ float2  operator+(const float2& a, const float2& b) { return make_float2(a.x + b.x, a.y + b.y); }
+inline __device__ float2  operator*(const float a, const float2& b)   { return make_float2(a * b.x, a * b.y); }
+
 inline __device__ float dot(const float3& a, const float3& b)         { return a.x * b.x + a.y * b.y + a.z * b.z; }
 inline __device__ float3 cross(const float3& a, const float3& b)      { return make_float3(a.y * b.z - a.z * b.y, a.z * b.x - a.x * b.z, a.x * b.y - a.y * b.x); }
 inline __device__ float length(const float3& v)                       { return sqrtf(dot(v, v)); }

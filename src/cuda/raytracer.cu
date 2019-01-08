@@ -90,13 +90,14 @@ struct DRay
 struct DMaterial;
 struct DIntersection
 {
-    enum Type { eSPHERE, eBOX };
+    enum Type { eSPHERE, eBOX, eTRIANGLE };
 
     Type type;
     int index;
     float t;
     float3 point;
     float3 normal;
+    float2 uv;
     DMaterial* material;
 };
 
@@ -108,6 +109,18 @@ struct DMaterial
     float3 albedo;
     float roughness;
     float ior;
+
+    __device__ DMaterial()
+    {
+    }
+
+    __device__ DMaterial(Type t, float3 color, float r, float ior)
+        : type(t)
+        , albedo(color)
+        , roughness(r)
+        , ior(ior)
+    {
+    }
 
     __device__ bool scatter(const DRay& ray, const DIntersection& hit, float3& attenuation, float3& emission, DRay& scattered, curandState* curand_ctx)
     {
@@ -187,11 +200,31 @@ struct DSphere
     float radius;
     DMaterial material;
 
+    __device__ DSphere()
+    {
+    }
+
+    __device__ DSphere(float3 c, float r, DMaterial mat)
+        : center(c)
+        , radius(r)
+        , material(mat)
+    {
+    }
+
     __device__ void hit_data(const DRay& ray, DIntersection& hit)
     {
         hit.point = ray.point_at(hit.t);
         hit.normal = (hit.point - center) / radius;
+        hit.uv = uv(hit.normal);
         hit.material = &material;
+    }
+
+    __device__ float2 uv(const float3& point)
+    {
+        float phi = atan2f(point.z, point.x);
+        float theta = asinf(point.y);
+
+        return make_float2(1.0f - (phi + PI) / (2.0f * PI), (theta + PI / 2.0f) / PI);
     }
 };
 
@@ -199,13 +232,24 @@ struct DBox
 {
     float3 min_limit;
     float3 max_limit;
-    float3 rot;
     DMaterial material;
+
+    __device__ DBox()
+    {
+    }
+
+    __device__ DBox(float3 min, float3 max, DMaterial mat)
+        : min_limit(min)
+        , max_limit(max)
+        , material(mat)
+    {
+    }
 
     __device__ void hit_data(const DRay& ray, DIntersection& hit)
     {
         hit.point = ray.point_at(hit.t);
         hit.normal = normal(hit.point);
+        hit.uv = uv(hit.point);
         hit.material = &material;
     }
 
@@ -217,6 +261,58 @@ struct DBox
         if (fabs(max_limit.y - point.y) < EPS) return make_float3( .0f,  1.f,  .0f);
         if (fabs(min_limit.z - point.z) < EPS) return make_float3( .0f,  .0f, -1.f);
         return make_float3(.0f, .0f, 1.f);
+    }
+
+    __device__ float2 uv(const float3& point)
+    {
+        if ((fabsf(min_limit.x - point.x) < EPS) || (fabsf(max_limit.x - point.x) < EPS))
+        {
+            return make_float2((point.y - min_limit.y) / (max_limit.y - min_limit.y), (point.z - min_limit.z) / (max_limit.z - min_limit.z));
+        }
+        if ((fabsf(min_limit.y - point.y) < EPS) || (fabsf(max_limit.y - point.y) < EPS))
+        {
+            return make_float2((point.x - min_limit.x) / (max_limit.x - min_limit.x), (point.z - min_limit.z) / (max_limit.z - min_limit.z));
+        }
+        return make_float2((point.x - min_limit.x) / (max_limit.x - min_limit.x), (point.y - min_limit.y) / (max_limit.y - min_limit.y));
+    }
+};
+
+struct DTriangle
+{
+    float3 vertices[3];
+    float3 normal[3];
+    float2 uv[3];
+    float3 v0v1;
+    float3 v0v2;
+    DMaterial material;
+
+    __device__ DTriangle()
+    {
+    }
+
+    __device__ DTriangle(float3 v1, float3 v2, float3 v3, DMaterial mat)
+        : vertices{ v1, v2, v3 }
+        , material(mat)
+    {
+        setup();
+    }
+
+    __device__ void setup()
+    {
+        v0v1 = vertices[1] - vertices[0];
+        v0v2 = vertices[2] - vertices[0];
+        normal[0] = normal[1] = normal[2] = normalize(cross(v0v1, v0v2));
+        uv[0] = make_float2( .0f,  .0f); 
+        uv[1] = make_float2(1.0f,  .0f);
+        uv[2] = make_float2( .0f, 1.0f);
+    }
+
+    __device__ void hit_data(const DRay& ray, DIntersection& hit)
+    {
+        hit.point = ray.point_at(hit.t);
+        hit.normal = (1.f - hit.uv.x - hit.uv.y) * normal[0] + hit.uv.x * normal[1] + hit.uv.y * normal[2];
+        hit.uv = (1.f - hit.uv.x - hit.uv.y) * uv[0] + hit.uv.x * uv[1] + hit.uv.y * uv[2];
+        hit.material = &material;
     }
 };
 
@@ -328,12 +424,61 @@ __device__ bool intersect_boxes(const DRay& ray, const DBox* boxes, int box_coun
     return hit_something;
 }
 
+__device__ bool intersect_triangles(const DRay& ray, const DTriangle* triangles, int triangle_count, DIntersection& hit_data)
+{
+    bool hit_something = false;
+
+    for (int i = 0; i < triangle_count; ++i)
+    {
+        DTriangle triangle = triangles[i];
+        {
+            float3 pvec = cross(ray.direction, triangle.v0v2);
+            float det = dot(triangle.v0v1, pvec);
+    
+            // if the determinant is negative the triangle is backfacing
+            // if the determinant is close to 0, the ray misses the triangle
+            if (det < EPS)
+            {
+                continue;
+            }
+    
+            float inv_det = 1.f / det;
+    
+            float3 tvec = ray.origin - triangle.vertices[0];
+            float u = dot(tvec, pvec) * inv_det;
+            if (u < .0f || u > 1.f)
+            {
+                continue;
+            }
+    
+            float3 qvec = cross(tvec, triangle.v0v1);
+            float v = dot(ray.direction, qvec) * inv_det;
+            if (v < .0f || u + v > 1.f)
+            {
+                continue;
+            }
+    
+            float t = dot(triangle.v0v2, qvec) * inv_det;
+            if (t < hit_data.t)
+            {
+                hit_data.t = t;
+                hit_data.uv = make_float2(u, v);
+                hit_data.type = DIntersection::eTRIANGLE;
+                hit_data.index = i;
+                hit_something = true;
+            }
+        }
+    }
+
+    return hit_something;
+}
+
 __device__ const int MAX_DEPTH = 5;
 __device__ const float3 WHITE = {1.f, 1.f, 1.f};
 __device__ const float3 BLACK = {0.f, 0.f, 0.f};
 
 
-__device__ float3 get_color_for(DRay ray, DSphere* spheres, int sphere_count, DBox* boxes, int box_count, int* raycount, curandState* curand_ctx)
+__device__ float3 get_color_for(DRay ray, DSphere* spheres, int sphere_count, DBox* boxes, int box_count, DTriangle* triangles, int tri_count, int* raycount, curandState* curand_ctx)
 {
     float3 total_color = WHITE;
     DRay current_ray = ray;
@@ -345,18 +490,20 @@ __device__ float3 get_color_for(DRay ray, DSphere* spheres, int sphere_count, DB
         //
         bool hitspheres = false;
         bool hitboxes = false;
+        bool hittris = false;
         DIntersection hit_data;
         hit_data.t = FLT_MAX;
 
         hitspheres = intersect_spheres(current_ray, spheres, sphere_count, hit_data);
         hitboxes = intersect_boxes(current_ray, boxes, box_count, hit_data);
+        hittris = intersect_triangles(current_ray, triangles, tri_count, hit_data);
 
         ++(*raycount);
 
         //
         // return color or continue
         //
-        if (hitspheres || hitboxes)
+        if (hitspheres || hitboxes || hittris)
         {
             //
             // debug - show normals
@@ -367,9 +514,13 @@ __device__ float3 get_color_for(DRay ray, DSphere* spheres, int sphere_count, DB
             {
                 spheres[hit_data.index].hit_data(current_ray, hit_data);
             }
-            else
+            else if (hit_data.type == DIntersection::eBOX)
             {
                 boxes[hit_data.index].hit_data(current_ray, hit_data);
+            }
+            else
+            {
+                triangles[hit_data.index].hit_data(current_ray, hit_data);
             }
 
             DRay scattered;
@@ -576,6 +727,15 @@ __global__ void raytrace(int width, int height, int samples, float3* pixels, int
     boxes[6].material.type = DMaterial::eEMISSIVE;
     boxes[6].material.albedo = { 2.f, 2.f, 2.f };
 
+    DTriangle triangles[1];
+    int tricount = array_size(triangles);
+    triangles[0].vertices[0] = { -1.f, .5f, -2.5f };
+    triangles[0].vertices[1] = {  1.f, .5f, -2.5f };
+    triangles[0].vertices[2] = { 1.f, 1.5f, -2.5f };
+    triangles[0].material.type = DMaterial::eLAMBERTIAN;
+    triangles[0].material.albedo = { .05f, .85f, .02f };
+    triangles[0].setup();
+
     //
     // camera setup
     //
@@ -611,7 +771,7 @@ __global__ void raytrace(int width, int height, int samples, float3* pixels, int
         ray.origin = center;
         ray.direction = normalize(origin + s * horizontal + t * vertical - center);
 
-        color += get_color_for(ray, spheres, spherecount, boxes, boxcount, &raycount_inst, local_curand_ctx);
+        color += get_color_for(ray, spheres, spherecount, boxes, boxcount, triangles, tricount, &raycount_inst, local_curand_ctx);
     }
 
     atomicAdd(raycount, raycount_inst);
