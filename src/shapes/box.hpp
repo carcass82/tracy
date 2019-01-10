@@ -32,7 +32,7 @@ public:
             float minbound = pmin[i];
             float maxbound = pmax[i];
 
-            float ood = rcp(direction);
+            float ood = 1.f / direction;
             float t1 = (minbound - origin) * ood;
             float t2 = (maxbound - origin) * ood;
 

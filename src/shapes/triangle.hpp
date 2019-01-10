@@ -62,7 +62,7 @@ public:
             return false;
         }
 
-        float invDet = rcp(det);
+        float invDet = 1.f / det;
 
         vec3 tvec = r.get_origin() - vertices[0];
         float u = dot(tvec, pvec) * invDet;
@@ -78,9 +78,14 @@ public:
             return false;
         }
 
-        rec.t = dot(v0v2, qvec) * invDet;
-        rec.uv = vec2{ u, v };
-        return true;
+        float t = dot(v0v2, qvec) * invDet;
+        if (t < rec.t)
+        {
+            rec.t = dot(v0v2, qvec) * invDet;
+            rec.uv = vec2{ u, v };
+            return true;
+        }
+        return false;
     }
 
     virtual void get_hit_data(const Ray& r, HitData& rec) const override final

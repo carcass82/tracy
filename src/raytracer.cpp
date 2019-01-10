@@ -7,7 +7,6 @@
  *
  * TODO:
  * - read scene desc from file
- * - support for triangular meshes
  * - realtime preview of result
  */
 
@@ -34,7 +33,6 @@ using glm::min;
 using glm::clamp;
 using glm::radians;
 template<typename T> constexpr inline void swap(T& a, T& b) { T tmp(a); a = b; b = tmp; }
-#define rcp(x) (1.f / (x))
 #else
 #include "ext/cclib/cclib.h"
 using cc::math::PI;
@@ -47,10 +45,7 @@ using cc::math::radians;
 using cc::math::lerp;
 using cc::util::swap;
 using cc::util::array_size;
-#define cosf(x) cc::math::fast::cosf(x)
-#define sinf(x) cc::math::fast::sinf(x)
 #define atan2f(x, y) cc::math::fast::atan2f(x, y)
-#define rcp(x) cc::math::fast::rcp(x)
 #endif
 
 #if defined(USE_CUDA)

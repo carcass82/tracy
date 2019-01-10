@@ -218,7 +218,7 @@ IShape* gpu_scene()
     int i = 0;
     IShape** objects = new IShape*[50];
     objects[i++] = new Sphere(vec3(0.f, 0.f, -1.f), .5f, blue);
-    objects[i++] = new Sphere(vec3(0.f, 300.f, -1.f), 100.f, light);
+    objects[i++] = new Sphere(vec3(0.f, 150.f, -1.f), 100.f, light);
     objects[i++] = new Sphere(vec3(1.f, 0.f, -1.f), .5f, alluminium);
     objects[i++] = new Sphere(vec3(-1.f, 0.f, -1.f), .5f, glass);
     objects[i++] = new Sphere(vec3(0.f, 0.f, 0.f), .2f, copper);
@@ -258,7 +258,7 @@ IShape* load_scene(eScene scene, Camera& cam, float ratio)
 
     case eTESTGPU:
         std::cerr << "'testGPU' scene selected\n";
-        cam.setup(vec3(3.f, 5.5f, 5.f), vec3(.0f, .0f, -1.f), vec3(0.0f, 1.0f, 0.0f), 45.0f, ratio);
+        cam.setup(vec3(-.5f, 1.2f, 1.5f), vec3(.0f, .0f, -1.f), vec3(0.0f, 1.0f, 0.0f), 60.0f, ratio);
         return gpu_scene();
 
     default:
