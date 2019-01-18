@@ -84,7 +84,7 @@ add_executable(${PROJECT_NAME} ${SRC_MAIN} ${INC_LIST} ${INC_SHAPES} ${INC_SHAPE
 if (BUILD_WITH_CUDA)
 	enable_language(CUDA)
 	add_definitions(-DUSE_CUDA)
-	set(CMAKE_CUDA_FLAGS ${CUDA_COMPUTECAPABILITY})
+	set(CMAKE_CUDA_FLAGS "-std=c++11 ${CUDA_COMPUTECAPABILITY}")
 	set(CMAKE_CUDA_FLAGS_DEBUG "-G -D_DEBUG")
 	set(CMAKE_CUDA_FLAGS_RELEASE "--use_fast_math -O2 -lineinfo -DNDEBUG")
 
