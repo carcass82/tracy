@@ -9,19 +9,12 @@
  * - read scene desc from file
  * - realtime preview of result
  */
-
-#include <iostream>
-#include <cstdint>
-#include <cstring>
-#include <fstream>
-#include <string>
-#include <iomanip>
-#include <vector>
-#include <cfloat>
-#include <cassert>
-#include <ctime>
+#include <stdint.h>
+#include <string.h>
+#include <float.h>
+#include <assert.h>
+#include <time.h>
 #include <thread>
-#include <chrono>
 
 #if USE_GLM
 #include <glm/glm.hpp>
@@ -46,6 +39,8 @@ using cc::math::lerp;
 using cc::util::swap;
 using cc::util::array_size;
 #define atan2f(x, y) cc::math::fast::atan2f(x, y)
+#define sinf(x) cc::math::fast::sinf(x)
+#define cosf(x) cc::math::fast::cosf(x)
 #endif
 
 #if defined(USE_CUDA)
@@ -105,33 +100,44 @@ vec3 color(const Ray& r, IShape* world, int depth, size_t& raycount)
     return vec3{ .0f, .0f, .0f };
 }
 
+constexpr inline void put_char_sequence(const char x, int n)
+{
+    for (int i = 0; i < n; ++i)
+    {
+        putchar(x);
+    }
+}
+
 void progbar(size_t total, size_t samples, size_t* value, bool* quit)
 {
-    const size_t progbarsize = 78;
+    constexpr int progbarsize = 78;
+    const int threadcount = omp_get_max_threads();
 
     while (!(*quit))
     {
         float progress = min(1.f, float(*value / samples) / float(total));
         int progbar = int(progress * progbarsize);
 
-        std::cout << "tracing... ["
-                  << std::string(progbar, '#')
-                  << std::string(progbarsize - progbar, ' ')
-                  << "] "
-                  << std::fixed << std::setprecision(1) << progress * 100.f << "%\r";
+        printf("tracing (%d threads) ... [", threadcount);
+        put_char_sequence('#', progbar);
+        put_char_sequence(' ', progbarsize - progbar);
+        printf("] %.1f%%\r", progress * 100.f);
 
-        std::this_thread::sleep_for(500ms);
+        std::this_thread::sleep_for(250ms);
     }
 
-    std::cout << "tracing... [" << std::string(progbarsize, '#') << "] 100.0%\n";
+    // print full bar before quitting
+    printf("tracing (%d threads) ... [", threadcount);
+    put_char_sequence('#', progbarsize);
+    fputs("] 100.0%\n", stdout);    
 }
 #endif
 
 int main(int argc, char** argv)
 {
     const int nx = 1024; // w
-    const int ny = 768; // h
-    const int ns = 50; // samples
+    const int ny = 768;  // h
+    const int ns = 50;   // samples
 
 #if !defined(USE_CUDA)
     Camera cam;
@@ -162,10 +168,10 @@ int main(int argc, char** argv)
         }
     }
 
-    std::ofstream ppm_stream(filename, std::ios::binary);
-    if (!ppm_stream.good())
+    FILE *fp = fopen(filename, "wb");
+    if (!fp)
     {
-        std::cerr << "unable to open " << filename << " for writing, abort\n";
+        fprintf(stderr, "unable to open '%s' for writing, abort\n", filename);
         return -1;
     }
 
@@ -233,27 +239,28 @@ int main(int argc, char** argv)
 
     t.end();
 
-    std::cout << "Average: " << std::fixed << std::setprecision(2) << (totrays / 1'000'000.0) / t.duration() << " MRays/s\n";
+    printf("Average: %.2f MRays/s\n", (totrays / 1'000'000.0) / t.duration());
 
     //
     // output to ppm (y inverted)
     // gamma 2.0
     //
-    ppm_stream << "P6\n" << nx << " " << ny << " " << 0xff << "\n";
+    fprintf(fp, "P6\n%d %d %d\n", nx, ny, 0xff);
     for (int j = ny - 1; j >= 0; --j)
     {
         for (int i = 0; i < nx; ++i)
         {
-            vec3 clamped_col = vec3{ clamp(255.99f * sqrtf(output[j * nx + i].r / ns), 0.0f, 255.0f),
-                                     clamp(255.99f * sqrtf(output[j * nx + i].g / ns), 0.0f, 255.0f),
-                                     clamp(255.99f * sqrtf(output[j * nx + i].b / ns), 0.0f, 255.0f) };
-    
-            ppm_stream << uint8_t(clamped_col.r) << uint8_t(clamped_col.g) << uint8_t(clamped_col.b);
+            uint8_t clamped_col[] = {
+                uint8_t(clamp(255.99f * sqrtf(output[j * nx + i].r / ns), 0.0f, 255.0f)),
+                uint8_t(clamp(255.99f * sqrtf(output[j * nx + i].g / ns), 0.0f, 255.0f)),
+                uint8_t(clamp(255.99f * sqrtf(output[j * nx + i].b / ns), 0.0f, 255.0f))
+            };
+            fwrite(clamped_col, sizeof(uint8_t), sizeof(clamped_col), fp);
         }
     }
-    ppm_stream.close();
+    fclose(fp);
 
     delete[] output;
 
-    std::cerr << "finished in " << std::fixed << std::setprecision(2) << t.duration() << " secs\n" << std::endl;
+    fprintf(stderr, "finished in %.2f secs\n", t.duration());
 }

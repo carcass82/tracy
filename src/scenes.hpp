@@ -37,7 +37,7 @@ IShape* load_mesh(const char* obj_path)
 
     if (!tinyobj::LoadObj(&attrib, &shapes, &materials, &warn, &err, obj_path))
     {
-        std::cerr << "unable to load model '" << obj_path << "'\n";
+        fprintf(stderr, "unable to load model '%s'\n", obj_path);
         return nullptr;
     }
 
@@ -247,22 +247,22 @@ IShape* load_scene(eScene scene, Camera& cam, float ratio)
 {
     switch (scene) {
     case eRANDOM:
-        std::cerr << "'random' scene selected\n";
+        fputs("'random' scene selected\n", stderr);
         cam.setup(vec3(9.0f, 1.5f, 6.0f), vec3(2.0f, 0.5f, -2.0f), vec3(0.0f, 1.0f, 0.0f), 45.0f, ratio);
         return random_scene();
 
     case eCORNELLBOX:
-        std::cerr << "'cornell' scene selected\n";
+        fputs("'cornell' scene selected\n", stderr);
         cam.setup(vec3(278, 278, -800), vec3(278, 278, 0), vec3(0.0f, 1.0f, 0.0f), 40.0f, ratio);
         return cornellbox_scene();
 
     case eTESTGPU:
-        std::cerr << "'testGPU' scene selected\n";
+        fputs("'testGPU' scene selected\n", stderr);
         cam.setup(vec3(-.5f, 1.2f, 1.5f), vec3(.0f, .0f, -1.f), vec3(0.0f, 1.0f, 0.0f), 60.0f, ratio);
         return gpu_scene();
 
     default:
-        std::cerr << "tracing NULL, i'm going to crash...\n";
+        fputs("tracing NULL, i'm going to crash...\n", stderr);
         return nullptr;
     };
 }

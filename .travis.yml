@@ -8,10 +8,20 @@ addons:
     packages:
       - g++-8
       - cmake
+      - nvidia-cuda-toolkit
       
 script:
   - export CXX=g++-8
   - mkdir build
   - cd build
-  - cmake -G "Unix Makefiles" -DCMAKE_BUILD_TYPE="Release" -DCMAKE_VERBOSE_MAKEFILE=ON ..
+
+  - cmake -G "Unix Makefiles" -DCMAKE_BUILD_TYPE=Release -DCMAKE_VERBOSE_MAKEFILE=ON ..
   - make -j
+  
+  - cd ..
+  - rm -r build
+  - mkdir build
+  
+  - cmake -G "Unix Makefiles" -DCMAKE_BUILD_TYPE=Release -DCMAKE_VERBOSE_MAKEFILE=ON -DBUILD_WITH_CUDA=ON ..
+  - make -j
+

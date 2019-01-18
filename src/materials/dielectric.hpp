@@ -33,7 +33,7 @@ public:
         else
         {
             outward_normal = rec.normal;
-            ni_over_nt =1.f / ref_idx;
+            ni_over_nt = 1.f / ref_idx;
             cosine = -dot(r_in.get_direction(), rec.normal) / length(r_in.get_direction());
         }
 

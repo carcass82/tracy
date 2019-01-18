@@ -54,22 +54,22 @@ void ensure(cudaError_t val, const char *const file, int const line)
 // ----------------------------------------------------------------------------
 //
 
-__device__ float schlick_fresnel(float costheta, float ior)
+__device__ inline float schlick(float costheta, float ior)
 {
     float r0 = (1.f - ior) / (1.f + ior);
     r0 *= r0;
     return r0 + (1.f - r0) * powf(max(.0f, (1.f - costheta)), 5);
 }
 
-__device__ float cuda_fastrand(curandState* curand_ctx)
+__device__ inline float fastrand(curandState* curand_ctx)
 {
     return curand_uniform(curand_ctx);
 }
 
-__device__ float3 cuda_random_on_unit_sphere(curandState* curand_ctx)
+__device__ inline float3 random_on_unit_sphere(curandState* curand_ctx)
 {
-    float z = cuda_fastrand(curand_ctx) * 2.f - 1.f;
-    float a = cuda_fastrand(curand_ctx) * 2.f * PI;
+    float z = fastrand(curand_ctx) * 2.f - 1.f;
+    float a = fastrand(curand_ctx) * 2.f * PI;
     float r = sqrtf(max(.0f, 1.f - z * z));
 
     return make_float3(r * cosf(a), r * sinf(a), z);
@@ -126,7 +126,7 @@ struct DMaterial
     {
         if (type == eLAMBERTIAN)
         {
-            float3 target = hit.point + hit.normal + cuda_random_on_unit_sphere(curand_ctx);
+            float3 target = hit.point + hit.normal + random_on_unit_sphere(curand_ctx);
             scattered.origin = hit.point;
             scattered.direction = normalize(target - hit.point);
             attenuation = albedo;
@@ -138,7 +138,7 @@ struct DMaterial
         {
             float3 reflected = reflect(ray.direction, hit.normal);
             scattered.origin = hit.point;
-            scattered.direction = reflected + roughness * cuda_random_on_unit_sphere(curand_ctx);
+            scattered.direction = reflected + roughness * random_on_unit_sphere(curand_ctx);
 
             attenuation = albedo;
             emission = make_float3(.0f, .0f, .0f);
@@ -169,17 +169,17 @@ struct DMaterial
 
             float3 refracted;
             bool is_refracted = refract(ray.direction, outward_normal, ni_nt, refracted);
-            float reflect_chance = (is_refracted) ? schlick_fresnel(cosine, ior) : 1.0f;
+            float reflect_chance = (is_refracted) ? schlick(cosine, ior) : 1.0f;
             
             scattered.origin = hit.point;
-            scattered.direction = (cuda_fastrand(curand_ctx) < reflect_chance)? reflect(ray.direction, hit.normal) : refracted;
+            scattered.direction = (fastrand(curand_ctx) < reflect_chance)? reflect(ray.direction, hit.normal) : refracted;
 
             return true;
         }
         else if (type == eISOTROPIC)
         {
             scattered.origin = hit.point;
-            scattered.direction = cuda_random_on_unit_sphere(curand_ctx);
+            scattered.direction = random_on_unit_sphere(curand_ctx);
             attenuation = albedo;
             emission = make_float3(.0f, .0f, .0f);
             return true;
@@ -764,8 +764,8 @@ __global__ void raytrace(int width, int height, int samples, float3* pixels, int
     float3 color{ .0f, .0f, .0f };
     for (int sample = 0; sample < samples; ++sample)
     {
-        float s = ((i + cuda_fastrand(local_curand_ctx)) / static_cast<float>(width));
-        float t = ((j + cuda_fastrand(local_curand_ctx)) / static_cast<float>(height));
+        float s = ((i + fastrand(local_curand_ctx)) / static_cast<float>(width));
+        float t = ((j + fastrand(local_curand_ctx)) / static_cast<float>(height));
 
         DRay ray;
         ray.origin = center;
@@ -810,7 +810,11 @@ extern "C" void cuda_trace(int w, int h, int ns, float* out_buffer, int& out_ray
     {
         checkCudaErrors(cudaGetDeviceProperties(&gpu_properties[i], i));
 
-        CUDALOG("Device %d (%s):\n\t%d threads\n\tblocksize: %dx%dx%d\n\tshmem per block: %lu Kb\n\tgridsize: %dx%dx%d\n\n",
+        CUDALOG("Device %d (%s):\n"
+                "\t%d threads\n"
+                "\tblocksize: %dx%dx%d\n"
+                "\tshmem per block: %lu Kb\n"
+                "\tgridsize: %dx%dx%d\n\n",
                i,
                gpu_properties[i].name,
                gpu_properties[i].maxThreadsPerBlock,

@@ -7,7 +7,7 @@
 
 #pragma once
 
-float fastrand()
+inline float fastrand()
 {
     static uint32_t s_RndState = 123456789;
 #pragma omp threadprivate(s_RndState)
@@ -21,7 +21,7 @@ float fastrand()
     return (x & 0xffffff) / 16777216.0f;
 }
 
-vec3 random_on_unit_sphere()
+inline vec3 random_on_unit_sphere()
 {
     float z = fastrand() * 2.f - 1.f;
     float a = fastrand() * 2.f * PI;
@@ -30,19 +30,19 @@ vec3 random_on_unit_sphere()
     return vec3{ r * cosf(a), r * sinf(a), z };
 }
 
-float schlick(float cos, float ref_idx)
+inline float schlick(float cos, float ref_idx)
 {
     float r0 = (1.0f - ref_idx) / (1.0f + ref_idx);
     r0 *= r0;
     return r0 + (1.0f - r0) * powf((1.f - cos), 5.f);
 }
 
-vec3 min3(const vec3& a, const vec3& b)
+inline vec3 min3(const vec3& a, const vec3& b)
 {
     return vec3{ min(a.x, b.x), min(a.y, b.y), min(a.z, b.z) };
 }
 
-vec3 max3(const vec3& a, const vec3& b)
+inline vec3 max3(const vec3& a, const vec3& b)
 {
     return vec3{ max(a.x, b.x), max(a.y, b.y), max(a.z, b.z) };
 }
