@@ -9,6 +9,8 @@ addons:
       - g++-8
       - cmake
       - nvidia-cuda-toolkit
+      - nvidia-cuda-dev
+      - nvidia-profiler
       
 script:
   - export CXX=g++-8
