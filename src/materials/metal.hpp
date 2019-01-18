@@ -32,7 +32,7 @@ public:
     }
 
 private:
-    const vec3 ZERO;
+    const vec3 ZERO{.0f, .0f, .0f};
     vec3 albedo;
     float roughness;
 };

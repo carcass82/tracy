@@ -50,6 +50,6 @@ public:
     }
 
 private:
-    const vec3 ZERO;
+    const vec3 ZERO{.0f, .0f, .0f};
     float ref_idx;
 };

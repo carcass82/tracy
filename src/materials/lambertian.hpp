@@ -31,6 +31,6 @@ public:
     }
 
 private:
-    const vec3 ZERO;
+    const vec3 ZERO{0.f, 0.f, 0.f};
     ITexture* albedo;
 };
