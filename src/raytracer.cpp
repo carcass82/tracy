@@ -17,7 +17,10 @@
 #include <thread>
 
 #if USE_GLM
+#define GLM_ENABLE_EXPERIMENTAL
 #include <glm/glm.hpp>
+#include <glm/gtx/compatibility.hpp>
+#include <glm/gtx/fast_trigonometry.hpp>
 constexpr float PI = 3.1415926535897932f;
 using glm::vec3;
 using glm::vec2;
@@ -25,7 +28,11 @@ using glm::max;
 using glm::min;
 using glm::clamp;
 using glm::radians;
+using glm::lerp;
 template<typename T> constexpr inline void swap(T& a, T& b) { T tmp(a); a = b; b = tmp; }
+#define atan2f(x, y) glm::fastAtan(x, y)
+#define sinf(x) glm::fastSin(x)
+#define cosf(x) glm::fastCos(x)
 #else
 #include "ext/cclib/cclib.h"
 using cc::math::PI;
@@ -37,7 +44,6 @@ using cc::util::clamp;
 using cc::math::radians;
 using cc::math::lerp;
 using cc::util::swap;
-using cc::util::array_size;
 #define atan2f(x, y) cc::math::fast::atan2f(x, y)
 #define sinf(x) cc::math::fast::sinf(x)
 #define cosf(x) cc::math::fast::cosf(x)
