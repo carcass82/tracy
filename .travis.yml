@@ -22,7 +22,8 @@ script:
   
   - cd ..
   - rm -r build
-  - mkdir build
+  - mkdir build-cuda
+  - cd build-cuda
   
   - cmake -G "Unix Makefiles" -DCMAKE_BUILD_TYPE=Release -DCMAKE_VERBOSE_MAKEFILE=ON -DBUILD_WITH_CUDA=ON ..
   - make -j
