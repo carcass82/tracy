@@ -24,8 +24,10 @@ using cc::math::radians;
 using cc::util::clamp;
 using cc::util::max;
 
+namespace {
 constexpr inline vec3 sqrtf3(const vec3& a) { return vec3{ sqrtf(a.x), sqrtf(a.y), sqrtf(a.z) }; }
 constexpr inline vec3 clamp3(const vec3& a, float min, float max) { return vec3{ clamp(a.x, min, max), clamp(a.y, min, max), clamp(a.z, min, max) }; }
+}
 
 #include "timer.hpp"
 

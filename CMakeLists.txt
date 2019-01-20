@@ -53,6 +53,11 @@ file(GLOB SRC_MAIN "./src/*.cpp")
 
 include_directories(. ./src ./ext)
 
+if (USE_GUI AND UNIX)
+	find_package(X11 REQUIRED)
+	include_directories(${X11_INCLUDE_DIR})
+endif()
+
 #
 # Compiler options
 #
@@ -81,6 +86,7 @@ if (USE_GUI AND WIN32)
 add_executable(${PROJECT_NAME} WIN32 ${SRC_MAIN} ${INC_LIST} ${INC_SHAPES} ${INC_SHAPES_MOD} ${INC_MATERIALS} ${INC_TEXTURES} ${INC_PDF} ${INC_CCLIB})
 elseif (USE_GUI AND UNIX)
 add_executable(${PROJECT_NAME} ${SRC_MAIN} ${INC_LIST} ${INC_SHAPES} ${INC_SHAPES_MOD} ${INC_MATERIALS} ${INC_TEXTURES} ${INC_PDF} ${INC_CCLIB})
+target_link_libraries(${PROJECT_NAME} ${X11_LIBRARIES})
 else()
 add_executable(${PROJECT_NAME} ${SRC_MAIN} ${INC_LIST} ${INC_SHAPES} ${INC_SHAPES_MOD} ${INC_MATERIALS} ${INC_TEXTURES} ${INC_PDF} ${INC_CCLIB})
 endif()

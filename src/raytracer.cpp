@@ -108,10 +108,10 @@ extern "C" void setup(Camera& cam, float aspect, IShape** world)
     //*world = load_scene(eRANDOM, cam, aspect);
 
     // modified cornell box
-    *world = load_scene(eCORNELLBOX, cam, aspect);
+    //*world = load_scene(eCORNELLBOX, cam, aspect);
 
     // test same scene as gpu version
-    //*world = load_scene(eTESTGPU, cam, aspect);
+    *world = load_scene(eTESTGPU, cam, aspect);
 }
 
 extern "C" void trace(Camera& cam, IShape* world, int nx, int ny, int ns, vec3* output, int& totrays, size_t& pixel_idx)
@@ -193,7 +193,7 @@ void progbar(size_t total, size_t samples, size_t* value, bool* quit)
 #endif
 #endif
 
-#if !defined(BUILD_GUI) || !defined(_WIN32)
+#if !defined(BUILD_GUI)
 int main(int argc, char** argv)
 {
     const int nx = 1024; // w
