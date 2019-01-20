@@ -4,7 +4,6 @@
  *
  * (c) Carlo Casta, 2018
  */
-
 #pragma once
 
 #define STB_IMAGE_IMPLEMENTATION
@@ -236,6 +235,9 @@ IShape* gpu_scene()
     
     objects[i++] = new Triangle(vec3(-1.f, .5f, -2.5f), vec3(1.f, .5f, -2.5f), vec3(1.f, 1.5f, -2.5f), green);
 
+    //
+    // Test TriangleMesh
+    //
     //objects[i++] = load_mesh("./data/teapot.obj");
 
     return new ShapeList(objects, i);

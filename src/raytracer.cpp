@@ -3,11 +3,6 @@
  * inspired by "Ray Tracing in One Weekend" minibooks
  *
  * (c) Carlo Casta, 2018
- *
- *
- * TODO:
- * - read scene desc from file
- * - realtime preview of result
  */
 #include <stdint.h>
 #include <string.h>
@@ -15,6 +10,7 @@
 #include <assert.h>
 #include <time.h>
 #include <thread>
+#include <omp.h>
 
 #if USE_GLM
 #define GLM_ENABLE_EXPERIMENTAL
@@ -50,7 +46,7 @@ using cc::util::swap;
 #endif
 
 #if defined(USE_CUDA)
-extern "C" void cuda_trace(int, int, int, float*, int&);
+extern "C" void cuda_trace(int /* w */, int /* h */, int /* ns */, float* /* output */, int& /* totrays */);
 #endif
 
 #if !defined(USE_CUDA)
@@ -69,7 +65,7 @@ extern "C" void cuda_trace(int, int, int, float*, int&);
 #define MAX_DEPTH 5
 
 #if !defined(USE_CUDA)
-vec3 color(const Ray& r, IShape* world, int depth, size_t& raycount)
+vec3 color(const Ray& r, IShape* world, int depth, int& raycount)
 {
     ++raycount;
 
@@ -106,6 +102,63 @@ vec3 color(const Ray& r, IShape* world, int depth, size_t& raycount)
     return vec3{ .0f, .0f, .0f };
 }
 
+extern "C" void setup(Camera& cam, float aspect, IShape** world)
+{
+    // test
+    //*world = load_scene(eRANDOM, cam, aspect);
+
+    // modified cornell box
+    *world = load_scene(eCORNELLBOX, cam, aspect);
+
+    // test same scene as gpu version
+    //*world = load_scene(eTESTGPU, cam, aspect);
+}
+
+extern "C" void trace(Camera& cam, IShape* world, int nx, int ny, int ns, vec3* output, int& totrays, size_t& pixel_idx)
+{
+    // ensure output buffer is properly zeroed
+    memset(output, 0, nx * ny * sizeof(vec3));
+
+    //
+    // OpenMP: collapse all 3 loops and distribute work to threads.
+    //         scheduling must be dynamic to avoid work imbalance
+    //         since rays could hit nothing or bounce "forever"
+    //
+#if defined(_MSC_VER)
+ #define collapse(x) /* ms compiler does not support openmp 3.0 */
+#endif
+
+    #pragma omp parallel for collapse(3) schedule(dynamic)
+    for (int j = 0; j < ny; ++j)
+    {
+        for (int i = 0; i < nx; ++i)
+        {
+            for (int s = 0; s < ns; ++s)
+            {
+                int raycount = 0;
+                vec2 uv{ (i + fastrand()) / float(nx), (j + fastrand()) / float(ny) };
+                vec3 sampled_col = color(cam.get_ray(uv.x, uv.y), world, 0, raycount);
+
+                #pragma omp atomic
+                output[j * nx + i].r += sampled_col.r;
+
+                #pragma omp atomic
+                output[j * nx + i].g += sampled_col.g;
+
+                #pragma omp atomic
+                output[j * nx + i].b += sampled_col.b;
+
+                #pragma omp atomic
+                totrays += raycount;
+
+                // not really interested in correctness
+                pixel_idx++;
+            }
+        }
+    }
+}
+
+#if !defined(USE_CUDA) || !defined(BUILD_GUI)
 constexpr inline void put_char_sequence(const char x, int n)
 {
     for (int i = 0; i < n; ++i)
@@ -138,25 +191,14 @@ void progbar(size_t total, size_t samples, size_t* value, bool* quit)
     fputs("] 100.0%\n", stdout);    
 }
 #endif
+#endif
 
+#if !defined(BUILD_GUI) || !defined(_WIN32)
 int main(int argc, char** argv)
 {
     const int nx = 1024; // w
     const int ny = 768;  // h
-    const int ns = 50;   // samples
-
-#if !defined(USE_CUDA)
-    Camera cam;
-
-    // test
-    //IShape* world = load_scene(eRANDOM, cam, float(nx) / float(ny));
-    
-    // modified cornell box
-    //IShape* world = load_scene(eCORNELLBOX, cam, float(nx) / float(ny));
-
-    // test same scene as gpu version
-    IShape* world = load_scene(eTESTGPU, cam, float(nx) / float(ny));
-#endif
+    const int ns = 64;   // samples
 
     char filename[256];
     {
@@ -181,14 +223,25 @@ int main(int argc, char** argv)
         return -1;
     }
 
+#if !defined(USE_CUDA)
+    Camera cam;
+    IShape *world = nullptr;
+    setup(cam, float(nx) / float(ny), &world);
+    if (!world)
+    {
+        fputs("unable to prepare for tracing, abort\n", stderr);
+        return -1;
+    }
+#endif
+
     // output buffer
     vec3* output = new vec3[nx * ny];
+
+    int totrays = 0;
 
     // trace!
     Timer t;
     t.begin();
-
-    int totrays = 0;
 
 #if !defined(USE_CUDA)
     // update progress bar using a separate thread
@@ -196,43 +249,7 @@ int main(int argc, char** argv)
     size_t pixel_idx = 0;
     std::thread progbar_thread(progbar, nx * ny, ns, &pixel_idx, &quit);
 
-    //
-    // OpenMP: collapse all 3 loops and distribute work to threads.
-    //         scheduling must be dynamic to avoid work imbalance
-    //         since rays could hit nothing or bounce "forever"
-    //
-#if defined(_MSC_VER)
- #define collapse(x) /* ms compiler does not support openmp 3.0 */
-#endif
-
-    #pragma omp parallel for collapse(3) schedule(dynamic)
-    for (int j = 0; j < ny; ++j)
-    {
-        for (int i = 0; i < nx; ++i)
-        {
-            for (int s = 0; s < ns; ++s)
-            {
-                size_t raycount = 0;
-                vec2 uv{ (i + fastrand()) / float(nx), (j + fastrand()) / float(ny) };
-                vec3 sampled_col = color(cam.get_ray(uv.x, uv.y), world, 0, raycount);
-
-                #pragma omp atomic
-                output[j * nx + i].r += sampled_col.r;
-
-                #pragma omp atomic
-                output[j * nx + i].g += sampled_col.g;
-
-                #pragma omp atomic
-                output[j * nx + i].b += sampled_col.b;
-
-                // not really interested in correctness
-                pixel_idx++;
-
-                #pragma omp atomic
-                totrays += raycount;
-            }
-        }
-    }
+    trace(cam, world, nx, ny, ns, output, totrays, pixel_idx);
 
     quit = true;
     progbar_thread.join();
@@ -270,3 +287,4 @@ int main(int argc, char** argv)
 
     fprintf(stderr, "finished in %.2f secs\n", t.duration());
 }
+#endif

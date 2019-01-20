@@ -566,24 +566,18 @@ __global__ void raytrace(int width, int height, int samples, float3* pixels, int
     spheres[0].radius = 50.f;
     spheres[0].material.type = DMaterial::eDIELECTRIC;
     spheres[0].material.ior = 1.5f;
-    //spheres[0].material.type = eEMISSIVE;
-    //spheres[0].material.albedo = { 15.f, 15.f, 15.f };
 
     spheres[1].center = { 265 + 82.5 + 35, 400, 295 + 82.5 - 35 };
     spheres[1].radius = 70.f;
     spheres[1].material.type = DMaterial::eMETAL;
     spheres[1].material.albedo = { .8f, .85f, .88f };
     spheres[1].material.roughness = .0f;
-    //spheres[1].material.type = eEMISSIVE;
-    //spheres[1].material.albedo = { 15.f, 15.f, 15.f };
     
     spheres[2].center = { 265 + 82.5 + 15, 30, 80 };
     spheres[2].radius = 30.f;
     spheres[2].material.type = DMaterial::eMETAL;
     spheres[2].material.albedo = { 1.f, .71f, .29f };
     spheres[2].material.roughness = .05f;
-    //spheres[2].material.type = eEMISSIVE;
-    //spheres[2].material.albedo = { 15.f, 15.f, 15.f };
 
 
     __shared__ DBox boxes[8];
@@ -591,54 +585,47 @@ __global__ void raytrace(int width, int height, int samples, float3* pixels, int
     // light
     boxes[0].min_limit = { 213.f, 554.f, 227.f };
     boxes[0].max_limit = { 343.f, 555.f, 332.f };
-    boxes[0].rot = { .0f, .0f, .0f };
     boxes[0].material.type = DMaterial::eEMISSIVE;
     boxes[0].material.albedo = { 15.f, 15.f, 15.f };
     // green side
     boxes[1].min_limit = { 555.f,    .0f, 0.f};
     boxes[1].max_limit = { 555.1f, 555.f, 555.f};
-    boxes[1].rot = { .0f, .0f, .0f };
     boxes[1].material.type = DMaterial::eLAMBERTIAN;
     boxes[1].material.albedo = { 0.12f, 0.45f, .15f };
     // red side
     boxes[2].min_limit = { -0.1f,   .0f, 0.f };
     boxes[2].max_limit = {  .0f, 555.f, 555.f };
-    boxes[2].rot = { .0f, .0f, .0f };
     boxes[2].material.type = DMaterial::eLAMBERTIAN;
     boxes[2].material.roughness = .0f;
     boxes[2].material.albedo = { 0.65f, .05f, .05f };
     // floor
     boxes[3].min_limit = { .0f,    -.1f, 0.f };
     boxes[3].max_limit = { 555.f, 0.f, 555.f };
-    boxes[3].rot = { .0f, .0f, .0f };
     boxes[3].material.type = DMaterial::eLAMBERTIAN;
     boxes[3].material.albedo = { 0.73f, .73f, .73f };
     // roof
     boxes[4].min_limit = { .0f,    555.f, 0.f };
     boxes[4].max_limit = { 555.f, 555.1f, 555.f };
-    boxes[4].rot = { .0f, .0f, .0f };
-    //boxes[4].material.type = eEMISSIVE;
-    //boxes[4].material.albedo = { 1.f, 1.f, 1.f };
     boxes[4].material.type = DMaterial::eLAMBERTIAN;
     boxes[4].material.albedo = { 0.73f, .73f, .73f };
     //back
     boxes[5].min_limit = { .0f,    .0f, 554.9f };
     boxes[5].max_limit = { 555.f, 555.f, 555.f };
-    boxes[5].rot = { .0f, .0f, .0f };
     boxes[5].material.type = DMaterial::eLAMBERTIAN;
     boxes[5].material.albedo = { 0.73f, .73f, .73f };
     // higher block
     boxes[6].min_limit = { 265.f,   .0f, 295.f };
     boxes[6].max_limit = { 430.f, 330.f, 460.f };
-    boxes[6].rot = { .0f, 15.0f, .0f };
     boxes[6].material.type = DMaterial::eLAMBERTIAN;
     boxes[6].material.albedo = { 0.73f, .73f, .73f };
     // lower block
     boxes[7].min_limit = { 130.f,   .0f, 65.f };
     boxes[7].max_limit = { 295.f, 165.f, 230.f };
-    boxes[7].rot = { .0f, -18.f, .0f };
     boxes[7].material.type = DMaterial::eLAMBERTIAN;
     boxes[7].material.albedo = { 0.73f, .73f, .73f };
+
+    DTriangle triangles[1];
+    int tricount = 0;
 
     //
     // camera setup

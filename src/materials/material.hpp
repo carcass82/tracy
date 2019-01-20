@@ -4,7 +4,6 @@
  *
  * (c) Carlo Casta, 2018
  */
-
 #pragma once
 
 class IMaterial;

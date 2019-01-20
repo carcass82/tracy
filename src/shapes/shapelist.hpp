@@ -4,7 +4,6 @@
  *
  * (c) Carlo Casta, 2018
  */
-
 #pragma once
 #include "shape.hpp"
 #include "box.hpp"
