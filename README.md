@@ -7,7 +7,7 @@ Mostly useful for profiling and optimization tests.
 It gave me the excuse i needed to start my own util functions / math library and to play with OpenMP. ~~CUDA is coming next.~~ A very simple CUDA implementation is also present.
 
 
-Tracing is ~~not yet~~ visible in realtime if you build with ``USE_GUI`` (only on Windows ATM), ~~but i added~~ either way a cute progress bar ~~so you can~~ will help you estimate how many coffees you can drink before work has finished.
+Tracing is ~~not yet~~ visible in realtime if you build with ``USE_GUI`` ~~(only on Windows ATM)~~, ~~but i added~~ a cute progress bar on CLI version ~~so you can~~ will help you estimate how many coffees you can drink before work has finished.
 
 ![tracing](doc/cmd.jpg)
 

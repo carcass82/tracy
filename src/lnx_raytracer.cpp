@@ -15,6 +15,7 @@ using std::chrono::duration;
 using std::chrono::high_resolution_clock;
 
 #include <X11/Xlib.h>
+#include <X11/Xutil.h>
 #include <X11/keysym.h>
 
 #include "cclib/cclib.h"
@@ -45,10 +46,7 @@ extern "C" void trace(Camera& /* cam */, IShape* /*world*/, int /* w */, int /* 
 
 int main(int argc, char** argv)
 {
-    Display* dpy = nullptr;
-    Window win = 0;
-
-    dpy = XOpenDisplay(nullptr);
+    Display* dpy = XOpenDisplay(nullptr);
     if (!dpy)
     {
         fputs("cannot connect to x server", stderr);
@@ -60,14 +58,20 @@ int main(int argc, char** argv)
     constexpr int samples = 2;
 
     int ds = DefaultScreen(dpy);
-    win = XCreateSimpleWindow(dpy, RootWindow(dpy, ds), 0, 0, width, height, 1, BlackPixel(dpy, ds), WhitePixel(dpy, ds));
+    Window win = XCreateSimpleWindow(dpy, RootWindow(dpy, ds), 0, 0, width, height, 1, BlackPixel(dpy, ds), WhitePixel(dpy, ds));
     XSelectInput(dpy, win, KeyPressMask | KeyReleaseMask | ButtonPressMask | ButtonReleaseMask | StructureNotifyMask);
-
+    
     const Atom WM_PROTOCOL = XInternAtom(dpy, "WM_PROTOCOLS", false);
     Atom close_win_msg = XInternAtom(dpy, "WM_DELETE_WINDOW", false);
     XSetWMProtocols(dpy, win, &close_win_msg, 1);
 
     XMapWindow(dpy, win);
+
+#if !defined(USE_CUDA)
+    XStoreName(dpy, win, ".:: Tracy (CPU) ::.");
+#else
+	XStoreName(dpy, win, ".:: Tracy (GPU) ::.");
+#endif
 
 #if !defined(USE_CUDA)
     Camera cam;
@@ -83,6 +87,18 @@ int main(int argc, char** argv)
 
     vec3* output_backbuffer = new vec3[width * height];
     memset(output_backbuffer, 0, width * height * sizeof(vec3));
+    
+    uint32_t* data = new uint32_t[width * height];
+    XImage* bitmap = XCreateImage(dpy,
+                                  DefaultVisual(dpy, ds),
+                                  DefaultDepth(dpy, ds),
+                                  ZPixmap,
+                                  0,
+                                  reinterpret_cast<char*>(data),
+                                  width,
+                                  height,
+                                  32,
+                                  0);
 
     double trace_seconds = .0;
     duration<double, std::milli> fps_timer = 0ms;
@@ -117,6 +133,10 @@ int main(int argc, char** argv)
             case DestroyNotify:
                 quit = true;
                 break;
+                
+            case Expose:
+                XPutImage(dpy, win, DefaultGC(dpy, ds), bitmap, 0, 0, 0, 0, width, height);
+                break;
 
             default:
                 break;
@@ -137,18 +157,21 @@ int main(int argc, char** argv)
 
         //update bitmap
         {
-            vec3* src = output_backbuffer;
+            vec3* accum = output_backbuffer;
 
             for (int j = 0; j < height; ++j)
             {
                 for (int i = 0; i < width; ++i)
                 {
                     const int index = j * width + i;
-                    
+
                     const vec3 col = output[index] / samples;
-                    src[index] = lerp(src[index], col, float(frame_count) / float(frame_count + 1));
+                    accum[index] = lerp(accum[index], col, float(frame_count) / float(frame_count + 1));
+
+                    const vec3 bitmap_col = clamp3(255.99 * sqrtf3(accum[index]), .0f, 255.f);
+                    const uint32_t dst = (uint8_t)bitmap_col.b | ((uint8_t)bitmap_col.g << 8) | ((uint8_t)bitmap_col.r << 16) | (0xff << 24);
                     
-                    const vec3 bitmap_col = clamp3(255.99 * sqrtf3(src[index]), .0f, 255.f);
+                    XPutPixel(bitmap, i, height - j, dst);
                 }
             }
         }
@@ -169,7 +192,7 @@ int main(int argc, char** argv)
 #else
                 "CPU",
 #endif
-width,
+                width,
                 height,
                 samples,
                 (totrays / 1'000'000.0) / trace_seconds,
@@ -181,9 +204,13 @@ width,
             trace_seconds = .0;
             fps_timer = 0ms;
         }
+
+        XPutImage(dpy, win, DefaultGC(dpy, ds), bitmap, 0, 0, 0, 0, width, height);
+        XFlush(dpy);
     }
     XCloseDisplay(dpy);
 
     return 0;
 }
 #endif
+
