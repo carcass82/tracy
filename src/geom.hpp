@@ -45,3 +45,13 @@ inline vec3 max3(const vec3& a, const vec3& b)
 {
     return vec3{ max(a.x, b.x), max(a.y, b.y), max(a.z, b.z) };
 }
+
+inline vec3 sqrtf3(const vec3& a)
+{
+    return vec3{ sqrtf(a.x), sqrtf(a.y), sqrtf(a.z) };
+}
+
+inline vec3 clamp3(const vec3& a, float min, float max)
+{
+    return vec3{ clamp(a.x, min, max), clamp(a.y, min, max), clamp(a.z, min, max) };
+}

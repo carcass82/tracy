@@ -851,7 +851,7 @@ extern "C" void cuda_trace(int w, int h, int ns, float* out_buffer, int& out_ray
 #endif
         checkCudaErrors(cudaSetDevice(i));
 
-        int threads_per_row = sqrt(gpu_properties[i].maxThreadsPerBlock);
+        int threads_per_row = sqrt(gpu_properties[i].maxThreadsPerBlock) / 2;
         int block_depth = 1;
 
 #if CUDA_USE_MULTIGPU

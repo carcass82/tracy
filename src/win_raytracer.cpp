@@ -28,10 +28,7 @@ using glm::max;
 using glm::min;
 using glm::clamp;
 using glm::lerp;
-namespace {
-inline vec3 sqrtf3(const vec3& a) { return vec3{ sqrtf(a.x), sqrtf(a.y), sqrtf(a.z) }; }
-inline vec3 clamp3(const vec3& a, float min, float max) { return vec3{ clamp(a.x, min, max), clamp(a.y, min, max), clamp(a.z, min, max) }; }
-}
+constexpr float PI = 3.1415926535897932f;
 #else
 #include "cclib/cclib.h"
 using cc::math::vec3;
@@ -41,14 +38,11 @@ using cc::util::max;
 using cc::util::min;
 using cc::util::clamp;
 using cc::math::lerp;
-namespace {
-constexpr inline vec3 sqrtf3(const vec3& a) { return vec3{ sqrtf(a.x), sqrtf(a.y), sqrtf(a.z) }; }
-constexpr inline vec3 clamp3(const vec3& a, float min, float max) { return vec3{ clamp(a.x, min, max), clamp(a.y, min, max), clamp(a.z, min, max) }; }
-}
+using cc::math::PI;
 #endif
 
 #include "timer.hpp"
-
+#include "geom.hpp"
 #include "ray.hpp"
 #include "materials/material.hpp"
 #include "camera.hpp"
@@ -59,7 +53,10 @@ extern "C" void cuda_trace(int /* w */, int /* h */, int /* ns */, float* /* out
 extern "C" void setup(Camera& /* cam */, float /* aspect */, IShape** /* world */);
 extern "C" void trace(Camera& /* cam */, IShape* /*world*/, int /* w */, int /* h */, int /* ns */, vec3* /* output */, int& /* totrays */, size_t& /* pixel_idx */);
 #endif
+extern "C" void save_screenshot(int /* w */, int /* h */, vec3* /* pbuffer */);
 
+
+// CommonData sounds so much better than global variable
 struct CommonData
 {
     int w;
@@ -69,38 +66,6 @@ struct CommonData
 };
 CommonData WinData;
 
-void SaveScreenshot()
-{
-    static char filename[256];
-    {
-        time_t t = time(nullptr);
-#if !defined(USE_CUDA)
-        strftime(filename, 256, "output-%Y%m%d-%H.%M.%S.ppm", localtime(&t));
-#else
-        strftime(filename, 256, "output-cuda-%Y%m%d-%H.%M.%S.ppm", localtime(&t));
-#endif
-    }
-
-    FILE *fp = fopen(filename, "wb");
-    if (fp)
-    {
-        // output to ppm (y inverted)
-        // gamma 2.0
-        fprintf(fp, "P6\n%d %d %d\n", WinData.w, WinData.h, 0xff);
-        for (int j = WinData.h - 1; j >= 0; --j)
-        {
-            for (int i = 0; i < WinData.w; ++i)
-            {
-                const vec3 bitmap_col = clamp3(255.99 * sqrtf3(WinData.backbuffer[j * WinData.w + i]), .0f, 255.f);
-
-                uint8_t clamped_col[] = { uint8_t(bitmap_col.r), uint8_t(bitmap_col.g), uint8_t(bitmap_col.b) };
-                fwrite(clamped_col, sizeof(uint8_t), sizeof(clamped_col), fp);
-            }
-        }
-
-        fclose(fp);
-    }
-}
 
 LRESULT CALLBACK WindowProc(HWND hwnd, UINT uMsg, WPARAM wParam, LPARAM lParam)
 {
@@ -119,7 +84,7 @@ LRESULT CALLBACK WindowProc(HWND hwnd, UINT uMsg, WPARAM wParam, LPARAM lParam)
             break;
 
         case 'S':
-            SaveScreenshot();
+            save_screenshot(WinData.w, WinData.h, WinData.backbuffer);
             break;
 
         default:
@@ -267,7 +232,7 @@ int CALLBACK WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPSTR lpCmdLi
                     const vec3 col = output[index] / samples;
                     src[index] = lerp(src[index], col, float(frame_count) / float(frame_count + 1));
                     
-                    const vec3 bitmap_col = clamp3(255.99 * sqrtf3(src[index]), .0f, 255.f);
+                    const vec3 bitmap_col = clamp3(255.99f * sqrtf3(src[index]), .0f, 255.f);
 
                     *dst++ = (uint8_t)bitmap_col.b | ((uint8_t)bitmap_col.g << 8) | ((uint8_t)bitmap_col.r << 16);
                 }

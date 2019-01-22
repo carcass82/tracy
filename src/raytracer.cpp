@@ -49,9 +49,9 @@ using cc::util::swap;
 extern "C" void cuda_trace(int /* w */, int /* h */, int /* ns */, float* /* output */, int& /* totrays */);
 #endif
 
+#include "geom.hpp"
 #if !defined(USE_CUDA)
 #include "ray.hpp"
-#include "geom.hpp"
 #include "textures/texture.hpp"
 #include "materials/material.hpp"
 #include "shapes/shape.hpp"
@@ -291,3 +291,36 @@ int main(int argc, char** argv)
     fprintf(stderr, "finished in %.2f secs\n", t.duration());
 }
 #endif
+
+extern "C" void save_screenshot(int w, int h, vec3* pbuffer)
+{
+    static char filename[256];
+    {
+        time_t t = time(nullptr);
+#if !defined(USE_CUDA)
+        strftime(filename, 256, "output-%Y%m%d-%H.%M.%S.ppm", localtime(&t));
+#else
+        strftime(filename, 256, "output-cuda-%Y%m%d-%H.%M.%S.ppm", localtime(&t));
+#endif
+    }
+
+    FILE *fp = fopen(filename, "wb");
+    if (fp)
+    {
+        // output to ppm (y inverted)
+        // gamma 2.0
+        fprintf(fp, "P6\n%d %d %d\n", w, h, 0xff);
+        for (int j = h - 1; j >= 0; --j)
+        {
+            for (int i = 0; i < w; ++i)
+            {
+                const vec3 bitmap_col = clamp3(255.99f * sqrtf3(pbuffer[j * w + i]), .0f, 255.f);
+                uint8_t clamped_col[] = { uint8_t(bitmap_col.r), uint8_t(bitmap_col.g), uint8_t(bitmap_col.b) };
+                fwrite(clamped_col, sizeof(uint8_t), sizeof(clamped_col), fp);
+            }
+        }
+
+        fclose(fp);
+    }
+}
+

@@ -247,7 +247,7 @@ IShape* trimesh_scene()
     IShape** objects = new IShape*[50];
     
     objects[i++] = new Sphere(vec3(2.f, 5.f, -1.f), 2.f, light);
-    objects[i++] = load_mesh("./data/teapot2.obj", copper);
+    objects[i++] = load_mesh("./data/teapot.obj", copper);
     objects[i++] = new Sphere(vec3(-1.f, .0f, -1.f), .5f, gold);
     objects[i++] = new Box(vec3(-10.f, -0.51f, -10.f), vec3(10.f, -0.5f, 10.f), grey);
 
