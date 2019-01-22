@@ -17,17 +17,35 @@ using namespace std::chrono_literals;
 using std::chrono::duration;
 using std::chrono::high_resolution_clock;
 
+#if USE_GLM
+#define GLM_ENABLE_EXPERIMENTAL
+#include <glm/glm.hpp>
+#include <glm/gtx/compatibility.hpp>
+using glm::vec3;
+using glm::vec2;
+using glm::radians;
+using glm::max;
+using glm::min;
+using glm::clamp;
+using glm::lerp;
+namespace {
+inline vec3 sqrtf3(const vec3& a) { return vec3{ sqrtf(a.x), sqrtf(a.y), sqrtf(a.z) }; }
+inline vec3 clamp3(const vec3& a, float min, float max) { return vec3{ clamp(a.x, min, max), clamp(a.y, min, max), clamp(a.z, min, max) }; }
+}
+#else
 #include "cclib/cclib.h"
 using cc::math::vec3;
 using cc::math::vec2;
 using cc::math::radians;
-using cc::util::clamp;
 using cc::util::max;
-
+using cc::util::min;
+using cc::util::clamp;
+using cc::math::lerp;
 namespace {
 constexpr inline vec3 sqrtf3(const vec3& a) { return vec3{ sqrtf(a.x), sqrtf(a.y), sqrtf(a.z) }; }
 constexpr inline vec3 clamp3(const vec3& a, float min, float max) { return vec3{ clamp(a.x, min, max), clamp(a.y, min, max), clamp(a.z, min, max) }; }
 }
+#endif
 
 #include "timer.hpp"
 

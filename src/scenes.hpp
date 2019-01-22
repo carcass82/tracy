@@ -27,7 +27,7 @@
 #include "textures/checker.hpp"
 
 
-IShape* load_mesh(const char* obj_path)
+IShape* load_mesh(const char* obj_path, IMaterial* obj_material)
 {
     tinyobj::attrib_t attrib;
     std::vector<tinyobj::shape_t> shapes;
@@ -40,11 +40,9 @@ IShape* load_mesh(const char* obj_path)
         return nullptr;
     }
 
-    IMaterial* green = new Lambertian(new Constant(vec3(.05f, .85f, .02f)));
-    
     IShape** tmplist = new IShape*[attrib.vertices.size()];
     
-    constexpr unsigned MAX_SPLIT = 50;
+    constexpr unsigned MAX_SPLIT = 100;
     IShape** list = new IShape*[MAX_SPLIT];
     
     vec3 verts[3];
@@ -77,7 +75,7 @@ IShape* load_mesh(const char* obj_path)
                 list[i++] = new Triangle(verts[0], verts[1], verts[2],
                                          norms[0], norms[1], norms[2],
                                          uvs[0], uvs[1], uvs[2],
-                                         green);
+                                         obj_material);
                 v = 0;
             }
 
@@ -235,15 +233,28 @@ IShape* gpu_scene()
     
     objects[i++] = new Triangle(vec3(-1.f, .5f, -2.5f), vec3(1.f, .5f, -2.5f), vec3(1.f, 1.5f, -2.5f), green);
 
-    //
-    // Test TriangleMesh
-    //
-    //objects[i++] = load_mesh("./data/teapot.obj");
+    return new ShapeList(objects, i);
+}
+
+IShape* trimesh_scene()
+{
+    IMaterial* light = new Emissive(new Constant(vec3(5.f, 5.f, 5.f)));
+    IMaterial* grey = new Lambertian(new Constant(vec3(0.2f, 0.2f, 0.2f)));
+    IMaterial* copper = new Metal(vec3(.95f, .64f, .54f), .2f);
+    IMaterial* gold = new Metal(vec3(1.f, .71f, .29f), .05f);
+
+    int i = 0;
+    IShape** objects = new IShape*[50];
+    
+    objects[i++] = new Sphere(vec3(2.f, 5.f, -1.f), 2.f, light);
+    objects[i++] = load_mesh("./data/teapot2.obj", copper);
+    objects[i++] = new Sphere(vec3(-1.f, .0f, -1.f), .5f, gold);
+    objects[i++] = new Box(vec3(-10.f, -0.51f, -10.f), vec3(10.f, -0.5f, 10.f), grey);
 
     return new ShapeList(objects, i);
 }
 
-enum eScene { eRANDOM, eCORNELLBOX, eTESTGPU, eNUM_SCENES };
+enum eScene { eRANDOM, eCORNELLBOX, eTESTGPU, eTESTMESH, eNUM_SCENES };
 
 IShape* load_scene(eScene scene, Camera& cam, float ratio)
 {
@@ -262,6 +273,11 @@ IShape* load_scene(eScene scene, Camera& cam, float ratio)
         fputs("'testGPU' scene selected\n", stderr);
         cam.setup(vec3(-.5f, 1.2f, 1.5f), vec3(.0f, .0f, -1.f), vec3(0.0f, 1.0f, 0.0f), 60.0f, ratio);
         return gpu_scene();
+
+    case eTESTMESH:
+        fputs("'testMesh' scene selected\n", stderr);
+        cam.setup(vec3(0.5f, 0.5f, .8f), vec3(.0f, .0f, 0.f), vec3(0.0f, 1.0f, 0.0f), 60.0f, ratio);
+        return trimesh_scene();
 
     default:
         fputs("tracing NULL, i'm going to crash...\n", stderr);

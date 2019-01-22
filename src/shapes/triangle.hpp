@@ -56,7 +56,7 @@ public:
 
         // if the determinant is negative the triangle is backfacing
         // if the determinant is close to 0, the ray misses the triangle
-        if (det < .001f)
+        if (det < 1e-6)
         {
             return false;
         }
@@ -78,7 +78,7 @@ public:
         }
 
         float t = dot(v0v2, qvec) * invDet;
-        if (t < rec.t)
+        if (t < t_max && t > t_min)
         {
             rec.t = dot(v0v2, qvec) * invDet;
             rec.uv = vec2{ u, v };
@@ -90,7 +90,7 @@ public:
     virtual void get_hit_data(const Ray& r, HitData& rec) const override final
     {
         rec.point = r.point_at(rec.t);
-        rec.normal = (1.f - rec.uv.x - rec.uv.y) * normal[0] + rec.uv.x * normal[1] + rec.uv.y * normal[2];
+        rec.normal = normalize(cross(v0v1, v0v2)); /* (1.f - rec.uv.x - rec.uv.y) * normal[0] + rec.uv.x * normal[1] + rec.uv.y * normal[2]; */
         rec.uv = (1.f - rec.uv.x - rec.uv.y) * uv[0] + rec.uv.x * uv[1] + rec.uv.y * uv[2];
         rec.material = mat;
     }

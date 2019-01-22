@@ -18,18 +18,35 @@ using std::chrono::high_resolution_clock;
 #include <X11/Xutil.h>
 #include <X11/keysym.h>
 
+#if USE_GLM
+#define GLM_ENABLE_EXPERIMENTAL
+#include <glm/glm.hpp>
+#include <glm/gtx/compatibility.hpp>
+using glm::vec3;
+using glm::vec2;
+using glm::radians;
+using glm::max;
+using glm::min;
+using glm::clamp;
+using glm::lerp;
+namespace {
+inline vec3 sqrtf3(const vec3& a) { return vec3{ sqrtf(a.x), sqrtf(a.y), sqrtf(a.z) }; }
+inline vec3 clamp3(const vec3& a, float min, float max) { return vec3{ clamp(a.x, min, max), clamp(a.y, min, max), clamp(a.z, min, max) }; }
+}
+#else
 #include "cclib/cclib.h"
 using cc::math::vec3;
 using cc::math::vec2;
 using cc::math::radians;
-using cc::util::clamp;
-using cc::util::min;
 using cc::util::max;
-
+using cc::util::min;
+using cc::util::clamp;
+using cc::math::lerp;
 namespace {
 constexpr inline vec3 sqrtf3(const vec3& a) { return vec3{ sqrtf(a.x), sqrtf(a.y), sqrtf(a.z) }; }
 constexpr inline vec3 clamp3(const vec3& a, float min, float max) { return vec3{ clamp(a.x, min, max), clamp(a.y, min, max), clamp(a.z, min, max) }; }
 }
+#endif
 
 #include "timer.hpp"
 
@@ -43,6 +60,38 @@ extern "C" void cuda_trace(int /* w */, int /* h */, int /* ns */, float* /* out
 extern "C" void setup(Camera& /* cam */, float /* aspect */, IShape** /* world */);
 extern "C" void trace(Camera& /* cam */, IShape* /*world*/, int /* w */, int /* h */, int /* ns */, vec3* /* output */, int& /* totrays */, size_t& /* pixel_idx */);
 #endif
+
+void SaveScreenshot(int w, int h, vec3* pbuffer)
+{
+    static char filename[256];
+    {
+        time_t t = time(nullptr);
+#if !defined(USE_CUDA)
+        strftime(filename, 256, "output-%Y%m%d-%H.%M.%S.ppm", localtime(&t));
+#else
+        strftime(filename, 256, "output-cuda-%Y%m%d-%H.%M.%S.ppm", localtime(&t));
+#endif
+    }
+
+    FILE *fp = fopen(filename, "wb");
+    if (fp)
+    {
+        // output to ppm (y inverted)
+        // gamma 2.0
+        fprintf(fp, "P6\n%d %d %d\n", w, h, 0xff);
+        for (int j = h - 1; j >= 0; --j)
+        {
+            for (int i = 0; i < w; ++i)
+            {
+                const vec3 bitmap_col = clamp3(255.99f * sqrtf3(pbuffer[j * w + i]), .0f, 255.f);
+                uint8_t clamped_col[] = { uint8_t(bitmap_col.r), uint8_t(bitmap_col.g), uint8_t(bitmap_col.b) };
+                fwrite(clamped_col, sizeof(uint8_t), sizeof(clamped_col), fp);
+            }
+        }
+
+        fclose(fp);
+    }
+}
 
 int main(int argc, char** argv)
 {
@@ -117,7 +166,13 @@ int main(int argc, char** argv)
             {
             case KeyPress:
                 if (XLookupKeysym(&e.xkey, 0) == XK_Escape)
+                {
                     quit = true;
+                }
+                if (XLookupKeysym(&e.xkey, 0) == XK_s)
+                {
+                    SaveScreenshot(width, height, output_backbuffer);
+                }
                 break;
 
             case KeyRelease:
@@ -165,10 +220,10 @@ int main(int argc, char** argv)
                 {
                     const int index = j * width + i;
 
-                    const vec3 col = output[index] / samples;
+                    const vec3 col = output[index] / float(samples);
                     accum[index] = lerp(accum[index], col, float(frame_count) / float(frame_count + 1));
 
-                    const vec3 bitmap_col = clamp3(255.99 * sqrtf3(accum[index]), .0f, 255.f);
+                    const vec3 bitmap_col = clamp3(255.99f * sqrtf3(accum[index]), .0f, 255.f);
                     const uint32_t dst = (uint8_t)bitmap_col.b | ((uint8_t)bitmap_col.g << 8) | ((uint8_t)bitmap_col.r << 16) | (0xff << 24);
                     
                     XPutPixel(bitmap, i, height - j, dst);
@@ -177,8 +232,9 @@ int main(int argc, char** argv)
         }
 
         auto frame_end = high_resolution_clock::now();
-        duration<double, std::milli> frame_time = frame_end - frame_start;
-        std::this_thread::sleep_for(clamp(THIRTY_FPS - frame_time, ZERO, THIRTY_FPS));
+        duration<double, std::milli> frame_time(frame_end - frame_start);
+        duration<double, std::milli> wait_time(THIRTY_FPS - frame_time);
+        std::this_thread::sleep_for(std::min(std::max(wait_time, ZERO), THIRTY_FPS));
 
         ++frame_count;
         fps_timer += frame_time;
