@@ -46,9 +46,12 @@ using cc::util::swap;
 #endif
 
 #if defined(USE_CUDA)
+extern "C" void cuda_setup(const char* /* path */, int /* w */, int /* h */);
 extern "C" void cuda_trace(int /* w */, int /* h */, int /* ns */, float* /* output */, int& /* totrays */);
+extern "C" void cuda_cleanup();
 #endif
 
+#include "timer.hpp"
 #include "geom.hpp"
 #if !defined(USE_CUDA)
 #include "ray.hpp"
@@ -57,14 +60,20 @@ extern "C" void cuda_trace(int /* w */, int /* h */, int /* ns */, float* /* out
 #include "shapes/shape.hpp"
 #include "camera.hpp"
 #include "scenes.hpp"
-#endif
 
-#include "timer.hpp"
+
+extern "C" void setup(const char* path, Camera& cam, float aspect, IShape** world)
+{
+    Scene scene = load_scene(path, aspect);
+
+    cam = scene.cam;
+    *world = scene.world;
+}
 
 // max "bounces" for tracing
-#define MAX_DEPTH 5
-
-#if !defined(USE_CUDA)
+#ifndef MAX_DEPTH
+ #define MAX_DEPTH 5
+#endif
 vec3 color(const Ray& r, IShape* world, int depth, int& raycount)
 {
     ++raycount;
@@ -102,20 +111,6 @@ vec3 color(const Ray& r, IShape* world, int depth, int& raycount)
     return vec3{ .0f, .0f, .0f };
 }
 
-extern "C" void setup(Camera& cam, float aspect, IShape** world)
-{
-    // test
-    //*world = load_scene(eRANDOM, cam, aspect);
-
-    // modified cornell box
-    //*world = load_scene(eCORNELLBOX, cam, aspect);
-
-    // test same scene as gpu version
-    //*world = load_scene(eTESTGPU, cam, aspect);
-
-    // test trimesh import
-    *world = load_scene(eTESTMESH, cam, aspect);
-}
 
 extern "C" void trace(Camera& cam, IShape* world, int nx, int ny, int ns, vec3* output, int& totrays, size_t& pixel_idx)
 {
@@ -219,6 +214,8 @@ int main(int argc, char** argv)
         }
     }
 
+    char* scene_path = "data/default.scn";
+
     FILE *fp = fopen(filename, "wb");
     if (!fp)
     {
@@ -229,12 +226,14 @@ int main(int argc, char** argv)
 #if !defined(USE_CUDA)
     Camera cam;
     IShape *world = nullptr;
-    setup(cam, float(nx) / float(ny), &world);
+    setup(scene_path, cam, float(nx) / float(ny), &world);
     if (!world)
     {
         fputs("unable to prepare for tracing, abort\n", stderr);
         return -1;
     }
+#else
+    cuda_setup(scene_path, nx, ny);
 #endif
 
     // output buffer
@@ -266,6 +265,10 @@ int main(int argc, char** argv)
     t.end();
 
     printf("Average: %.2f MRays/s\n", (totrays / 1'000'000.0) / t.duration());
+
+#if defined(USE_CUDA)
+    cuda_cleanup();
+#endif
 
     //
     // output to ppm (y inverted)

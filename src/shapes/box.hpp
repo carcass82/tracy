@@ -93,7 +93,7 @@ public:
 private:
     vec3 get_normal(const vec3& point) const
     {
-        const float eps = 1e-6;
+        const float eps = 1e-6f;
 
         if (fabsf(pmin.x - point.x) < eps) return vec3{ -1.0f,   .0f,   .0f };
         if (fabsf(pmax.x - point.x) < eps) return vec3{  1.0f,   .0f,   .0f };
@@ -105,7 +105,7 @@ private:
 
     vec2 get_uv(const vec3& point) const
     {
-        const float eps = 1e-6;
+        const float eps = 1e-6f;
 
         if ((fabsf(pmin.x - point.x) < eps) || (fabsf(pmax.x - point.x) < eps))
         {

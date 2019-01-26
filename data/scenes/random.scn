@@ -1,0 +1,58 @@
+#
+# Scene to test triangular mesh mixed with builtin shapes
+#
+SCN Random
+
+#
+# CAM Eye Center Up fov
+#
+CAM (-0.5, 1.2, 1.5) (0, 0, -1) (0, 1, 0) 60
+
+#
+# MTL Name TYPE ALBEDO [Roughness] [IoR]
+# ...
+#
+# Type can be any of
+# - E (emissive)
+# - L (lambertian)
+# - M (metal)
+# - D (dielectric)
+#
+# optional roughness only makes sense for Metals and
+# IoR for Dielectrics. They defaults to 0 and 1 respectively.
+#
+MTL Light E (5, 5, 5)
+MTL Blue L (0.1, 0.2, 0.5)
+MTL Red L (0.85, 0.05, 0.02)
+MTL Green L (0.05, 0.85, 0.02)
+MTL Grey L (0.2, 0.2, 0.2)
+MTL Glass D (1, 1, 1) 1.5
+MTL Alluminium M (0.91, 0.92, 0.92) 0
+MTL Copper M (0.95, 0.64, 0.54) 0.2
+MTL Gold M (1.0, 0.71, 0.29) 0.05
+
+#
+# OBJ TYPE COORD1 [COORD2] [COORD3] MTL
+#
+# - S RADIUS   (sphere)
+# - B MIN MAX  (box)
+# - T V1 V2 V3 (triangle)
+#
+OBJ S (0, 150, -1.0) 100 Light
+OBJ B (-1.8, 1, -3) (1.8, 1.1, -2.9) Light
+OBJ B (-1.8, 1, 1.6) (1.8, 1.1, 1.61) Light
+
+OBJ S (0, 0, -1) 0.5 Blue
+OBJ S (1, 0, -1) 0.5 Alluminium
+OBJ S (-1, 0, -1) 0.5 Glass
+OBJ S (0, 0, 0) 0.2 Copper
+OBJ S (0, 1, -1.5) 0.3 Gold
+OBJ S (0, 0, -2.5) 0.5 Red
+
+OBJ B (-4, -0.5, -3.1) (4, 2, -3) Grey
+OBJ B (-4, -0.5, 1.6) (4, 2, 1.7) Grey
+OBJ B (-4, -0.6, -3) (4, -0.5, 1.7) Grey
+OBJ B (-4.1, -0.5, -3) (-4, 2, 1.7) Grey
+OBJ B (4, -0.5, -3) (4.1, 2, 1.7) Grey
+
+OBJ T (-1, 0.5, -2.5) (1, 0.5, -2.5) (1, 1.5, -2.5) Green

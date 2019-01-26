@@ -12,7 +12,7 @@ Tracing is ~~not yet~~ visible in realtime if you build with ``USE_GUI`` ~~(only
 ![tracing](doc/cmd.jpg)
 
 
-When GUI version is used tracing will continue in background and image will keep getting better over time. ``S`` key will save a screenshot.
+When GUI version is used tracing will continue in background and image will keep getting better over time. ``S`` key will save a screenshot. Coming next: realtime camera movement
 
 ![proggui](doc/gui.jpg)
 
@@ -31,3 +31,4 @@ Now Tracy is able to render triangle meshes ~~(cpu version only)~~. Coming next:
 
 ![triangles](doc/output3.jpg)
 
+With latest update Tracy now reads from a file the scene description which is dynamically created and traced. ``data/scenes`` contains 3 simple scenes. Scene description is text-based and ``scn`` files contain the description of all parameters.

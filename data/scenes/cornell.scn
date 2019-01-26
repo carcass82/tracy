@@ -1,0 +1,43 @@
+#
+# Classic Cornell Box
+#
+SCN Cornell
+
+#
+# CAM Eye Center Up fov
+#
+CAM (278, 278, -800) (278, 278, 0) (0, 1, 0) 40
+
+#
+# MTL Name TYPE ALBEDO [Roughness] [IoR]
+# ...
+#
+# Type can be any of
+# - E (emissive)
+# - L (lambertian)
+# - M (metal)
+# - D (dielectric)
+#
+# optional roughness only makes sense for Metals and
+# IoR for Dielectrics. They defaults to 0 and 1 respectively.
+#
+MTL Light E (15.0, 15.0, 15.0)
+MTL White L (0.73, 0.73, 0.73)
+MTL Green L (0.12, 0.45, 0.15)
+MTL Red L (0.65, 0.05, 0.05)
+
+#
+# OBJ TYPE COORD1 [COORD2] [COORD3] MTL
+#
+# - S RADIUS   (sphere)
+# - B MIN MAX  (box)
+# - T V1 V2 V3 (triangle)
+#
+OBJ B (213, 554, 227) (343, 555, 332) Light
+OBJ B (555, 0, 0) (555.1, 555, 555) Green
+OBJ B (-0.1, 0, 0) (0, 555, 555) Red
+OBJ B (0, -0.1, 0) (555, 0, 555) White
+OBJ B (0, 555, 0) (555, 555.1, 555) White
+OBJ B (0, 0, 554.9) (555, 555, 555) White
+OBJ B (265, 0, 295) (430, 330, 460) White
+OBJ B (130, 0, 65) (295, 165, 230) White

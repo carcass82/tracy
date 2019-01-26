@@ -49,9 +49,11 @@ using cc::math::PI;
 #include "camera.hpp"
 #include "shapes/shape.hpp"
 #if defined(USE_CUDA)
+extern "C" void cuda_setup(const char* /* path */, int /* w */, int /* h */);
 extern "C" void cuda_trace(int /* w */, int /* h */, int /* ns */, float* /* output */, int& /* totrays */);
+extern "C" void cuda_cleanup();
 #else
-extern "C" void setup(Camera& /* cam */, float /* aspect */, IShape** /* world */);
+extern "C" void setup(const char* /* path */, Camera& /* cam */, float /* aspect */, IShape** /* world */);
 extern "C" void trace(Camera& /* cam */, IShape* /*world*/, int /* w */, int /* h */, int /* ns */, vec3* /* output */, int& /* totrays */, size_t& /* pixel_idx */);
 #endif
 extern "C" void save_screenshot(int /* w */, int /* h */, vec3* /* pbuffer */);
@@ -68,6 +70,7 @@ int main(int argc, char** argv)
     constexpr int width = 1024;
     constexpr int height = 768;
     constexpr int samples = 2;
+    const char* scene_path = "data/default.scn";
 
     int ds = DefaultScreen(dpy);
     Window win = XCreateSimpleWindow(dpy, RootWindow(dpy, ds), 0, 0, width, height, 1, BlackPixel(dpy, ds), WhitePixel(dpy, ds));
@@ -88,7 +91,9 @@ int main(int argc, char** argv)
 #if !defined(USE_CUDA)
     Camera cam;
     IShape* world = nullptr;
-    setup(cam, float(width) / float(height), &world);
+    setup(scene_path, cam, float(width) / float(height), &world);
+#else
+    cuda_setup(scene_path, width, height);
 #endif
 
     vec3* output = new vec3[width * height];
@@ -227,9 +232,13 @@ int main(int argc, char** argv)
         XPutImage(dpy, win, DefaultGC(dpy, ds), bitmap, 0, 0, 0, 0, width, height);
         XFlush(dpy);
     }
+
     XCloseDisplay(dpy);
+
+#if defined(USE_CUDA)
+    cuda_cleanup();
+#endif
 
     return 0;
 }
 #endif
-

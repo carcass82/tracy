@@ -10,14 +10,15 @@
 class Dielectric : public IMaterial
 {
 public:
-    Dielectric(float ri)
-        : ref_idx(ri)
+    Dielectric(vec3 albedo = vec3(1.f, 1.f, 1.f), float ri = 1.f)
+        : attenuation(albedo)
+        , ref_idx(ri)
     {
     }
 
     virtual bool scatter(const Ray& r_in, const HitData& rec, ScatterData& s_rec) const override final
     {
-        s_rec.attenuation = vec3{ 1.0f, 1.0f, 1.0f };
+        s_rec.attenuation = attenuation;
 
         float ni_over_nt;
         float cosine;
@@ -50,5 +51,6 @@ public:
 
 private:
     const vec3 ZERO{.0f, .0f, .0f};
+    vec3 attenuation;
     float ref_idx;
 };

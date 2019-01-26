@@ -83,9 +83,12 @@ struct DRay
 {
     float3 origin;
     float3 direction;
-
-    __device__ float3 point_at(float t) const { return origin + t * direction; }
 };
+
+__device__ inline float3 ray_point_at(const DRay& ray, float t)
+{
+    return ray.origin + t * ray.direction;
+}
 
 struct DMaterial;
 struct DIntersection
@@ -103,179 +106,183 @@ struct DIntersection
 
 struct DMaterial
 {
-    enum Type { eLAMBERTIAN, eMETAL, eDIELECTRIC, eISOTROPIC, eEMISSIVE };
+    enum Type { eLAMBERTIAN, eMETAL, eDIELECTRIC, eISOTROPIC, eEMISSIVE, MAX_TYPES };
 
     Type type;
     float3 albedo;
     float roughness;
     float ior;
+};
 
-    __device__ DMaterial()
+__host__ __device__ inline DMaterial* create_material(DMaterial::Type type, float3 albedo, float roughness, float ior)
+{
+    DMaterial* material = new DMaterial;
+
+    material->type = type;
+    material->albedo = albedo;
+    material->roughness = roughness;
+    material->ior = ior;
+
+    return material;
+}
+
+__device__ inline bool material_scatter(DMaterial& material, const DRay& ray, const DIntersection& hit, float3& attenuation, float3& emission, DRay& scattered, curandState* curand_ctx)
+{
+    switch (material.type)
     {
+
+    case DMaterial::eLAMBERTIAN:
+    {
+        float3 target = hit.point + hit.normal + random_on_unit_sphere(curand_ctx);
+        scattered.origin = hit.point;
+        scattered.direction = normalize(target - hit.point);
+        attenuation = material.albedo;
+        emission = make_float3(.0f, .0f, .0f);
+
+        return true;
     }
 
-    __device__ DMaterial(Type t, float3 color, float r, float ior)
-        : type(t)
-        , albedo(color)
-        , roughness(r)
-        , ior(ior)
+    case DMaterial::eMETAL:
     {
+        float3 reflected = reflect(ray.direction, hit.normal);
+        scattered.origin = hit.point;
+        scattered.direction = reflected + material.roughness * random_on_unit_sphere(curand_ctx);
+
+        attenuation = material.albedo;
+        emission = make_float3(.0f, .0f, .0f);
+
+        return (dot(scattered.direction, hit.normal) > .0f);
     }
 
-    __device__ bool scatter(const DRay& ray, const DIntersection& hit, float3& attenuation, float3& emission, DRay& scattered, curandState* curand_ctx)
+    case DMaterial::eDIELECTRIC:
     {
-        if (type == eLAMBERTIAN)
-        {
-            float3 target = hit.point + hit.normal + random_on_unit_sphere(curand_ctx);
-            scattered.origin = hit.point;
-            scattered.direction = normalize(target - hit.point);
-            attenuation = albedo;
-            emission = make_float3(.0f, .0f, .0f);
+        float3 outward_normal;
+        attenuation = { 1.f, 1.f, 1.f };
+        emission = make_float3(.0f, .0f, .0f);
 
-            return true;
-        }
-        else if (type == eMETAL)
+        float ni_nt;
+        float cosine;
+        if (dot(ray.direction, hit.normal) > .0f)
         {
-            float3 reflected = reflect(ray.direction, hit.normal);
-            scattered.origin = hit.point;
-            scattered.direction = reflected + roughness * random_on_unit_sphere(curand_ctx);
-
-            attenuation = albedo;
-            emission = make_float3(.0f, .0f, .0f);
-            
-            return (dot(scattered.direction, hit.normal) > .0f);
+            outward_normal = -1.f * hit.normal;
+            ni_nt = material.ior;
+            cosine = dot(ray.direction, hit.normal);
+            cosine = sqrtf(1.f - material.ior * material.ior * (1.f - cosine - cosine));
         }
-        else if (type == eDIELECTRIC)
+        else
         {
-            float3 outward_normal;
-            attenuation = { 1.f, 1.f, 1.f };
-            emission = make_float3(.0f, .0f, .0f);
-
-            float ni_nt;
-            float cosine;
-            if (dot(ray.direction, hit.normal) > .0f)
-            {
-                outward_normal = -1.f * hit.normal;
-                ni_nt = ior;
-                cosine = dot(ray.direction, hit.normal);
-                cosine = sqrtf(1.f - ior * ior * (1.f - cosine - cosine));
-            }
-            else
-            {
-                outward_normal = hit.normal;
-                ni_nt = 1.f / ior;
-                cosine = -dot(ray.direction, hit.normal);
-            }
-
-            float3 refracted;
-            bool is_refracted = refract(ray.direction, outward_normal, ni_nt, refracted);
-            float reflect_chance = (is_refracted) ? schlick(cosine, ior) : 1.0f;
-            
-            scattered.origin = hit.point;
-            scattered.direction = (fastrand(curand_ctx) < reflect_chance)? reflect(ray.direction, hit.normal) : refracted;
-
-            return true;
+            outward_normal = hit.normal;
+            ni_nt = 1.f / material.ior;
+            cosine = -dot(ray.direction, hit.normal);
         }
-        else if (type == eISOTROPIC)
-        {
-            scattered.origin = hit.point;
-            scattered.direction = random_on_unit_sphere(curand_ctx);
-            attenuation = albedo;
-            emission = make_float3(.0f, .0f, .0f);
-            return true;
-        }
-        else if (type == eEMISSIVE)
-        {
-            emission = albedo;
-            return false;
-        }
+
+        float3 refracted;
+        bool is_refracted = refract(ray.direction, outward_normal, ni_nt, refracted);
+        float reflect_chance = (is_refracted) ? schlick(cosine, material.ior) : 1.0f;
+
+        scattered.origin = hit.point;
+        scattered.direction = (fastrand(curand_ctx) < reflect_chance) ? reflect(ray.direction, hit.normal) : refracted;
+
+        return true;
+    }
+
+    case DMaterial::eEMISSIVE:
+    {
+        emission = material.albedo;
 
         return false;
     }
-};
+
+    default:
+        return false;
+
+    };
+}
 
 struct DSphere
 {
     float3 center;
     float radius;
     DMaterial material;
-
-    __device__ DSphere()
-    {
-    }
-
-    __device__ DSphere(float3 c, float r, DMaterial mat)
-        : center(c)
-        , radius(r)
-        , material(mat)
-    {
-    }
-
-    __device__ void hit_data(const DRay& ray, DIntersection& hit)
-    {
-        hit.point = ray.point_at(hit.t);
-        hit.normal = (hit.point - center) / radius;
-        hit.uv = uv(hit.normal);
-        hit.material = &material;
-    }
-
-    __device__ float2 uv(const float3& point)
-    {
-        float phi = atan2f(point.z, point.x);
-        float theta = asinf(point.y);
-
-        return make_float2(1.0f - (phi + PI) / (2.0f * PI), (theta + PI / 2.0f) / PI);
-    }
 };
+
+__host__ __device__ inline DSphere* sphere_create(float3 c, float r, DMaterial mat)
+{
+    DSphere* sphere = new DSphere;
+    sphere->center = c;
+    sphere->radius = r;
+    sphere->material = mat;
+
+    return sphere;
+}
+
+__device__ inline float2 sphere_uv(DSphere& sphere, const float3& point)
+{
+    float phi = atan2f(point.z, point.x);
+    float theta = asinf(point.y);
+
+    return make_float2(1.0f - (phi + PI) / (2.0f * PI), (theta + PI / 2.0f) / PI);
+}
+
+__device__ inline void sphere_hit_data(DSphere& sphere, const DRay& ray, DIntersection& hit)
+{
+    hit.point = ray_point_at(ray, hit.t);
+    hit.normal = (hit.point - sphere.center) / sphere.radius;
+    hit.uv = sphere_uv(sphere, hit.normal);
+    hit.material = &sphere.material;
+}
 
 struct DBox
 {
     float3 min_limit;
     float3 max_limit;
     DMaterial material;
-
-    __device__ DBox()
-    {
-    }
-
-    __device__ DBox(float3 min, float3 max, DMaterial mat)
-        : min_limit(min)
-        , max_limit(max)
-        , material(mat)
-    {
-    }
-
-    __device__ void hit_data(const DRay& ray, DIntersection& hit)
-    {
-        hit.point = ray.point_at(hit.t);
-        hit.normal = normal(hit.point);
-        hit.uv = uv(hit.point);
-        hit.material = &material;
-    }
-
-    __device__ float3 normal(const float3& point)
-    {
-        if (fabs(min_limit.x - point.x) < EPS) return make_float3(-1.f,  .0f,  .0f);
-        if (fabs(max_limit.x - point.x) < EPS) return make_float3( 1.f,  .0f,  .0f);
-        if (fabs(min_limit.y - point.y) < EPS) return make_float3( .0f, -1.f,  .0f);
-        if (fabs(max_limit.y - point.y) < EPS) return make_float3( .0f,  1.f,  .0f);
-        if (fabs(min_limit.z - point.z) < EPS) return make_float3( .0f,  .0f, -1.f);
-        return make_float3(.0f, .0f, 1.f);
-    }
-
-    __device__ float2 uv(const float3& point)
-    {
-        if ((fabsf(min_limit.x - point.x) < EPS) || (fabsf(max_limit.x - point.x) < EPS))
-        {
-            return make_float2((point.y - min_limit.y) / (max_limit.y - min_limit.y), (point.z - min_limit.z) / (max_limit.z - min_limit.z));
-        }
-        if ((fabsf(min_limit.y - point.y) < EPS) || (fabsf(max_limit.y - point.y) < EPS))
-        {
-            return make_float2((point.x - min_limit.x) / (max_limit.x - min_limit.x), (point.z - min_limit.z) / (max_limit.z - min_limit.z));
-        }
-        return make_float2((point.x - min_limit.x) / (max_limit.x - min_limit.x), (point.y - min_limit.y) / (max_limit.y - min_limit.y));
-    }
 };
+    
+__host__ __device__ inline DBox* box_create(float3 min, float3 max, DMaterial mat)
+{
+    DBox* box = new DBox;
+    box->min_limit = min;
+    box->max_limit = max;
+    box->material = mat;
+
+    return box;
+}
+
+__device__ inline float3 box_normal(DBox& box, const float3& point)
+{
+    static constexpr float eps = 1e-6f;
+
+    if (fabs(box.min_limit.x - point.x) < eps) return make_float3(-1.f,  .0f,  .0f);
+    if (fabs(box.max_limit.x - point.x) < eps) return make_float3( 1.f,  .0f,  .0f);
+    if (fabs(box.min_limit.y - point.y) < eps) return make_float3( .0f, -1.f,  .0f);
+    if (fabs(box.max_limit.y - point.y) < eps) return make_float3( .0f,  1.f,  .0f);
+    if (fabs(box.min_limit.z - point.z) < eps) return make_float3( .0f,  .0f, -1.f);
+    return make_float3(.0f, .0f, 1.f);
+}
+
+__device__ inline float2 box_uv(DBox& box, const float3& point)
+{
+    static constexpr float eps = 1e-6f;
+
+    if ((fabsf(box.min_limit.x - point.x) < eps) || (fabsf(box.max_limit.x - point.x) < eps))
+    {
+        return make_float2((point.y - box.min_limit.y) / (box.max_limit.y - box.min_limit.y), (point.z - box.min_limit.z) / (box.max_limit.z - box.min_limit.z));
+    }
+    if ((fabsf(box.min_limit.y - point.y) < eps) || (fabsf(box.max_limit.y - point.y) < eps))
+    {
+        return make_float2((point.x - box.min_limit.x) / (box.max_limit.x - box.min_limit.x), (point.z - box.min_limit.z) / (box.max_limit.z - box.min_limit.z));
+    }
+    return make_float2((point.x - box.min_limit.x) / (box.max_limit.x - box.min_limit.x), (point.y - box.min_limit.y) / (box.max_limit.y - box.min_limit.y));
+}
+
+__device__ inline void box_hit_data(DBox& box, const DRay& ray, DIntersection& hit)
+{
+    hit.point = ray_point_at(ray, hit.t);
+    hit.normal = box_normal(box, hit.point);
+    hit.uv = box_uv(box, hit.point);
+    hit.material = &box.material;
+}
 
 struct DTriangle
 {
@@ -285,36 +292,73 @@ struct DTriangle
     float3 v0v1;
     float3 v0v2;
     DMaterial material;
-
-    __device__ DTriangle()
-    {
-    }
-
-    __device__ DTriangle(float3 v1, float3 v2, float3 v3, DMaterial mat)
-        : vertices{ v1, v2, v3 }
-        , material(mat)
-    {
-        setup();
-    }
-
-    __device__ void setup()
-    {
-        v0v1 = vertices[1] - vertices[0];
-        v0v2 = vertices[2] - vertices[0];
-        normal[0] = normal[1] = normal[2] = normalize(cross(v0v1, v0v2));
-        uv[0] = make_float2( .0f,  .0f); 
-        uv[1] = make_float2(1.0f,  .0f);
-        uv[2] = make_float2( .0f, 1.0f);
-    }
-
-    __device__ void hit_data(const DRay& ray, DIntersection& hit)
-    {
-        hit.point = ray.point_at(hit.t);
-        hit.normal = (1.f - hit.uv.x - hit.uv.y) * normal[0] + hit.uv.x * normal[1] + hit.uv.y * normal[2];
-        hit.uv = (1.f - hit.uv.x - hit.uv.y) * uv[0] + hit.uv.x * uv[1] + hit.uv.y * uv[2];
-        hit.material = &material;
-    }
 };
+
+__host__ __device__ inline DTriangle* triangle_create(float3 v1, float3 v2, float3 v3, DMaterial mat)
+{
+    DTriangle* triangle = new DTriangle;
+    triangle->vertices[0] = v1;
+    triangle->vertices[1] = v2;
+    triangle->vertices[2] = v3;
+    triangle->material = mat;
+
+    triangle->v0v1 = v2 - v1;
+    triangle->v0v2 = v3 - v1;
+    triangle->normal[0] = normalize(cross(triangle->v0v1, triangle->v0v2));
+    triangle->normal[1] = normalize(cross(triangle->v0v1, triangle->v0v2));
+    triangle->normal[2] = normalize(cross(triangle->v0v1, triangle->v0v2));
+    triangle->uv[0] = make_float2( .0f,  .0f);
+    triangle->uv[1] = make_float2(1.0f,  .0f);
+    triangle->uv[2] = make_float2( .0f, 1.0f);
+
+    return triangle;
+}
+
+__device__ inline void triangle_hit_data(DTriangle& triangle, const DRay& ray, DIntersection& hit)
+{
+    hit.point = ray_point_at(ray, hit.t);
+    hit.normal = triangle.normal[0]; //(1.f - hit.uv.x - hit.uv.y) * triangle.normal[0] + hit.uv.x * triangle.normal[1] + hit.uv.y * triangle.normal[2];
+    hit.uv = (1.f - hit.uv.x - hit.uv.y) * triangle.uv[0] + hit.uv.x * triangle.uv[1] + hit.uv.y * triangle.uv[2];
+    hit.material = &triangle.material;
+}
+
+struct DCamera
+{
+    float3 pos;
+    float3 horizontal;
+    float3 vertical;
+    float3 origin;
+};
+
+__host__ __device__ inline DCamera* camera_create(const float3& eye, const float3& center, const float3& up, float fov, float ratio)
+{
+    DCamera* camera = new DCamera;
+
+    float theta = radians(fov);
+    float height_2 = tanf(theta / 2.f);
+    float width_2 = height_2 * ratio;
+
+    float3 w = normalize(eye - center);
+    float3 u = normalize(cross(up, w));
+    float3 v = cross(w, u);
+
+    camera->pos = eye;
+    camera->horizontal = 2.f * width_2 * u;
+    camera->vertical = 2.f * height_2 * v;
+    camera->origin = eye - width_2 * u - height_2 * v - w;
+
+    return camera;
+}
+
+__device__ inline DRay camera_get_ray(const DCamera& camera, float s, float t)
+{
+    DRay ray;
+
+    ray.origin = camera.pos;
+    ray.direction = normalize(camera.origin + s * camera.horizontal + t * camera.vertical - camera.pos);
+
+    return ray;
+}
 
 __device__ bool intersect_spheres(const DRay& ray, const DSphere* spheres, int sphere_count, DIntersection& hit_data)
 {
@@ -322,7 +366,7 @@ __device__ bool intersect_spheres(const DRay& ray, const DSphere* spheres, int s
 
     for (int i = 0; i < sphere_count; ++i)
     {
-        DSphere sphere = spheres[i];
+        const DSphere& sphere = spheres[i];
 
         float3 oc = ray.origin - sphere.center;
         float b = dot(oc, ray.direction);
@@ -365,7 +409,7 @@ __device__ bool intersect_boxes(const DRay& ray, const DBox* boxes, int box_coun
 
     for (int i = 0; i < box_count; ++i)
     {
-        DBox box = boxes[i];
+        const DBox& box = boxes[i];
 
         float tmin = 0.01f;
         float tmax = FLT_MAX;
@@ -381,7 +425,7 @@ __device__ bool intersect_boxes(const DRay& ray, const DBox* boxes, int box_coun
             float minbound = (side == 0)? box.min_limit.x : (side == 1)? box.min_limit.y : box.min_limit.z;
             float maxbound = (side == 0)? box.max_limit.x : (side == 1)? box.max_limit.y : box.max_limit.z;
 
-            if (fabs(direction) < EPS)
+            if (fabs(direction) < 1e-6f)
             {
                 if (origin < minbound || origin > maxbound)
                 {
@@ -430,14 +474,14 @@ __device__ bool intersect_triangles(const DRay& ray, const DTriangle* triangles,
 
     for (int i = 0; i < triangle_count; ++i)
     {
-        DTriangle triangle = triangles[i];
+        const DTriangle& triangle = triangles[i];
         {
             float3 pvec = cross(ray.direction, triangle.v0v2);
             float det = dot(triangle.v0v1, pvec);
     
             // if the determinant is negative the triangle is backfacing
             // if the determinant is close to 0, the ray misses the triangle
-            if (det < EPS)
+            if (det < 1e-6f)
             {
                 continue;
             }
@@ -512,21 +556,21 @@ __device__ float3 get_color_for(DRay ray, DSphere* spheres, int sphere_count, DB
 
             if (hit_data.type == DIntersection::eSPHERE)
             {
-                spheres[hit_data.index].hit_data(current_ray, hit_data);
+                sphere_hit_data(spheres[hit_data.index], current_ray, hit_data);
             }
             else if (hit_data.type == DIntersection::eBOX)
             {
-                boxes[hit_data.index].hit_data(current_ray, hit_data);
+                box_hit_data(boxes[hit_data.index], current_ray, hit_data);
             }
             else
             {
-                triangles[hit_data.index].hit_data(current_ray, hit_data);
+                triangle_hit_data(triangles[hit_data.index], current_ray, hit_data);
             }
 
             DRay scattered;
             float3 attenuation;
             float3 emission;
-            if (hit_data.material && hit_data.material->scatter(current_ray, hit_data, attenuation, emission, scattered, curand_ctx))
+            if (hit_data.material && material_scatter(*hit_data.material, current_ray, hit_data, attenuation, emission, scattered, curand_ctx))
             {
                 total_color *= attenuation;
                 current_ray = scattered;
@@ -546,7 +590,7 @@ __device__ float3 get_color_for(DRay ray, DSphere* spheres, int sphere_count, DB
     return BLACK;
 }
 
-__global__ void raytrace(int width, int height, int samples, float3* pixels, int* raycount)
+__global__ void raytrace(int width, int height, int samples, float3* pixels, int* raycount, DSphere* spheres, int spherecount, DBox* boxes, int boxcount, DTriangle* triangles, int tricount, DCamera* camera)
 {
     const int i = (blockIdx.x * blockDim.x) + threadIdx.x;
     const int j = (blockIdx.y * blockDim.y) + threadIdx.y;
@@ -554,196 +598,7 @@ __global__ void raytrace(int width, int height, int samples, float3* pixels, int
     curandState curand_ctx;
     curand_init(clock64(), i, 0, &curand_ctx);
     curandState* local_curand_ctx = &curand_ctx;
-
-    //
-    // scene definition
-    //
-#define CORNELL 0
-#if CORNELL
-    __shared__ DSphere spheres[3];
-    int spherecount = array_size(spheres);
-    spheres[0].center = { 130 + 82.5 - 25, 215, 65 + 82.5 - 25 };
-    spheres[0].radius = 50.f;
-    spheres[0].material.type = DMaterial::eDIELECTRIC;
-    spheres[0].material.ior = 1.5f;
-
-    spheres[1].center = { 265 + 82.5 + 35, 400, 295 + 82.5 - 35 };
-    spheres[1].radius = 70.f;
-    spheres[1].material.type = DMaterial::eMETAL;
-    spheres[1].material.albedo = { .8f, .85f, .88f };
-    spheres[1].material.roughness = .0f;
-    
-    spheres[2].center = { 265 + 82.5 + 15, 30, 80 };
-    spheres[2].radius = 30.f;
-    spheres[2].material.type = DMaterial::eMETAL;
-    spheres[2].material.albedo = { 1.f, .71f, .29f };
-    spheres[2].material.roughness = .05f;
-
-
-    __shared__ DBox boxes[8];
-    int boxcount = array_size(boxes);
-    // light
-    boxes[0].min_limit = { 213.f, 554.f, 227.f };
-    boxes[0].max_limit = { 343.f, 555.f, 332.f };
-    boxes[0].material.type = DMaterial::eEMISSIVE;
-    boxes[0].material.albedo = { 15.f, 15.f, 15.f };
-    // green side
-    boxes[1].min_limit = { 555.f,    .0f, 0.f};
-    boxes[1].max_limit = { 555.1f, 555.f, 555.f};
-    boxes[1].material.type = DMaterial::eLAMBERTIAN;
-    boxes[1].material.albedo = { 0.12f, 0.45f, .15f };
-    // red side
-    boxes[2].min_limit = { -0.1f,   .0f, 0.f };
-    boxes[2].max_limit = {  .0f, 555.f, 555.f };
-    boxes[2].material.type = DMaterial::eLAMBERTIAN;
-    boxes[2].material.roughness = .0f;
-    boxes[2].material.albedo = { 0.65f, .05f, .05f };
-    // floor
-    boxes[3].min_limit = { .0f,    -.1f, 0.f };
-    boxes[3].max_limit = { 555.f, 0.f, 555.f };
-    boxes[3].material.type = DMaterial::eLAMBERTIAN;
-    boxes[3].material.albedo = { 0.73f, .73f, .73f };
-    // roof
-    boxes[4].min_limit = { .0f,    555.f, 0.f };
-    boxes[4].max_limit = { 555.f, 555.1f, 555.f };
-    boxes[4].material.type = DMaterial::eLAMBERTIAN;
-    boxes[4].material.albedo = { 0.73f, .73f, .73f };
-    //back
-    boxes[5].min_limit = { .0f,    .0f, 554.9f };
-    boxes[5].max_limit = { 555.f, 555.f, 555.f };
-    boxes[5].material.type = DMaterial::eLAMBERTIAN;
-    boxes[5].material.albedo = { 0.73f, .73f, .73f };
-    // higher block
-    boxes[6].min_limit = { 265.f,   .0f, 295.f };
-    boxes[6].max_limit = { 430.f, 330.f, 460.f };
-    boxes[6].material.type = DMaterial::eLAMBERTIAN;
-    boxes[6].material.albedo = { 0.73f, .73f, .73f };
-    // lower block
-    boxes[7].min_limit = { 130.f,   .0f, 65.f };
-    boxes[7].max_limit = { 295.f, 165.f, 230.f };
-    boxes[7].material.type = DMaterial::eLAMBERTIAN;
-    boxes[7].material.albedo = { 0.73f, .73f, .73f };
-
-    DTriangle triangles[1];
-    int tricount = 0;
-
-    //
-    // camera setup
-    //
-    const float fov = radians(40.f);
-    const float aspect = width / max(1.f, static_cast<float>(height));
-    const float3 center{ 278.f, 278.f, -800.f };
-    const float3 lookat{ 278.f, 278.f, 0.f };
-    const float3 vup{ 0.f, 1.f, 0.f };
-
-#else
-    __shared__ DSphere spheres[7];
-    int spherecount = array_size(spheres);
-    spheres[0].center = { 0.f, 0.f, -1.f };
-    spheres[0].radius = .5f;
-    spheres[0].material.type = DMaterial::eLAMBERTIAN;
-    spheres[0].material.albedo = { 0.1f, 0.2f, 0.5f };
-
-    spheres[1].center = { 0.f, 150.f, -1.f };
-    spheres[1].radius = 100.f;
-    spheres[1].material.type = DMaterial::eEMISSIVE;
-    spheres[1].material.albedo = { 5.f, 5.f, 5.f };
-
-    spheres[2].center = { 1.f, 0.f, -1.f };
-    spheres[2].radius = .5f;
-    spheres[2].material.type = DMaterial::eMETAL;
-    spheres[2].material.albedo = { .91f, .92f, .92f };
-    spheres[2].material.roughness = .05f;
-
-    spheres[3].center = { -1.f, 0.f, -1.f };
-    spheres[3].radius = .5f;
-    spheres[3].material.type = DMaterial::eDIELECTRIC;
-    spheres[3].material.ior = 1.5f;
-
-    spheres[4].center = { 0.f, 0.f, 0.f };
-    spheres[4].radius = .2f;
-    spheres[4].material.type = DMaterial::eMETAL;
-    spheres[4].material.albedo = { .95f, .64f, .54f };
-    spheres[4].material.roughness = .2f;
-
-    spheres[5].center = { 0.f, 1.f, -1.5f };
-    spheres[5].radius = .3f;
-    spheres[5].material.type = DMaterial::eMETAL;
-    spheres[5].material.albedo = { 1.f, .71f, .29f };
-    spheres[5].material.roughness = .05f;
-
-    spheres[6].center = { 0.f, 0.f, -2.5f };
-    spheres[6].radius = .5f;
-    spheres[6].material.type = DMaterial::eLAMBERTIAN;
-    spheres[6].material.albedo = { .85f, .05f, .02f };
-
-    __shared__ DBox boxes[7];
-    int boxcount = array_size(boxes);
-    boxes[0].min_limit = { -4.f, -0.5f, -3.1f };
-    boxes[0].max_limit = { 4.f, 2.f, -3.f };
-    boxes[0].material.type = DMaterial::eLAMBERTIAN;
-    boxes[0].material.albedo = { .2f, .2f, .2f };
-
-    boxes[1].min_limit = { -4.f, -0.5f, 1.6f };
-    boxes[1].max_limit = { 4.f, 2.f, 1.7f };
-    boxes[1].material.type = DMaterial::eLAMBERTIAN;
-    boxes[1].material.albedo = { .2f, .2f, .2f };
-
-    boxes[2].min_limit = { -4.f, -0.6f, -3.f };
-    boxes[2].max_limit = { 4.f, -0.5f, 1.7f };
-    boxes[2].material.type = DMaterial::eLAMBERTIAN;
-    boxes[2].material.albedo = { .2f, .2f, .2f };
-
-    boxes[3].min_limit = { -4.1f, -0.5f, -3.f };
-    boxes[3].max_limit = { -4.f, 2.f, 1.7f };
-    boxes[3].material.type = DMaterial::eLAMBERTIAN;
-    boxes[3].material.albedo = { .2f, .2f, .2f };
-
-    boxes[4].min_limit = { 4.f, -0.5f, -3.f };
-    boxes[4].max_limit = { 4.1f, 2.f, 1.7f };
-    boxes[4].material.type = DMaterial::eLAMBERTIAN;
-    boxes[4].material.albedo = { .2f, .2f, .2f };
-
-    boxes[5].min_limit = { -1.8f, 1.f, -3.f };
-    boxes[5].max_limit = { 1.8f, 1.1f, -2.9f };
-    boxes[5].material.type = DMaterial::eEMISSIVE;
-    boxes[5].material.albedo = { 2.f, 2.f, 2.f };
-
-    boxes[6].min_limit = { -1.8f, 1.f, 1.6f };
-    boxes[6].max_limit = { 1.8f, 1.1f, 1.61f };
-    boxes[6].material.type = DMaterial::eEMISSIVE;
-    boxes[6].material.albedo = { 2.f, 2.f, 2.f };
-
-    DTriangle triangles[1];
-    int tricount = array_size(triangles);
-    triangles[0].vertices[0] = { -1.f, .5f, -2.5f };
-    triangles[0].vertices[1] = {  1.f, .5f, -2.5f };
-    triangles[0].vertices[2] = { 1.f, 1.5f, -2.5f };
-    triangles[0].material.type = DMaterial::eLAMBERTIAN;
-    triangles[0].material.albedo = { .05f, .85f, .02f };
-    triangles[0].setup();
-
-    //
-    // camera setup
-    //
-    const float fov = radians(60.f);
-    const float aspect = width / max(1.f, static_cast<float>(height));
-    const float3 center{ -.5f, 1.2f, 1.5f };
-    const float3 lookat{ 0.f, 0.f, -1.f };
-    const float3 vup{ 0.f, 1.f, 0.f };
-#endif
-
-    float height_2 = tanf(fov / 2.f);
-    float width_2 = height_2 * aspect;
-
-    float3 w = normalize(center - lookat);
-    float3 u = normalize(cross(vup, w));
-    float3 v = cross(w, u);
-
-    float3 horizontal = 2.f * width_2 * u;
-    float3 vertical = 2.f * height_2 * v;
-    float3 origin = center - width_2 * u - height_2 * v - w;
-    
+  
     //
     // main loop
     //
@@ -754,10 +609,7 @@ __global__ void raytrace(int width, int height, int samples, float3* pixels, int
         float s = ((i + fastrand(local_curand_ctx)) / static_cast<float>(width));
         float t = ((j + fastrand(local_curand_ctx)) / static_cast<float>(height));
 
-        DRay ray;
-        ray.origin = center;
-        ray.direction = normalize(origin + s * horizontal + t * vertical - center);
-
+        DRay ray = camera_get_ray(*camera, s, t);
         color += get_color_for(ray, spheres, spherecount, boxes, boxcount, triangles, tricount, &raycount_inst, local_curand_ctx);
     }
 
@@ -783,14 +635,56 @@ __global__ void raytrace(int width, int height, int samples, float3* pixels, int
 //
 // IFace for raytracer.cpp
 // 
-extern "C" void cuda_trace(int w, int h, int ns, float* out_buffer, int& out_raycount)
-{
-    // ensure output buffer is properly zeroed
-    memset(out_buffer, 0, w * h * sizeof(float3));
+#include "../scenes.hpp"
 
-    const int MAX_GPU = 32;
+constexpr int MAX_GPU = 32;
+
+DScene scene;
+
+struct DCudaData
+{
+    bool initialized = false;
+    int num_gpus = 1;
+    int block_threads[MAX_GPU];
+    int block_depth[MAX_GPU];
+    dim3 dim_block[MAX_GPU];
+    dim3 dim_grid[MAX_GPU];
+
+    // scene definition
+    DCamera* d_camera[MAX_GPU];
+
+    DSphere* d_spheres[MAX_GPU];
+    int num_spheres;
+
+    DBox* d_boxes[MAX_GPU];
+    int num_boxes;
+
+    DTriangle* d_triangles[MAX_GPU];
+    int num_triangles;
+
+    // output buffer
+    float3* d_output_cuda[MAX_GPU];
+    float* h_output_cuda[MAX_GPU];
+
+    // raycount stat
+    int* d_raycount[MAX_GPU];
+
+#if CUDA_USE_STREAMS
+    cudaStream_t d_stream[MAX_GPU];
+#endif
+};
+DCudaData data;
+
+extern "C" void cuda_setup(const char* path, int w, int h)
+{
+    scene = load_scene(path, float(w) / float(h));
+    
+    //
+    // ---- CUDA init ----
+    //
     int num_gpus = 0;
     checkCudaErrors(cudaGetDeviceCount(&num_gpus));
+    data.num_gpus = min(num_gpus, MAX_GPU);
 
     cudaDeviceProp gpu_properties[MAX_GPU];
     for (int i = 0; i < num_gpus; i++)
@@ -798,120 +692,217 @@ extern "C" void cuda_trace(int w, int h, int ns, float* out_buffer, int& out_ray
         checkCudaErrors(cudaGetDeviceProperties(&gpu_properties[i], i));
 
         CUDALOG("Device %d (%s):\n"
-                "\t%d threads\n"
-                "\tblocksize: %dx%dx%d\n"
-                "\tshmem per block: %lu Kb\n"
-                "\tgridsize: %dx%dx%d\n\n",
-               i,
-               gpu_properties[i].name,
-               gpu_properties[i].maxThreadsPerBlock,
-               gpu_properties[i].maxThreadsDim[0], gpu_properties[i].maxThreadsDim[1], gpu_properties[i].maxThreadsDim[2],
-               static_cast<unsigned long>(gpu_properties[i].sharedMemPerBlock / 1024.f),
-               gpu_properties[i].maxGridSize[0], gpu_properties[i].maxGridSize[1], gpu_properties[i].maxGridSize[2]);
+            "\t%d threads\n"
+            "\tblocksize: %dx%dx%d\n"
+            "\tshmem per block: %lu Kb\n"
+            "\tgridsize: %dx%dx%d\n\n",
+            i,
+            gpu_properties[i].name,
+            gpu_properties[i].maxThreadsPerBlock,
+            gpu_properties[i].maxThreadsDim[0], gpu_properties[i].maxThreadsDim[1], gpu_properties[i].maxThreadsDim[2],
+            static_cast<unsigned long>(gpu_properties[i].sharedMemPerBlock / 1024.f),
+            gpu_properties[i].maxGridSize[0], gpu_properties[i].maxGridSize[1], gpu_properties[i].maxGridSize[2]);
+
+        data.block_threads[i] = sqrt(gpu_properties[i].maxThreadsPerBlock) / 2;
+        data.block_depth[i] = 1;
+        
+        data.dim_block[i].x = data.block_threads[i];
+        data.dim_block[i].y = data.block_threads[i];
+        data.dim_block[i].z = 1;
+        
+        data.dim_grid[i].x = w / data.dim_block[i].x + 1;
+        data.dim_grid[i].y = h / data.dim_block[i].y + 1;
+        data.dim_grid[i].z = data.block_depth[i];
     }
+
+#if CUDA_USE_MULTIGPU
+    for (int i = data.num_gpus - 1; i >= 0; --i)
+    {
+#else
+    {
+        int i = data.num_gpus - 1;
+#endif
+        checkCudaErrors(cudaSetDevice(i));
+
+#if CUDA_USE_STREAMS
+        checkCudaErrors(cudaStreamCreateWithFlags(&data.d_stream[i], cudaStreamNonBlocking));
+#endif
+
+        checkCudaErrors(cudaMalloc((void**)&data.d_output_cuda[i], w * h * sizeof(float3)));
+        checkCudaErrors(cudaMemset((void*)data.d_output_cuda[i], 0, w * h * sizeof(float3)));
+        checkCudaErrors(cudaMallocHost((void**)&data.h_output_cuda[i], w * h * sizeof(float3)));
+
+        checkCudaErrors(cudaMalloc((void**)&data.d_raycount[i], sizeof(int)));
+
+        //
+        // ---- scene ----
+        //
+        checkCudaErrors(cudaMalloc((void**)&data.d_camera[i], sizeof(DCamera)));
+        checkCudaErrors(cudaMemcpy(data.d_camera[i], &scene.cam, sizeof(DCamera), cudaMemcpyHostToDevice));
+
+        data.num_spheres = scene.num_spheres;
+        if (scene.num_spheres > 0)
+        {
+            checkCudaErrors(cudaMalloc((void**)&data.d_spheres[i], sizeof(DSphere) * scene.num_spheres));
+            for (int s = 0; s < scene.num_spheres; ++s)
+            {
+                checkCudaErrors(cudaMemcpy(&data.d_spheres[i][s], scene.h_spheres[s], sizeof(DSphere), cudaMemcpyHostToDevice));
+            }
+        }
+
+        data.num_boxes = scene.num_boxes;
+        if (scene.num_boxes > 0)
+        {
+            checkCudaErrors(cudaMalloc((void**)&data.d_boxes[i], sizeof(DBox) * scene.num_boxes));
+            for (int b = 0; b < scene.num_boxes; ++b)
+            {
+                checkCudaErrors(cudaMemcpy(&data.d_boxes[i][b], scene.h_boxes[b], sizeof(DBox), cudaMemcpyHostToDevice));
+            }
+        }
+
+        data.num_triangles = scene.num_triangles;
+        if (scene.num_triangles > 0)
+        {
+            checkCudaErrors(cudaMalloc((void**)&data.d_triangles[i], sizeof(DTriangle) * scene.num_triangles));
+            for (int t = 0; t < scene.num_triangles; ++t)
+            {
+                checkCudaErrors(cudaMemcpy(&data.d_triangles[i][t], scene.h_triangles[t], sizeof(DTriangle), cudaMemcpyHostToDevice));
+            }
+        }
+    }
+
+    data.initialized = true;
+}
+
+extern "C" void cuda_trace(int w, int h, int ns, float* out_buffer, int& out_raycount)
+{
+    // ensure output buffer is properly zeroed
+    memset(out_buffer, 0, w * h * sizeof(float3));
 
     CUDALOG("image is %dx%d (%d samples desired)\n", w, h, ns);
 
-#if CUDA_USE_STREAMS
-    cudaStream_t d_stream[MAX_GPU];
-#endif
-
-    num_gpus = min(num_gpus, MAX_GPU);
-
-    int* d_raycount[MAX_GPU];
-    float3* d_output_cuda[MAX_GPU];
-    float* h_output_cuda[MAX_GPU];
-#if CUDA_USE_MULTIGPU
-    for (int i = num_gpus - 1; i >= 0; --i)
+    if (!data.initialized)
     {
-#else
-    {
-        int i = num_gpus - 1;
-#endif
-        checkCudaErrors(cudaSetDevice(i));
-
-#if CUDA_USE_STREAMS
-        checkCudaErrors(cudaStreamCreateWithFlags(&d_stream[i], cudaStreamNonBlocking));
-#endif
-
-        checkCudaErrors(cudaMalloc((void**)&d_output_cuda[i], w * h * sizeof(float3)));
-        checkCudaErrors(cudaMemset((void*)d_output_cuda[i], 0, w * h * sizeof(float3)));
-
-        checkCudaErrors(cudaMalloc((void**)&d_raycount[i], sizeof(int)));
-
-        checkCudaErrors(cudaMallocHost((void**)&h_output_cuda[i], w * h * sizeof(float3)));
+        CUDALOG("CUDA scene data not initialized, aborting.\n");
+        return;
     }
 
 #if CUDA_USE_MULTIGPU
-    for (int i = num_gpus - 1; i >= 0; --i)
+    for (int i = data.num_gpus - 1; i >= 0; --i)
     {
 #else
     {
-        int i = num_gpus - 1;
+        int i = data.num_gpus - 1;
 #endif
         checkCudaErrors(cudaSetDevice(i));
 
-        int threads_per_row = sqrt(gpu_properties[i].maxThreadsPerBlock) / 2;
-        int block_depth = 1;
+        checkCudaErrors(cudaMemset((void*)data.d_raycount[i], 0, sizeof(int)));
 
-#if CUDA_USE_MULTIGPU
-        int gpu_split = num_gpus;
-#else
-        int gpu_split = 1;
-#endif
+        CUDALOG("raytrace<<<(%d,%d,%d), (%d,%d,%d)>>> on gpu %d\n", data.dim_block[i].x,
+                                                                    data.dim_block[i].y,
+                                                                    data.dim_block[i].z,
+                                                                    data.dim_grid[i].x,
+                                                                    data.dim_grid[i].y,
+                                                                    data.dim_grid[i].z, i);
 
-        dim3 dimBlock(threads_per_row, threads_per_row, 1);
-        dim3 dimGrid(w / dimBlock.x + 1, h / dimBlock.y + 1, block_depth);
-        
-        CUDALOG("raytrace<<<(%d,%d,%d), (%d,%d,%d)>>> on gpu %d\n", dimBlock.x, dimBlock.y, dimBlock.z, dimGrid.x, dimGrid.y, dimGrid.z, i);
 #if CUDA_USE_STREAMS
-        raytrace<<<dimGrid, dimBlock, 0, d_stream[i]>>>(w, h, ns / block_depth / gpu_split, d_output_cuda[i], d_raycount[i]);
+        raytrace<<<data.dim_grid[i], data.dim_block[i], 0, data.d_stream[i]>>>(w,
+                                                                               h,
+                                                                               ns / data.block_depth[i],
+                                                                               data.d_output_cuda[i],
+                                                                               data.d_raycount[i],
+                                                                               data.d_spheres[i],   data.num_spheres,
+                                                                               data.d_boxes[i],     data.num_boxes,
+                                                                               data.d_triangles[i], data.num_triangles,
+                                                                               data.d_camera[i]);
+
 #else
-        raytrace<<<dimGrid, dimBlock>>>(w, h, ns / block_depth / gpu_split, d_output_cuda[i], d_raycount[i]);
+        raytrace<<<data.dim_grid[i], data.dim_block[i] >>>(w,
+                                                           h,
+                                                           ns / data.block_depth[i],
+                                                           data.d_output_cuda[i],
+                                                           data.d_raycount[i],
+                                                           data.d_spheres[i],   data.num_spheres,
+                                                           data.d_boxes[i],     data.num_boxes,
+                                                           data.d_triangles[i], data.num_triangles,
+                                                           data.d_camera[i]);
 #endif
         checkCudaAssert(cudaGetLastError());
     }
 
 #if CUDA_USE_MULTIGPU
-    for (int i = num_gpus - 1; i >= 0; --i)
+    for (int i = data.num_gpus - 1; i >= 0; --i)
     {
 #else
     {
-        int i = num_gpus - 1;
+        int i = data.num_gpus - 1;
 #endif
         checkCudaErrors(cudaSetDevice(i));
 
 #if CUDA_USE_STREAMS
-        checkCudaErrors(cudaMemcpyAsync(h_output_cuda[i], d_output_cuda[i], w * h * sizeof(float3), cudaMemcpyDeviceToHost, d_stream[i]));
+        checkCudaErrors(cudaMemcpyAsync(data.h_output_cuda[i], data.d_output_cuda[i], w * h * sizeof(float3), cudaMemcpyDeviceToHost, data.d_stream[i]));
 
-        checkCudaErrors(cudaStreamSynchronize(d_stream[i]));
+        checkCudaErrors(cudaStreamSynchronize(data.d_stream[i]));
 #else
         checkCudaErrors(cudaDeviceSynchronize());
 
-        checkCudaErrors(cudaMemcpy(h_output_cuda[i], d_output_cuda[i], w * h * sizeof(float3), cudaMemcpyDeviceToHost));
+        checkCudaErrors(cudaMemcpy(data.h_output_cuda[i], data.d_output_cuda[i], w * h * sizeof(float3), cudaMemcpyDeviceToHost));
 #endif
       
 #if CUDA_USE_MULTIGPU
+        int gpu_split = data.num_gpus;
+
         for (int j = 0; j < w * h * 3; ++j)
         {
-            out_buffer[j] += h_output_cuda[i][j];
+            out_buffer[j] += data.h_output_cuda[i][j] / gpu_split;
         }
 #else
-        memcpy(out_buffer, h_output_cuda[i], w * h * 3 * sizeof(float));
+        memcpy(out_buffer, data.h_output_cuda[i], w * h * 3 * sizeof(float));
 #endif
 
         size_t tmp;
-        checkCudaErrors(cudaMemcpy(&tmp, d_raycount[i], sizeof(int), cudaMemcpyDeviceToHost));
+        checkCudaErrors(cudaMemcpy(&tmp, data.d_raycount[i], sizeof(int), cudaMemcpyDeviceToHost));
         out_raycount += tmp;
 
-        CUDALOG("cuda compute (%d/%d) completed!\n", i, num_gpus - 1);
+        CUDALOG("cuda compute (%d/%d) completed!\n", i, data.num_gpus - 1);
+    }
+}
 
-        checkCudaErrors(cudaFree(d_raycount[i]));
-        checkCudaErrors(cudaFree(d_output_cuda[i]));
-        checkCudaErrors(cudaFreeHost(h_output_cuda[i]));
+extern "C" void cuda_cleanup()
+{
+    if (data.initialized)
+    {
+#if CUDA_USE_MULTIGPU
+        for (int i = data.num_gpus - 1; i >= 0; --i)
+        {
+#else
+        {
+            int i = data.num_gpus - 1;
+#endif
+            checkCudaErrors(cudaSetDevice(i));
+
+            checkCudaErrors(cudaFree(data.d_raycount[i]));
+            checkCudaErrors(cudaFree(data.d_output_cuda[i]));
+            checkCudaErrors(cudaFreeHost(data.h_output_cuda[i]));
+
+            if (data.num_spheres > 0)
+            {
+                checkCudaErrors(cudaFree(data.d_spheres[i]));
+            }
+
+            if (data.num_boxes > 0)
+            {
+                checkCudaErrors(cudaFree(data.d_boxes[i]));
+            }
+
+            if (data.num_triangles > 0)
+            {
+                checkCudaErrors(cudaFree(data.d_triangles[i]));
+            }
 
 #if CUDA_USE_STREAMS
-        checkCudaErrors(cudaStreamDestroy(d_stream[i]));
+            checkCudaErrors(cudaStreamDestroy(data.d_stream[i]));
 #endif
+        }
     }
 }

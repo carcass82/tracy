@@ -6,11 +6,17 @@
  */
 #pragma once
 
-#define STB_IMAGE_IMPLEMENTATION
-#include "ext/stb_image.h"
+#include <unordered_map>
+#include <vector>
 
 #define TINYOBJLOADER_IMPLEMENTATION
 #include "ext/tiny_obj_loader.h"
+
+#if !defined(USE_CUDA)
+#define STB_IMAGE_IMPLEMENTATION
+#include "ext/stb_image.h"
+
+#include "camera.hpp"
 
 #include "shapes/shapelist.hpp"
 #include "shapes/box.hpp"
@@ -27,8 +33,36 @@
 #include "textures/checker.hpp"
 
 
+struct Scene
+{
+    Camera cam;
+    IShape* world;
+};
+#else
+struct DScene
+{
+    DCamera cam;
+
+    DTriangle** h_triangles;
+    int num_triangles;
+
+    DBox** h_boxes;
+    int num_boxes;
+
+    DSphere** h_spheres;
+    int num_spheres;
+};
+#endif
+
+#if !defined(USE_CUDA)
 IShape* load_mesh(const char* obj_path, IMaterial* obj_material)
 {
+#else
+std::vector<DTriangle*> load_mesh(const char* obj_path, DMaterial* obj_material)
+{
+    std::vector<DTriangle*> mesh;
+#endif
+
     tinyobj::attrib_t attrib;
     std::vector<tinyobj::shape_t> shapes;
     std::vector<tinyobj::material_t> materials;
@@ -37,19 +71,26 @@ IShape* load_mesh(const char* obj_path, IMaterial* obj_material)
     if (!tinyobj::LoadObj(&attrib, &shapes, &materials, &warn, &err, obj_path))
     {
         fprintf(stderr, "unable to load model '%s'\n", obj_path);
+#if !defined(USE_CUDA)
         return nullptr;
+#else
+        return mesh;
+#endif
     }
 
+#if !defined(USE_CUDA)
     IShape** tmplist = new IShape*[attrib.vertices.size()];
     
     constexpr unsigned MAX_SPLIT = 100;
     IShape** list = new IShape*[MAX_SPLIT];
     
     vec3 verts[3];
-    vec3 norms[3];
-    vec2 uvs[3];
+
     unsigned int i = 0;
     unsigned int n = 0;
+#else
+    float3 verts[3];
+#endif
     unsigned int v = 0;
     for (const tinyobj::shape_t& shape : shapes)
     {
@@ -59,23 +100,12 @@ IShape* load_mesh(const char* obj_path, IMaterial* obj_material)
             float v1 = attrib.vertices[3 * index.vertex_index + 1];
             float v2 = attrib.vertices[3 * index.vertex_index + 2];
 
-            float n0 = attrib.vertices[3 * index.normal_index + 0];
-            float n1 = attrib.vertices[3 * index.normal_index + 1];
-            float n2 = attrib.vertices[3 * index.normal_index + 2];
-
-            float s = attrib.vertices[2 * index.texcoord_index + 0];
-            float t = attrib.vertices[2 * index.texcoord_index + 1];
-
-            norms[v] = vec3{ n0, n1, n2 };
-            uvs[v] = vec2{ s, t };
+#if !defined(USE_CUDA)
             verts[v++] = vec3{ v0, v1, v2 };
 
             if (v == 3)
             {
-                list[i++] = new Triangle(verts[0], verts[1], verts[2],
-                                         norms[0], norms[1], norms[2],
-                                         uvs[0], uvs[1], uvs[2],
-                                         obj_material);
+                list[i++] = new Triangle(verts[0], verts[1], verts[2], obj_material);
                 v = 0;
             }
 
@@ -86,201 +116,296 @@ IShape* load_mesh(const char* obj_path, IMaterial* obj_material)
                 i = 0;
                 list = new IShape*[MAX_SPLIT];
             }
+#else
+            verts[v++] = make_float3(v0, v1, v2);
+
+            if (v == 3)
+            {
+                mesh.push_back(triangle_create(verts[0], verts[1], verts[2], *obj_material));
+                v = 0;
+            }
+#endif
         }
     }
 
+#if !defined(USE_CUDA)
     if (i > 0)
     {
         tmplist[n++] = new ShapeList(list, i);
     }
 
     return new ShapeList(tmplist, n);
+#else
+    return mesh;
+#endif
 }
+//
+// ----------------------------------------------------------------------------
+//
 
-IShape* random_scene()
+constexpr inline uint32_t MAKEID(char a, char b, char c) { return a | b << 8 | c << 16 | 0x0 << 24; }
+
+#if !defined(USE_CUDA)
+Scene load_scene(const char* scn_file, float ratio)
 {
-    const int n = 500;
-    int i = 0;
-    IShape** list = new IShape*[n + 1];
-
-    ITexture* terrain_texture = new Checker(new Constant(vec3(0.2f, 0.3f, 0.1f)), new Constant(vec3(0.9f, 0.9f, 0.9f)));
-    list[i++] = new Sphere(vec3(0, -1000, 0), 1000, new Lambertian(terrain_texture));
-
-    for (int a = -10; a < 10; ++a)
-    {
-        for (int b = -10; b < 10; ++b)
-        {
-            float choose_mat = fastrand();
-
-            vec3 center(a + 0.9f * fastrand(), 0.2f, b + 0.9f * fastrand());
-            if (length(center - vec3(4.f, 0.2f, 0.f)) > 0.9f)
-            {
-                if (choose_mat < 0.8)
-                {
-                    list[i++] = new Sphere(center, 0.2f, new Lambertian(new Constant(vec3(fastrand() * fastrand(), fastrand() * fastrand(), fastrand() * fastrand()))));
-                }
-                else if (choose_mat < 0.95)
-                {
-                    list[i++] = new Sphere(center, 0.2f, new Metal(vec3(0.5f * (1.0f + float(fastrand())), 0.5f * (1.0f + float(fastrand())), 0.5f * (1.0f + float(fastrand()))), 0.5f * float(fastrand())));
-                }
-                else
-                {
-                    list[i++] = new Sphere(center, 0.2f, new Dielectric(1.5));
-                }
-
-            }
-        }
-    }
-
-    
-    // area light
-    list[i++] = new Box(vec3(-20.f, 10.f, -20.f), vec3(20.f, 10.1f, 20.f), new Emissive(new Constant(vec3(2, 2, 2))));
-
-    // lambertian
-    list[i++] = new Sphere(vec3(0.f, 1.f, 0.f), 1.0f, new Lambertian(new Constant(vec3(0.4f, 0.2f, 0.1f))));
-
-    // dielectric
-    list[i++] = new Sphere(vec3(2.f, 1.f, 0.f), 1.0f, new Dielectric(1.5f));
-
-    // metal
-    list[i++] = new Sphere(vec3(4.f, 1.f, 0.f), 1.0f, new Metal(vec3(0.7f, 0.6f, 0.5f), 0.0f));
-    
-    // lambertian textured
-    int nx, ny, nn;
-    unsigned char* tex_data = stbi_load("../data/earth.jpg", &nx, &ny, &nn, 0);
-    list[i++] = new Sphere(vec3(6.f, 1.f, 0.f), 1.0, new Lambertian(new Bitmap(tex_data, nx, ny)));
-
-    return new ShapeList(list, i);
-}
-
-IShape* cornellbox_scene()
+    Scene scene;
+#else
+DScene load_scene(const char* scn_file, float ratio)
 {
-    const int n = 500;
-    IShape** list = new IShape*[n + 1];
-
-    IMaterial* red = new Lambertian(new Constant(vec3(0.65f, 0.05f, 0.05f)));
-    IMaterial* white = new Lambertian(new Constant(vec3(0.73f, 0.73f, 0.73f)));
-    IMaterial* green = new Lambertian(new Constant(vec3(0.12f, 0.45f, 0.15f)));
-    IMaterial* light = new Emissive(new Constant(vec3(15.f, 15.f, 15.f)));
-    
-    int i = 0;
-    list[i++] = new Box(vec3(213.f, 554.f, 227.f), vec3(343.f, 555.f, 332.f), light);
-    list[i++] = new Box(vec3(555.f, .0f, 0.f), vec3(555.1f, 555.f, 555.f), green);
-    list[i++] = new Box(vec3(-0.1f, .0f, 0.f), vec3(.0f, 555.f, 555.f), red);
-    list[i++] = new Box(vec3(.0f, -.1f, 0.f), vec3(555.f, 0.f, 555.f), white);      // floor
-    list[i++] = new Box(vec3(.0f, 555.f, 0.f), vec3(555.f, 555.1f, 555.f), white);  // roof
-    list[i++] = new Box(vec3(.0f, .0f, 554.9f), vec3(555.f, 555.f, 555.f), white);  // back
-    list[i++] = new Box(vec3(265.f, .0f, 295.f), vec3(430.f, 330.f, 460.f), white); // large box
-    list[i++] = new Box(vec3(130.f, .0f, 65.f), vec3(295.f, 165.f, 230.f), white);  // small box
-
-#if 0 // old version, with rects / flip_normals / rotations / translations
-    //list[i++] = new flip_normals(new yz_rect(0, 555, 0, 555, 555, green));
-    //list[i++] = new yz_rect(0, 555, 0, 555, 0, red);
-    //list[i++] = new flip_normals(new xz_rect(213, 343, 227, 332, 554, light));
-    //list[i++] = new flip_normals(new xz_rect(0, 555, 0, 555, 555, white));
-    //list[i++] = new xz_rect(0, 555, 0, 555, 0, white);
-    //list[i++] = new flip_normals(new xy_rect(0, 555, 0, 555, 555, white));
-    
-    // large box
-    //list[i++] = new translate(new rotate_y(new box(vec3(0, 0, 0), vec3(165, 330, 165), white), 15), vec3(265, 0, 295));
-    
-    // small box
-    //list[i++] = new translate(new rotate_y(new box(vec3(0, 0, 0), vec3(165, 165, 165), white), -18), vec3(130, 0, 65));
+    DScene scene;
 #endif
 
-    // "custom" spheres to test materials
-    IMaterial* alluminium = new Metal(vec3(.8f, .85f, .88f), .05f);
-    IMaterial* glass = new Dielectric(1.5);
-    IMaterial* gold = new Metal(vec3(1.f, .71f, .29f), .05f);
+    if (FILE* fp = fopen(scn_file, "r"))
+    {
+        static char line[512];
 
-    list[i++] = new Sphere(vec3(130 + 82.5 - 25, 215, 65 + 82.5 - 25), 50.0, glass);
-    list[i++] = new Sphere(vec3(265 + 82.5 + 35, 400, 295 + 82.5 - 35), 70.0, alluminium);
-    list[i++] = new Sphere(vec3(265 + 82.5 + 15, 30, 80), 30.0, gold);
+#if !defined(USE_CUDA)
+        std::unordered_map<std::string, IMaterial*> materials;
+        std::vector<IShape*> objects;
+#else
+        std::unordered_map<std::string, DMaterial*> materials;
+        std::vector<DSphere*> spheres;
+        std::vector<DBox*> boxes;
+        std::vector<DTriangle*> triangles;
+#endif
 
-    return new ShapeList(list, i);
+        while (fgets(line, 512, fp))
+        {
+            if (line[0] == '#' || line[0] =='\n')
+            {
+                continue;
+            }
+
+            char id[3];
+            constexpr uint32_t id_scn = MAKEID('S', 'C', 'N');
+            constexpr uint32_t id_cam = MAKEID('C', 'A', 'M');
+            constexpr uint32_t id_mtl = MAKEID('M', 'T', 'L');
+            constexpr uint32_t id_obj = MAKEID('O', 'B', 'J');
+            constexpr uint32_t id_tri = MAKEID('T', 'R', 'I');
+
+            static char params[512];
+            if (sscanf(line, "%c%c%c %[^\n]", &id[0], &id[1], &id[2], params) == 4)
+            {
+                uint32_t uid = id[0] | id[1] << 8 | id[2] << 16 | 0x0 << 24;
+                
+                switch (uid)
+                {
+                case id_scn:
+                    fputs("found SCN marker, good!\n", stderr);
+                    break;
+
+                case id_cam:
+                    fprintf(stderr, "found cam: %s\n", params);
+                    {
+#if !defined(USE_CUDA)
+                        vec3 eye;
+                        vec3 center;
+                        vec3 up;
+#else
+                        float3 eye;
+                        float3 center;
+                        float3 up;
+#endif
+                        float fov;
+
+                        if (sscanf(params, "(%f,%f,%f) (%f,%f,%f) (%f,%f,%f) %f", &eye.x, &eye.y, &eye.z,
+                                                                                  &center.x, &center.y, &center.z,
+                                                                                  &up.x, &up.y, &up.z,
+                                                                                  &fov) == 10)
+                        {
+#if !defined(USE_CUDA)
+                            scene.cam.setup(eye, center, up, fov, ratio);
+#else
+                            scene.cam = *camera_create(eye, center, up, fov, ratio);
+#endif
+                        }
+                    }
+                    break;
+
+                case id_mtl:
+                    fprintf(stderr, "found mtl: %s\n", params);
+                    {
+                        char mat_name[16];
+                        char mat_type;
+#if !defined(USE_CUDA)
+                        vec3 albedo;
+#else
+                        float3 albedo;
+                        DMaterial::Type type;
+#endif
+                        float param = .0f;
+
+                        int num = sscanf(params, "%s %c (%f,%f,%f) %f", mat_name,
+                                                                        &mat_type,
+                                                                        &albedo.x, &albedo.y, &albedo.z,
+                                                                        &param);
+                        {
+                            switch (mat_type)
+                            {
+#if !defined(USE_CUDA)
+                            case 'E':
+                                materials[mat_name] = new Emissive(new Constant(albedo));
+                                break;
+                            case 'L':
+                                materials[mat_name] = new Lambertian(new Constant(albedo));
+                                break;
+                            case 'M':
+                                materials[mat_name] = new Metal(albedo, (num == 6) ? param : .0f);
+                                break;
+                            case 'D':
+                                materials[mat_name] = new Dielectric(albedo, (num == 6) ? param : 1.0f);
+                                break;
+#else
+                            case 'E': type = DMaterial::eEMISSIVE; break;
+                            case 'L': type = DMaterial::eLAMBERTIAN; break;
+                            case 'M': type = DMaterial::eMETAL; break;
+                            case 'D': type = DMaterial::eDIELECTRIC; break;
+#endif
+                            }
+
+#if defined(USE_CUDA)
+                            if (type != DMaterial::MAX_TYPES)
+                            {
+                                materials[mat_name] = create_material(type, albedo, (num == 6) ? param : .0f, (num == 6) ? param : 1.f);
+                            }
+#endif
+                        }
+                    }
+                    break;
+
+                case id_obj:
+                    fprintf(stderr, "found obj: %s\n", params);
+                    {
+                        char obj_type;
+                        char subparams[64];
+                        if (sscanf(params, "%c %[^\n]", &obj_type, subparams) == 2)
+                        {
+                            switch (obj_type)
+                            {
+                            case 'S':
+                            {
+#if !defined(USE_CUDA)
+                                vec3 center;
+#else
+                                float3 center;
+#endif
+                                float radius;
+                                char mat_name[16];
+
+                                if (sscanf(subparams, "(%f,%f,%f) %f %s", &center.x, &center.y, &center.z, &radius, mat_name) == 5 &&
+                                    materials.count(mat_name) > 0)
+                                {
+#if !defined(USE_CUDA)
+                                    objects.push_back(new Sphere(center, radius, materials[mat_name]));
+#else
+                                    spheres.push_back(sphere_create(center, radius, *materials[mat_name]));
+#endif
+                                }
+                            }
+                            break;
+                            case 'B':
+                            {
+#if !defined(USE_CUDA)
+                                vec3 min_box;
+                                vec3 max_box;
+#else
+                                float3 min_box;
+                                float3 max_box;
+#endif
+                                char mat_name[16];
+                                if (sscanf(subparams, "(%f,%f,%f) (%f,%f,%f) %s", &min_box.x, &min_box.y, &min_box.z,
+                                                                                  &max_box.x, &max_box.y, &max_box.z,
+                                                                                  mat_name) == 7 &&
+                                                                                  materials.count(mat_name) > 0)
+                                {
+#if !defined(USE_CUDA)
+                                    objects.push_back(new Box(min_box, max_box, materials[mat_name]));
+#else
+                                    boxes.push_back(box_create(min_box, max_box, *materials[mat_name]));
+#endif
+                                }
+                            }
+                            break;
+                            case 'T':
+                            {
+#if !defined(USE_CUDA)
+                                vec3 v1, v2, v3;
+#else
+                                float3 v1, v2, v3;
+#endif
+                                char mat_name[16];
+                                if (sscanf(subparams, "(%f,%f,%f) (%f,%f,%f) (%f,%f,%f) %s", &v1.x, &v1.y, &v1.z,
+                                                                                             &v2.x, &v2.y, &v2.z,
+                                                                                             &v3.x, &v3.y, &v3.z,
+                                                                                             mat_name) == 10 &&
+                                    materials.count(mat_name) > 0)
+                                {
+#if !defined(USE_CUDA)
+                                    objects.push_back(new Triangle(v1, v2, v3, materials[mat_name]));
+#else
+                                    triangles.push_back(triangle_create(v1, v2, v3, *materials[mat_name]));
+#endif
+                                }
+                            }
+                            break;
+                            }
+                        }
+                    }
+                    break;
+
+                case id_tri:
+                    {
+                        char file_name[256];
+                        char mat_name[16];
+                        if (sscanf(params, "%s %s", file_name, mat_name) == 2 && materials.count(mat_name) > 0)
+                        {
+#if !defined(USE_CUDA)
+                            objects.push_back(load_mesh(file_name, materials[mat_name]));
+#else
+                            std::vector<DTriangle*> mesh = load_mesh(file_name, materials[mat_name]);
+                            triangles.insert(triangles.end(), mesh.begin(), mesh.end());
+#endif
+                        }
+                    }
+                    break;
+                }
+            }
+        }
+
+        fclose(fp);
+
+#if !defined(USE_CUDA)
+        IShape** shape_objects = new IShape*[objects.size()];
+        int i = 0;
+        for (auto object : objects)
+        {
+            shape_objects[i++] = object;
+        }
+        scene.world = new ShapeList(shape_objects, i);
+#else
+        scene.num_triangles = triangles.size();
+        scene.h_triangles = new DTriangle*[scene.num_triangles];
+        for (int i = 0; i < scene.num_triangles; ++i)
+        {
+            scene.h_triangles[i] = triangles[i];
+        }
+
+        scene.num_boxes = boxes.size();
+        scene.h_boxes = new DBox*[scene.num_boxes];
+        for (int i = 0; i < scene.num_boxes; ++i)
+        {
+            scene.h_boxes[i] = boxes[i];
+        }
+
+        scene.num_spheres = spheres.size();
+        scene.h_spheres = new DSphere*[scene.num_spheres];
+        for (int i = 0; i < scene.num_spheres; ++i)
+        {
+            scene.h_spheres[i] = spheres[i];
+        }
+#endif
+    }
+
+    return scene;
 }
 
-IShape* gpu_scene()
-{
-    IMaterial* light = new Emissive(new Constant(vec3(5.f, 5.f, 5.f)));
-    IMaterial* blue = new Lambertian(new Constant(vec3(0.1f, 0.2f, 0.5f)));
-    IMaterial* red = new Lambertian(new Constant(vec3(.85f, .05f, .02f)));
-	IMaterial* green = new Lambertian(new Constant(vec3(.05f, .85f, .02f)));
-    IMaterial* grey = new Lambertian(new Constant(vec3(0.2f, 0.2f, 0.2f)));
-    IMaterial* glass = new Dielectric(1.5);
-    IMaterial* alluminium = new Metal(vec3(.91f, .92f, .92f), .0f);
-    IMaterial* gold = new Metal(vec3(1.f, .71f, .29f), .05f);
-    IMaterial* copper = new Metal(vec3(.95f, .64f, .54f), .2f);
-
-    int i = 0;
-    IShape** objects = new IShape*[50];
-    objects[i++] = new Sphere(vec3(0.f, 0.f, -1.f), .5f, blue);
-    objects[i++] = new Sphere(vec3(0.f, 150.f, -1.f), 100.f, light);
-    objects[i++] = new Sphere(vec3(1.f, 0.f, -1.f), .5f, alluminium);
-    objects[i++] = new Sphere(vec3(-1.f, 0.f, -1.f), .5f, glass);
-    objects[i++] = new Sphere(vec3(0.f, 0.f, 0.f), .2f, copper);
-    objects[i++] = new Sphere(vec3(0.f, 1.f, -1.5f), .3f, gold);
-    objects[i++] = new Sphere(vec3(0.f, 0.f, -2.5f), .5f, red);
-    
-    objects[i++] = new Box(vec3(-4.f, -0.5f, -3.1f), vec3(4.f, 2.f, -3.f), grey);
-    objects[i++] = new Box(vec3(-4.f, -0.5f, 1.6f), vec3(4.f, 2.f, 1.7f), grey);
-    objects[i++] = new Box(vec3(-4.f, -0.6f, -3.f), vec3(4.f, -0.5f, 1.7f), grey);
-    objects[i++] = new Box(vec3(-4.1f, -0.5f, -3.f), vec3(-4.f, 2.f, 1.7f), grey);
-    objects[i++] = new Box(vec3(4.f, -0.5f, -3.f), vec3(4.1f, 2.f, 1.7f), grey);
-    
-    objects[i++] = new Box(vec3(-1.8f, 1.f, -3.f), vec3(1.8f, 1.1f, -2.9f), light);
-    objects[i++] = new Box(vec3(-1.8f, 1.f, 1.6f), vec3(1.8f, 1.1f, 1.61f), light);
-    
-    objects[i++] = new Triangle(vec3(-1.f, .5f, -2.5f), vec3(1.f, .5f, -2.5f), vec3(1.f, 1.5f, -2.5f), green);
-
-    return new ShapeList(objects, i);
-}
-
-IShape* trimesh_scene()
-{
-    IMaterial* light = new Emissive(new Constant(vec3(5.f, 5.f, 5.f)));
-    IMaterial* grey = new Lambertian(new Constant(vec3(0.2f, 0.2f, 0.2f)));
-    IMaterial* copper = new Metal(vec3(.95f, .64f, .54f), .2f);
-    IMaterial* gold = new Metal(vec3(1.f, .71f, .29f), .05f);
-
-    int i = 0;
-    IShape** objects = new IShape*[50];
-    
-    objects[i++] = new Sphere(vec3(2.f, 5.f, -1.f), 2.f, light);
-    objects[i++] = load_mesh("./data/teapot.obj", copper);
-    objects[i++] = new Sphere(vec3(-1.f, .0f, -1.f), .5f, gold);
-    objects[i++] = new Box(vec3(-10.f, -0.51f, -10.f), vec3(10.f, -0.5f, 10.f), grey);
-
-    return new ShapeList(objects, i);
-}
-
-enum eScene { eRANDOM, eCORNELLBOX, eTESTGPU, eTESTMESH, eNUM_SCENES };
-
-IShape* load_scene(eScene scene, Camera& cam, float ratio)
-{
-    switch (scene) {
-    case eRANDOM:
-        fputs("'random' scene selected\n", stderr);
-        cam.setup(vec3(9.0f, 1.5f, 6.0f), vec3(2.0f, 0.5f, -2.0f), vec3(0.0f, 1.0f, 0.0f), 45.0f, ratio);
-        return random_scene();
-
-    case eCORNELLBOX:
-        fputs("'cornell' scene selected\n", stderr);
-        cam.setup(vec3(278, 278, -800), vec3(278, 278, 0), vec3(0.0f, 1.0f, 0.0f), 40.0f, ratio);
-        return cornellbox_scene();
-
-    case eTESTGPU:
-        fputs("'testGPU' scene selected\n", stderr);
-        cam.setup(vec3(-.5f, 1.2f, 1.5f), vec3(.0f, .0f, -1.f), vec3(0.0f, 1.0f, 0.0f), 60.0f, ratio);
-        return gpu_scene();
-
-    case eTESTMESH:
-        fputs("'testMesh' scene selected\n", stderr);
-        cam.setup(vec3(0.5f, 0.5f, .8f), vec3(.0f, .0f, 0.f), vec3(0.0f, 1.0f, 0.0f), 60.0f, ratio);
-        return trimesh_scene();
-
-    default:
-        fputs("tracing NULL, i'm going to crash...\n", stderr);
-        return nullptr;
-    };
-}
