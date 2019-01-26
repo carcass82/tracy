@@ -15,7 +15,7 @@
 #include "mathutils.cuh"
 
 
-#ifndef NODEBUG
+#if !defined(BUILD_GUI) || defined(_DEBUG)
 #define CUDALOG(...) printf(__VA_ARGS__)
 #else 
 #define CUDALOG(...) do {} while(0);

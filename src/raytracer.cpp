@@ -115,7 +115,7 @@ vec3 color(const Ray& r, IShape* world, int depth, int& raycount)
 extern "C" void trace(Camera& cam, IShape* world, int nx, int ny, int ns, vec3* output, int& totrays, size_t& pixel_idx)
 {
     // ensure output buffer is properly zeroed
-    memset(output, 0, nx * ny * sizeof(vec3));
+    for (int i = 0; i < nx * ny; ++i) output[i] = {};
 
     //
     // OpenMP: collapse all 3 loops and distribute work to threads.
@@ -214,7 +214,7 @@ int main(int argc, char** argv)
         }
     }
 
-    char* scene_path = "data/default.scn";
+    const char* scene_path = "data/default.scn";
 
     FILE *fp = fopen(filename, "wb");
     if (!fp)

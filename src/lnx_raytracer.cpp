@@ -97,13 +97,12 @@ int main(int argc, char** argv)
 #endif
 
     vec3* output = new vec3[width * height];
-    memset(output, 0, width * height * sizeof(vec3));
+    for (int i = 0; i < width * height; ++i) output[i] = {};
 
     int totrays = 0;
-    size_t dummy = 0;
 
     vec3* output_backbuffer = new vec3[width * height];
-    memset(output_backbuffer, 0, width * height * sizeof(vec3));
+    for (int i = 0; i < width * height; ++i) output_backbuffer[i] = {};
     
     uint32_t* data = new uint32_t[width * height];
     XImage* bitmap = XCreateImage(dpy,
@@ -173,7 +172,9 @@ int main(int argc, char** argv)
 #if defined(USE_CUDA)
         cuda_trace(width, height, samples, reinterpret_cast<float*>(output), totrays);
 #else
+        size_t dummy = 0;
         trace(cam, world, width, height, samples, output, totrays, dummy);
+        (void)dummy;
 #endif
         t.end();
         trace_seconds += t.duration();
