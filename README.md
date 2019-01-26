@@ -31,4 +31,4 @@ Now Tracy is able to render triangle meshes ~~(cpu version only)~~. Coming next:
 
 ![triangles](doc/output3.jpg)
 
-With latest update Tracy now reads from a file the scene description which is dynamically created and traced. ``data/scenes`` contains 3 simple scenes. Scene description is text-based and ``scn`` files contain the description of all parameters.
+With latest update Tracy now reads from a file the scene description which is dynamically created and traced. ``data/scenes`` contains 3 simple scenes. Scene description is text-based and ``scn`` files contain the description of all parameters. Copy any of the scene description (or create your own) to ``data/default.scn``.

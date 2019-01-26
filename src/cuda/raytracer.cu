@@ -251,7 +251,7 @@ __host__ __device__ inline DBox* box_create(float3 min, float3 max, DMaterial ma
 
 __device__ inline float3 box_normal(DBox& box, const float3& point)
 {
-    static constexpr float eps = 1e-6f;
+    constexpr float eps = 1e-6f;
 
     if (fabs(box.min_limit.x - point.x) < eps) return make_float3(-1.f,  .0f,  .0f);
     if (fabs(box.max_limit.x - point.x) < eps) return make_float3( 1.f,  .0f,  .0f);
@@ -263,7 +263,7 @@ __device__ inline float3 box_normal(DBox& box, const float3& point)
 
 __device__ inline float2 box_uv(DBox& box, const float3& point)
 {
-    static constexpr float eps = 1e-6f;
+    constexpr float eps = 1e-6f;
 
     if ((fabsf(box.min_limit.x - point.x) < eps) || (fabsf(box.max_limit.x - point.x) < eps))
     {
