@@ -39,6 +39,7 @@ using cc::util::min;
 using cc::util::clamp;
 using cc::math::radians;
 using cc::math::lerp;
+using cc::math::dot;
 using cc::util::swap;
 #define atan2f(x, y) cc::math::fast::atan2f(x, y)
 #define sinf(x) cc::math::fast::sinf(x)
@@ -76,15 +77,17 @@ extern "C" void setup(const char* path, Camera& cam, float aspect, IShape** worl
 #endif
 vec3 color(const Ray& r, IShape* world, int depth, int& raycount)
 {
+#if CPU_RECURSIVE // first, recursive implementation
+
     ++raycount;
 
     HitData rec;
-    if (world->hit(r, .001f, std::numeric_limits<float>::max(), rec))
+    if (world->hit(r, 1e-3f, FLT_MAX, rec))
     {
         //
         // debug - show normals
         //
-        //return .5f * (1.f + normalize(rec.normal));
+        //return .5f * (1.f + rec.normal);
 
         vec3 emitted = rec.material->emitted(r, rec, rec.uv, rec.point);
 
@@ -100,6 +103,43 @@ vec3 color(const Ray& r, IShape* world, int depth, int& raycount)
 
     }
 
+#else // iterative version, more similar to gpu and easier to read
+
+    Ray current_ray = Ray{ r };
+    vec3 current_color = vec3{ 1.f, 1.f, 1.f };
+
+    for (int i = 0; i < MAX_DEPTH; ++i)
+    {
+        ++raycount;
+
+        HitData rec;
+        if (world->hit(current_ray, 1e-3f, FLT_MAX, rec))
+        {
+            //
+            // debug - show normals
+            //
+            //return .5f * (1.f + rec.normal);
+            
+            ScatterData srec;
+            if (rec.material->scatter(current_ray, rec, srec))
+            {
+                current_color *= srec.attenuation;
+                current_ray = srec.scattered;
+            }
+            else
+            {
+                current_color *= rec.material->emitted(current_ray, rec, rec.uv, rec.point);
+                return current_color;
+            }
+        }
+        else
+        {
+            return vec3{};
+        }
+    }
+
+#endif
+
     //
     // gradient
     //
@@ -108,7 +148,7 @@ vec3 color(const Ray& r, IShape* world, int depth, int& raycount)
     //float t = (normalize(r.get_direction()).y + 1.f) * .5f;
     //return lerp(WHITE, SKYISH, t);
 
-    return vec3{ .0f, .0f, .0f };
+    return vec3{};
 }
 
 
@@ -168,7 +208,11 @@ constexpr inline void put_char_sequence(const char x, int n)
 void progbar(size_t total, size_t samples, size_t* value, bool* quit)
 {
     constexpr int progbarsize = 78;
+#if defined(_DEBUG)
+    const int threadcount = 1;
+#else
     const int threadcount = omp_get_max_threads();
+#endif
 
     while (!(*quit))
     {
@@ -326,4 +370,3 @@ extern "C" void save_screenshot(int w, int h, vec3* pbuffer)
         fclose(fp);
     }
 }
-

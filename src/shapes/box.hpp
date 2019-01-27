@@ -26,16 +26,19 @@ public:
 
         for (int i = 0; i < 3; ++i)
         {
-            float direction = r.get_direction()[i];
-            float origin = r.get_origin()[i];
-            float minbound = pmin[i];
-            float maxbound = pmax[i];
+            const float direction = r.get_direction()[i];
+            const float origin = r.get_origin()[i];
+            const float minbound = pmin[i];
+            const float maxbound = pmax[i];
 
-            float ood = 1.f / direction;
+            const float ood = 1.f / direction;
             float t1 = (minbound - origin) * ood;
             float t2 = (maxbound - origin) * ood;
 
-            if (t1 > t2) swap(t1, t2);
+            if (t1 > t2)
+            {
+                swap(t1, t2);
+            }
 
             tmin = max(tmin, t1);
             tmax = min(tmax, t2);

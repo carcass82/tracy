@@ -11,6 +11,11 @@
 #define NOMCX
 #include <Windows.h>
 
+#include <GL/gl.h>
+#define GL_BGRA 0x80E1
+//#define GL_UNSIGNED_INT_8_8_8_8 0x8035
+#define GL_UNSIGNED_INT_8_8_8_8_REV 0x8367
+
 #include <thread>
 #include <chrono>
 using namespace std::chrono_literals;
@@ -38,6 +43,7 @@ using cc::util::max;
 using cc::util::min;
 using cc::util::clamp;
 using cc::math::lerp;
+using cc::math::dot;
 using cc::math::PI;
 #endif
 
@@ -94,6 +100,7 @@ LRESULT CALLBACK WindowProc(HWND hwnd, UINT uMsg, WPARAM wParam, LPARAM lParam)
         }
         break;
 
+#if !defined(USE_OPENGL)
     case WM_PAINT:
         {
             PAINTSTRUCT ps;
@@ -110,6 +117,7 @@ LRESULT CALLBACK WindowProc(HWND hwnd, UINT uMsg, WPARAM wParam, LPARAM lParam)
             EndPaint(hwnd, &ps);
         }
         break;
+#endif
 
     default:
         return DefWindowProc(hwnd, uMsg, wParam, lParam);
@@ -125,30 +133,64 @@ int CALLBACK WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPSTR lpCmdLi
     windowClass.style = CS_OWNDC | CS_VREDRAW | CS_HREDRAW;
     windowClass.lpfnWndProc = WindowProc;
     windowClass.hInstance = hInstance;
+    windowClass.hCursor = LoadCursor(nullptr, IDC_ARROW);
+    windowClass.hIcon = LoadIcon(nullptr, IDI_WINLOGO);
     windowClass.lpszClassName = "TracyWindowClass";
     RegisterClassExA(&windowClass);
 
     // no resize / no maximize / no minimize button
-    DWORD dwStyle = WS_OVERLAPPEDWINDOW ^ (WS_SIZEBOX | WS_MAXIMIZEBOX | WS_MINIMIZEBOX) | WS_VISIBLE;
+    DWORD dwStyle = (WS_OVERLAPPEDWINDOW ^ (WS_SIZEBOX | WS_MAXIMIZEBOX | WS_MINIMIZEBOX)) | WS_VISIBLE;
     const int width = 1024;
     const int height = 768;
     const int samples = 2;
     const char* scene_path = "data/default.scn";
 
-    HWND wHandle = CreateWindowExA(NULL,
-                                   "TracyWindowClass",
-                                   "Tracy",
-                                   dwStyle,
-                                   CW_USEDEFAULT,
-                                   CW_USEDEFAULT,
-                                   width,
-                                   height,
-                                   NULL,
-                                   NULL,
-                                   hInstance,
-                                   NULL);
+    HWND wHandle = CreateWindowEx(WS_EX_APPWINDOW,
+                                  "TracyWindowClass",
+#if defined(USE_CUDA)
+                                  ".:: Tracy (GPU) ::.",
+#else
+                                  ".:: Tracy (CPU) ::.",
+#endif
+                                  dwStyle,
+                                  CW_USEDEFAULT,
+                                  CW_USEDEFAULT,
+                                  width,
+                                  height,
+                                  nullptr,
+                                  nullptr,
+                                  hInstance,
+                                  nullptr);
+
+#if defined(USE_OPENGL)
+    PIXELFORMATDESCRIPTOR pfd;
+    memset(&pfd, 0, sizeof(PIXELFORMATDESCRIPTOR));
+    pfd.nSize = sizeof(PIXELFORMATDESCRIPTOR);
+    pfd.nVersion = 1;
+    pfd.dwFlags = PFD_DRAW_TO_WINDOW | PFD_SUPPORT_OPENGL | PFD_DOUBLEBUFFER;
+    pfd.iPixelType = PFD_TYPE_RGBA;
+    pfd.cColorBits = 24;
+    pfd.cDepthBits = 16;
+    pfd.iLayerType = PFD_MAIN_PLANE;
+
+    HDC hDC = GetDC(wHandle);
+    GLuint PixelFormat = ChoosePixelFormat(hDC, &pfd);
+    SetPixelFormat(hDC, PixelFormat, &pfd);
+    HGLRC hRC = wglCreateContext(hDC);
+    wglMakeCurrent(hDC, hRC);
+
+    glMatrixMode(GL_PROJECTION);
+    glLoadIdentity();
+    glOrtho(0.0f, width, height, 0.0f, 1.0f, 1.0f);
+    glMatrixMode(GL_MODELVIEW);
+    
+    glDisable(GL_DEPTH_TEST);
+    glClearColor(0.0f, 0.0f, 0.0f, 0.0f);
+    glClear(GL_COLOR_BUFFER_BIT);
+#endif
 
     ShowWindow(wHandle, SW_SHOW);
+    SetForegroundWindow(wHandle);
     UpdateWindow(wHandle);
     SetFocus(wHandle);
 
@@ -200,10 +242,7 @@ int CALLBACK WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPSTR lpCmdLi
     {
         if (PeekMessage(&msg, NULL, NULL, NULL, PM_REMOVE))
         {
-            if (msg.message == WM_QUIT)
-            {
-                break;
-            }
+            quit = (msg.message == WM_QUIT);
 
             TranslateMessage(&msg);
             DispatchMessage(&msg);
@@ -225,31 +264,37 @@ int CALLBACK WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPSTR lpCmdLi
 
         //update bitmap
         {
-            vec3* src = output_backbuffer;
-            uint32_t* dst = out_bitmap_bytes;
+            const float blend_factor = frame_count / float(frame_count + 1);
 
-            for (int j = 0; j < height; ++j)
+            vec3* src = output;
+            vec3* dst_bbuf = output_backbuffer;
+            uint32_t* dst_bmap = out_bitmap_bytes;
+            for (int i = 0; i < width * height; ++i)
             {
-                for (int i = 0; i < width; ++i)
-                {
-                    const int index = j * width + i;
-                    
-                    const vec3 col = output[index] / samples;
-                    src[index] = lerp(src[index], col, float(frame_count) / float(frame_count + 1));
-                    
-                    const vec3 bitmap_col = clamp3(255.99f * sqrtf3(src[index]), .0f, 255.f);
+                const vec3 old_color = *dst_bbuf;
+                const vec3 new_color = lerp(old_color, *src++, blend_factor);
+                *dst_bbuf++ = new_color;
 
-                    *dst++ = (uint8_t)bitmap_col.b | ((uint8_t)bitmap_col.g << 8) | ((uint8_t)bitmap_col.r << 16);
-                }
+                const vec3 bitmap_col = clamp3(255.99f * sqrtf3(new_color), .0f, 255.f);
+                *dst_bmap++ = (uint8_t)bitmap_col.b        |
+                              ((uint8_t)bitmap_col.g << 8) |
+                              ((uint8_t)bitmap_col.r << 16);
             }
         }
 
+#if !defined(USE_OPENGL)
         InvalidateRect(wHandle, NULL, FALSE);
         UpdateWindow(wHandle);
+#else
+        glClear(GL_COLOR_BUFFER_BIT);
+        glDrawPixels(width, height, GL_BGRA, GL_UNSIGNED_INT_8_8_8_8_REV, out_bitmap_bytes);
+        SwapBuffers(hDC);
+#endif
 
         auto frame_end = high_resolution_clock::now();
-        duration<double, std::milli> frame_time = frame_end - frame_start;
-        std::this_thread::sleep_for(clamp(THIRTY_FPS - frame_time, ZERO, THIRTY_FPS));
+        duration<double, std::milli> frame_time(frame_end - frame_start);
+        duration<double, std::milli> wait_time(THIRTY_FPS - frame_time);
+        std::this_thread::sleep_for(duration<double, std::milli>(clamp(wait_time.count(), ZERO.count(), THIRTY_FPS.count())));
 
         ++frame_count;
         fps_timer += frame_time;
@@ -259,18 +304,18 @@ int CALLBACK WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPSTR lpCmdLi
         {
             static char window_title[MAX_PATH];
             snprintf(window_title,
-                MAX_PATH,
-                ".:: Tracy (%s) ::. %dx%d@%dspp [%.2f MRays/s - %.2ffps]",
+                     MAX_PATH,
+                     ".:: Tracy (%s) ::. %dx%d@%dspp [%.2f MRays/s - %.2ffps]",
 #if defined(USE_CUDA)
-                "GPU",
+                     "GPU",
 #else
-                "CPU",
+                     "CPU",
 #endif
-                width,
-                height,
-                samples,
-                (totrays / 1'000'000.0) / trace_seconds,
-                5.f / fps_timer.count() * 1000.f);
+                     width,
+                     height,
+                     samples,
+                     (totrays / 1'000'000.0) / trace_seconds,
+                     5.f / fps_timer.count() * 1000.f);
 
             SetWindowTextA(wHandle, window_title);
 

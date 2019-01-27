@@ -90,7 +90,7 @@ public:
     virtual void get_hit_data(const Ray& r, HitData& rec) const override final
     {
         rec.point = r.point_at(rec.t);
-        rec.normal = normalize(cross(v0v1, v0v2)); /* (1.f - rec.uv.x - rec.uv.y) * normal[0] + rec.uv.x * normal[1] + rec.uv.y * normal[2]; */
+        rec.normal = (1.f - rec.uv.x - rec.uv.y) * normal[0] + rec.uv.x * normal[1] + rec.uv.y * normal[2];
         rec.uv = (1.f - rec.uv.x - rec.uv.y) * uv[0] + rec.uv.x * uv[1] + rec.uv.y * uv[2];
         rec.material = mat;
     }

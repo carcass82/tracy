@@ -27,14 +27,14 @@ public:
         {
             outward_normal = -rec.normal;
             ni_over_nt = ref_idx;
-            cosine = dot(r_in.get_direction(), rec.normal) / length(r_in.get_direction());
+            cosine = dot(r_in.get_direction(), rec.normal);
 			cosine = sqrtf(1.f - ref_idx * ref_idx * (1.f - cosine - cosine));
         }
         else
         {
             outward_normal = rec.normal;
             ni_over_nt = 1.f / ref_idx;
-            cosine = -dot(r_in.get_direction(), rec.normal) / length(r_in.get_direction());
+            cosine = -dot(r_in.get_direction(), rec.normal);
         }
 
         vec3 refracted = refract(normalize(r_in.get_direction()), normalize(outward_normal), ni_over_nt);

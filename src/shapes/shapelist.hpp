@@ -11,11 +11,11 @@
 class ShapeList : public IShape
 {
 public:
-    ShapeList(IShape** objects, size_t num)
+    ShapeList(IShape** objects, int num)
         : list(objects)
         , list_size(num)
     {
-        for (size_t i = 0; i < list_size; ++i)
+        for (int i = 0; i < list_size; ++i)
         {
             vec3 outmin, outmax;
             list[i]->get_bounds(outmin, outmax);
@@ -33,7 +33,7 @@ public:
             bool hit_anything = false;
             float closest_so_far = t_max;
             int closest_index_so_far = -1;
-            for (size_t i = 0; i < list_size; ++i)
+            for (int i = 0; i < list_size; ++i)
             {
                 if (list[i]->hit(r, t_min, closest_so_far, temp_rec))
                 {
@@ -72,6 +72,6 @@ private:
     }
 
     IShape** list = { nullptr };
-    size_t list_size = 0;
+    int list_size = 0;
     Box bbox;
 };

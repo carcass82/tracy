@@ -22,7 +22,7 @@ public:
         s_rec.scattered = Ray(rec.point, reflected + roughness * random_on_unit_sphere());
         s_rec.attenuation = albedo;
 
-        return true;
+        return (dot(s_rec.scattered.get_direction(), rec.normal) > .0f);
     }
 
     virtual vec3 emitted(const Ray& r_in, const HitData& rec, const vec2& uv, const vec3& p) const override final

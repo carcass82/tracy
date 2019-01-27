@@ -143,7 +143,7 @@ std::vector<DTriangle*> load_mesh(const char* obj_path, DMaterial* obj_material)
 // ----------------------------------------------------------------------------
 //
 
-constexpr inline uint32_t MAKEID(char a, char b, char c) { return a | b << 8 | c << 16 | 0x0 << 24; }
+constexpr inline uint32_t make_id(char a, char b, char c, char d) { return a | b << 8 | c << 16 | d << 24; }
 
 #if !defined(USE_CUDA)
 Scene load_scene(const char* scn_file, float ratio)
@@ -177,11 +177,11 @@ DScene load_scene(const char* scn_file, float ratio)
             }
 
             char id[3];
-            constexpr uint32_t id_scn = MAKEID('S', 'C', 'N');
-            constexpr uint32_t id_cam = MAKEID('C', 'A', 'M');
-            constexpr uint32_t id_mtl = MAKEID('M', 'T', 'L');
-            constexpr uint32_t id_obj = MAKEID('O', 'B', 'J');
-            constexpr uint32_t id_tri = MAKEID('T', 'R', 'I');
+            constexpr uint32_t id_scn = make_id('S', 'C', 'N', '\0');
+            constexpr uint32_t id_cam = make_id('C', 'A', 'M', '\0');
+            constexpr uint32_t id_mtl = make_id('M', 'T', 'L', '\0');
+            constexpr uint32_t id_obj = make_id('O', 'B', 'J', '\0');
+            constexpr uint32_t id_tri = make_id('T', 'R', 'I', '\0');
 
             static char params[512];
             if (sscanf(line, "%c%c%c %[^\n]", &id[0], &id[1], &id[2], params) == 4)
