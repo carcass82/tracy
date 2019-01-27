@@ -11,10 +11,12 @@
 #define NOMCX
 #include <Windows.h>
 
+#if defined(USE_OPENGL)
 #include <GL/gl.h>
 #define GL_BGRA 0x80E1
 //#define GL_UNSIGNED_INT_8_8_8_8 0x8035
 #define GL_UNSIGNED_INT_8_8_8_8_REV 0x8367
+#endif
 
 #include <thread>
 #include <chrono>
@@ -178,15 +180,11 @@ int CALLBACK WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPSTR lpCmdLi
     SetPixelFormat(hDC, PixelFormat, &pfd);
     HGLRC hRC = wglCreateContext(hDC);
     wglMakeCurrent(hDC, hRC);
-
-    glMatrixMode(GL_PROJECTION);
-    glLoadIdentity();
-    glOrtho(0.0f, width, height, 0.0f, 1.0f, 1.0f);
-    glMatrixMode(GL_MODELVIEW);
     
     glDisable(GL_DEPTH_TEST);
     glClearColor(0.0f, 0.0f, 0.0f, 0.0f);
     glClear(GL_COLOR_BUFFER_BIT);
+    glMatrixMode(GL_MODELVIEW);
 #endif
 
     ShowWindow(wHandle, SW_SHOW);

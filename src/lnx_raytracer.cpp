@@ -18,6 +18,11 @@ using std::chrono::high_resolution_clock;
 #include <X11/Xutil.h>
 #include <X11/keysym.h>
 
+#if defined(USE_OPENGL)
+#include <GL/gl.h>
+#include <GL/glx.h>
+#endif
+
 #if USE_GLM
 #define GLM_ENABLE_EXPERIMENTAL
 #include <glm/glm.hpp>
@@ -88,6 +93,28 @@ int main(int argc, char** argv)
 	XStoreName(dpy, win, ".:: Tracy (GPU) ::.");
 #endif
 
+#if defined(USE_OPENGL)
+    GLint att[] = { GLX_RGBA, GLX_DEPTH_SIZE, 24, GLX_DOUBLEBUFFER, None };
+    XVisualInfo* vi = glXChooseVisual(dpy, 0, att);
+
+    GLXContext glc = glXCreateContext(dpy, vi, nullptr, GL_TRUE);
+    glXMakeCurrent(dpy, win, glc);
+
+    glMatrixMode(GL_PROJECTION);
+    glLoadIdentity();
+    glOrtho(0, width, 0, height, -1, 1);
+
+    glRasterPos2f(.0f, height);
+    glPixelZoom(1.f, -1.f);
+
+    glDisable(GL_DEPTH_TEST);
+    glClearColor(0.0f, 0.0f, 0.0f, 1.0f);
+    glClear(GL_COLOR_BUFFER_BIT);
+
+    glMatrixMode(GL_MODELVIEW);
+    glLoadIdentity();
+#endif
+
 #if !defined(USE_CUDA)
     Camera cam;
     IShape* world = nullptr;
@@ -104,13 +131,13 @@ int main(int argc, char** argv)
     vec3* output_backbuffer = new vec3[width * height];
     for (int i = 0; i < width * height; ++i) output_backbuffer[i] = {};
     
-    uint32_t* data = new uint32_t[width * height];
+    uint32_t* bitmap_data = new uint32_t[width * height];
     XImage* bitmap = XCreateImage(dpy,
                                   DefaultVisual(dpy, ds),
                                   DefaultDepth(dpy, ds),
                                   ZPixmap,
                                   0,
-                                  reinterpret_cast<char*>(data),
+                                  reinterpret_cast<char*>(bitmap_data),
                                   width,
                                   height,
                                   32,
@@ -181,20 +208,20 @@ int main(int argc, char** argv)
 
         //update bitmap
         {
-            vec3* accum = output_backbuffer;
+            const float blend_factor = frame_count / float(frame_count + 1);
 
+            vec3* src = output;
+            vec3* dst_bbuf = output_backbuffer;
             for (int j = 0; j < height; ++j)
             {
                 for (int i = 0; i < width; ++i)
                 {
-                    const int index = j * width + i;
+                    const vec3 old_color = *dst_bbuf;
+                    const vec3 new_color = lerp(old_color, *src++, blend_factor);
+                    *dst_bbuf++ = new_color;
 
-                    const vec3 col = output[index] / float(samples);
-                    accum[index] = lerp(accum[index], col, float(frame_count) / float(frame_count + 1));
-
-                    const vec3 bitmap_col = clamp3(255.99f * sqrtf3(accum[index]), .0f, 255.f);
+                    const vec3 bitmap_col = clamp3(255.99f * sqrtf3(new_color), .0f, 255.f);
                     const uint32_t dst = (uint8_t)bitmap_col.b | ((uint8_t)bitmap_col.g << 8) | ((uint8_t)bitmap_col.r << 16) | (0xff << 24);
-                    
                     XPutPixel(bitmap, i, height - j, dst);
                 }
             }
@@ -230,8 +257,14 @@ int main(int argc, char** argv)
             fps_timer = 0ms;
         }
 
+#if !defined(USE_OPENGL)
         XPutImage(dpy, win, DefaultGC(dpy, ds), bitmap, 0, 0, 0, 0, width, height);
         XFlush(dpy);
+#else
+        glClear(GL_COLOR_BUFFER_BIT);
+        glDrawPixels(width, height, GL_BGRA, GL_UNSIGNED_INT_8_8_8_8_REV, bitmap_data);
+        glXSwapBuffers(dpy, win);
+#endif
     }
 
     XCloseDisplay(dpy);
