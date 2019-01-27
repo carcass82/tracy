@@ -65,8 +65,6 @@ public:
         {
             HitData temp_rec;
             temp_rec.t = t_max;
-
-            float closest_so_far = t_max;
             int closest_index_so_far = -1;
 
             //
