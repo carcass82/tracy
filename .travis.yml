@@ -2,6 +2,14 @@ dist: xenial
 language: cpp
 compiler: gcc
 
+matrix:
+  include:
+    - os: linux
+      compiler: gcc
+    - os: linux
+      compiler: clang
+    - os: windows
+
 addons:
   apt:
     sources:
@@ -9,29 +17,16 @@ addons:
     packages:
       - g++-8
       - cmake
-      - libglm-dev
-      - nvidia-cuda-toolkit
-      - nvidia-cuda-dev
-      - nvidia-profiler
       
 script:
-  - export CXX=g++-8
-
-  - mkdir build-glm
-  - cd build-glm
-  - cmake -G "Unix Makefiles" -DCMAKE_BUILD_TYPE=Release -DCMAKE_VERBOSE_MAKEFILE=ON -DBUILD_WITH_CUDA=OFF -DUSE_GLM=ON ..
-  - make -j
-  - cd ..
-
-  - mkdir build
-  - cd build
-  - cmake -G "Unix Makefiles" -DCMAKE_BUILD_TYPE=Release -DCMAKE_VERBOSE_MAKEFILE=ON -DBUILD_WITH_CUDA=OFF ..
-  - make -j
-  - cd ..
-
-  - mkdir build-cuda
-  - cd build-cuda  
-  - cmake -G "Unix Makefiles" -DCMAKE_BUILD_TYPE=Release -DCMAKE_VERBOSE_MAKEFILE=ON -DBUILD_WITH_CUDA=ON ..
-  - make -j
-  - cd ..
+  - if [[ "$TRAVIS_OS_NAME" != "windows" && "$CXX" != "clang++" ]]; then export CXX=g++-8; fi
+  - if [[ "$TRAVIS_OS_NAME" != "windows" ]]; then mkdir build; fi
+  - if [[ "$TRAVIS_OS_NAME" != "windows" ]]; then cd build; fi
+  - if [[ "$TRAVIS_OS_NAME" != "windows" ]]; then cmake -G "Unix Makefiles" -DCMAKE_BUILD_TYPE=Release ..; fi
+  - if [[ "$TRAVIS_OS_NAME" != "windows" ]]; then cmake --build .; fi
+  - if [[ "$TRAVIS_OS_NAME" != "windows" ]]; then cd ..; fi
+  
+  - if [[ "$TRAVIS_OS_NAME" == "windows" ]]; then cmake -G "Visual Studio 15 2017 Win64"; fi
+  - if [[ "$TRAVIS_OS_NAME" == "windows" ]]; then cmake --build . -- -property:Configuration=Release; fi
+  
 

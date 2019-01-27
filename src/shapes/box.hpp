@@ -10,7 +10,9 @@
 class Box : public IShape
 {
 public:
-    Box() {}
+    Box()
+    {
+    }
 
     Box(const vec3& p0, const vec3& p1, IMaterial* ptr)
         : pmin(p0)
@@ -92,6 +94,13 @@ public:
 
         return contained;
     }
+
+    virtual uint32_t get_id() const override final
+    {
+        return make_id('B', 'O', 'X');
+    }
+
+    friend class ShapeList;
 
 private:
     vec3 get_normal(const vec3& point) const

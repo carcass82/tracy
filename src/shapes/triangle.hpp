@@ -10,6 +10,10 @@
 class Triangle : public IShape
 {
 public:
+    Triangle()
+    {
+    }
+
     Triangle(vec3 v1, vec3 v2, vec3 v3, IMaterial* ptr)
         : vertices{ v1, v2, v3 }
         , mat(ptr)
@@ -100,6 +104,13 @@ public:
         min = min3(vertices[0], min3(vertices[1], vertices[2]));
         max = max3(vertices[0], max3(vertices[1], vertices[2]));
     }
+
+    virtual uint32_t get_id() const override final
+    {
+        return make_id('T', 'R', 'I');
+    }
+
+    friend class ShapeList;
 
 private:
     vec3 vertices[3];

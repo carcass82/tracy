@@ -6,47 +6,49 @@
  */
 #pragma once
 
+#define fastrand() fastrand_intel()
+
 //
 // PRNG from
 // https://en.wikipedia.org/wiki/Xorshift
 // (Algorithm "xor" from p. 4 of Marsaglia, "Xorshift RNGs")
 //
-//inline float fastrand()
-//{
-//    static uint32_t s_RndState = 123456789;
-//    #pragma omp threadprivate(s_RndState)
-//
-//    uint32_t x = s_RndState;
-//    x ^= x << 13;
-//    x ^= x >> 17;
-//    x ^= x << 5;
-//    s_RndState = x;
-//
-//    return (x & 0xffffff) / 16777216.0f;
-//}
+inline float fastrand_xorshift()
+{
+    static uint32_t s_RndState = 123456789;
+    #pragma omp threadprivate(s_RndState)
+
+    uint32_t x = s_RndState;
+    x ^= x << 13;
+    x ^= x >> 17;
+    x ^= x << 5;
+    s_RndState = x;
+
+    return (x & 0xffffff) / 16777216.0f;
+}
 
 //
 // PRNG from
 // https://en.wikipedia.org/wiki/Permuted_congruential_generator
 //
-//inline float fastrand()
-//{
-//    static uint64_t mcg_state = 0xcafef00dd15ea5e4u;
-//    #pragma omp threadprivate(mcg_state)
-//    
-//    uint64_t x = mcg_state;
-//    unsigned count = (unsigned)(x >> 61);
-//    mcg_state = x * 6364136223846793005u;
-//    x ^= x >> 22;
-//    
-//    return ((uint32_t)(x >> (22 + count)) & 0xffffff) / 16777216.f;
-//}
+inline float fastrand_pcg()
+{
+    static uint64_t mcg_state = 0xcafef00dd15ea5e4u;
+    #pragma omp threadprivate(mcg_state)
+    
+    uint64_t x = mcg_state;
+    unsigned count = (unsigned)(x >> 61);
+    mcg_state = x * 6364136223846793005u;
+    x ^= x >> 22;
+    
+    return ((uint32_t)(x >> (22 + count)) & 0xffffff) / 16777216.f;
+}
 
 //
 // PRNG from
 // https://software.intel.com/en-us/articles/fast-random-number-generator-on-the-intel-pentiumr-4-processor/
 //
-inline float fastrand()
+inline float fastrand_intel()
 {
     static uint32_t g_state = 0xdeadbeef;
     #pragma omp threadprivate(g_state)
@@ -89,4 +91,9 @@ inline vec3 sqrtf3(const vec3& a)
 inline vec3 clamp3(const vec3& a, float min, float max)
 {
     return vec3{ clamp(a.x, min, max), clamp(a.y, min, max), clamp(a.z, min, max) };
+}
+
+constexpr inline uint32_t make_id(char a, char b, char c = '\0', char d = '\0')
+{
+    return a | b << 8 | c << 16 | d << 24;
 }

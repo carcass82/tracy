@@ -10,6 +10,10 @@
 class Sphere : public IShape
 {
 public:
+    Sphere()
+    {
+    }
+
     Sphere(vec3 c, float r, IMaterial* ptr)
         : center(c)
         , radius(r)
@@ -68,6 +72,13 @@ public:
         min = center - radius;
         max = center + radius;
     }
+
+    virtual uint32_t get_id() const override final
+    {
+        return make_id('S', 'P', 'H');
+    }
+
+    friend class ShapeList;
 
 private:
     vec2 get_uv_at(const vec3& p) const

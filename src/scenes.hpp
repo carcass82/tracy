@@ -143,8 +143,6 @@ std::vector<DTriangle*> load_mesh(const char* obj_path, DMaterial* obj_material)
 // ----------------------------------------------------------------------------
 //
 
-constexpr inline uint32_t make_id(char a, char b, char c, char d) { return a | b << 8 | c << 16 | d << 24; }
-
 #if !defined(USE_CUDA)
 Scene load_scene(const char* scn_file, float ratio)
 {
