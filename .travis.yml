@@ -1,13 +1,9 @@
-dist: xenial
 language: cpp
-compiler: gcc
 
 matrix:
   include:
     - os: linux
       compiler: gcc
-    - os: linux
-      compiler: clang
     - os: windows
 
 addons:
@@ -22,8 +18,11 @@ script:
   - if [[ "$TRAVIS_OS_NAME" != "windows" && "$CXX" != "clang++" ]]; then export CXX=g++-8 ; fi
   - if [[ "$TRAVIS_OS_NAME" != "windows" ]]; then cmake -G "Unix Makefiles" -DCMAKE_BUILD_TYPE=Release . ; fi
   - if [[ "$TRAVIS_OS_NAME" != "windows" ]]; then cmake --build . ; fi
+  - if [[ "$TRAVIS_OS_NAME" != "windows" ]]; then cmake -G "Unix Makefiles" -DCMAKE_BUILD_TYPE=Debug . ; fi
+  - if [[ "$TRAVIS_OS_NAME" != "windows" ]]; then cmake --build . ; fi
   
   - if [[ "$TRAVIS_OS_NAME" == "windows" ]]; then cmake -G "Visual Studio 15 2017 Win64" ; fi
   - if [[ "$TRAVIS_OS_NAME" == "windows" ]]; then cmake --build . -- -property:Configuration=Release ; fi
+  - if [[ "$TRAVIS_OS_NAME" == "windows" ]]; then cmake --build . -- -property:Configuration=Debug ; fi
   
 
