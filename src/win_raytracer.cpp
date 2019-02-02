@@ -144,8 +144,12 @@ int CALLBACK WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPSTR lpCmdLi
     DWORD dwStyle = (WS_OVERLAPPEDWINDOW ^ (WS_SIZEBOX | WS_MAXIMIZEBOX | WS_MINIMIZEBOX)) | WS_VISIBLE;
     const int width = 1024;
     const int height = 768;
-    const int samples = 2;
+    const int samples = 1;
     const char* scene_path = "data/default.scn";
+
+    // left, top, right, bottom
+    RECT win_rect = { 0, 0, width, height };
+    AdjustWindowRectEx(&win_rect, dwStyle, false, WS_EX_APPWINDOW);
 
     HWND wHandle = CreateWindowEx(WS_EX_APPWINDOW,
                                   "TracyWindowClass",
@@ -157,8 +161,8 @@ int CALLBACK WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPSTR lpCmdLi
                                   dwStyle,
                                   CW_USEDEFAULT,
                                   CW_USEDEFAULT,
-                                  width,
-                                  height,
+                                  win_rect.right - win_rect.left,
+                                  win_rect.bottom - win_rect.top,
                                   nullptr,
                                   nullptr,
                                   hInstance,

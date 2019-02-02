@@ -143,7 +143,7 @@ std::vector<DTriangle*> load_mesh(const char* obj_path, DMaterial* obj_material)
             }
 #else
             verts[v] = make_float3(v0, v1, v2);
-            norms[n] = make_float3(n0, n1, n2);
+            norms[v] = make_float3(n0, n1, n2);
             ++v;
 
             if (v == 3)

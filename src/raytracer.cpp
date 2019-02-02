@@ -73,7 +73,7 @@ extern "C" void setup(const char* path, Camera& cam, float aspect, IShape** worl
 
 // max "bounces" for tracing
 #ifndef MAX_DEPTH
- #define MAX_DEPTH 5
+ #define MAX_DEPTH 50
 #endif
 vec3 color(const Ray& r, IShape* world, int depth, int& raycount)
 {

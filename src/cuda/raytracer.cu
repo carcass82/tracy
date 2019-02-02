@@ -317,9 +317,9 @@ __host__ __device__ inline DTriangle* triangle_create(float3 v1, float3 v2, floa
 __host__ __device__ inline DTriangle* triangle_create_with_normals(float3 v1, float3 v2, float3 v3, float3 n1, float3 n2, float3 n3, DMaterial mat)
 {
 	DTriangle* triangle = triangle_create(v1, v2, v3, mat);
-    triangle->normal[0] = n0;
-    triangle->normal[1] = n1;
-    triangle->normal[2] = n2;
+    triangle->normal[0] = n1;
+    triangle->normal[1] = n2;
+    triangle->normal[2] = n3;
 
     return triangle;
 }
@@ -331,6 +331,7 @@ __device__ inline void triangle_hit_data(DTriangle& triangle, const DRay& ray, D
     hit.uv = (1.f - hit.uv.x - hit.uv.y) * triangle.uv[0] + hit.uv.x * triangle.uv[1] + hit.uv.y * triangle.uv[2];
     hit.material = &triangle.material;
 }
+
 
 struct DCamera
 {
@@ -378,19 +379,17 @@ __device__ bool intersect_spheres(const DRay& ray, const DSphere* spheres, int s
     {
         const DSphere& sphere = spheres[i];
 
-        float3 oc = ray.origin - sphere.center;
-        float b = dot(oc, ray.direction);
-        float c = dot(oc, oc) - sphere.radius * sphere.radius;
+        const float3 oc = ray.origin - sphere.center;
+        const float b = dot(oc, ray.direction);
+        const float c = dot(oc, oc) - sphere.radius * sphere.radius;
 
         if (b <= .0f || c <= .0f)
         {
-            float discriminant = b * b - c;
+            const float discriminant = sqrtf(b * b - c);
             if (discriminant > 0.f)
             {
-                discriminant = sqrtf(discriminant);
-
-                float t0 = -b - discriminant;
-                if (t0 > 0.01f && t0 < hit_data.t)
+                const float t0 = -b - discriminant;
+                if (t0 > 1e-2f && t0 < hit_data.t)
                 {
                     hit_data.t = t0;
                     hit_data.type = DIntersection::eSPHERE;
@@ -398,8 +397,8 @@ __device__ bool intersect_spheres(const DRay& ray, const DSphere* spheres, int s
                     hit_something = true;
                 }
 
-                float t1 = -b + discriminant;
-                if (t1 > 0.01f && t1 < hit_data.t)
+                const float t1 = -b + discriminant;
+                if (t1 > 1e-2f && t1 < hit_data.t)
                 {
                     hit_data.t = t1;
                     hit_data.type = DIntersection::eSPHERE;
@@ -417,53 +416,37 @@ __device__ bool intersect_boxes(const DRay& ray, const DBox* boxes, int box_coun
 {
     bool hit_something = false;
 
+    const float3 inv_ray = 1.f / ray.direction;
+
     for (int i = 0; i < box_count; ++i)
     {
         const DBox& box = boxes[i];
 
-        float tmin = 0.01f;
-        float tmax = FLT_MAX;
+        float tmin = 1e-2f;
+        float tmax = hit_data.t;
 
         bool boxhit = false;
+
+        const float3 minbound = (box.min_limit - ray.origin) * inv_ray;
+        const float3 maxbound = (box.max_limit - ray.origin) * inv_ray;
+        const float minb[] = { minbound.x, minbound.y, minbound.z };
+        const float maxb[] = { maxbound.x, maxbound.y, maxbound.z };
 
         #pragma unroll
         for (int side = 0; side < 3; ++side)
         {
-            // TODO: think something better
-            float direction = (side == 0)? ray.direction.x : (side == 1)? ray.direction.y : ray.direction.z;
-            float origin = (side == 0)? ray.origin.x : (side == 1)? ray.origin.y : ray.origin.z;
-            float minbound = (side == 0)? box.min_limit.x : (side == 1)? box.min_limit.y : box.min_limit.z;
-            float maxbound = (side == 0)? box.max_limit.x : (side == 1)? box.max_limit.y : box.max_limit.z;
+            float t1 = minb[side];
+            float t2 = maxb[side];
 
-            if (fabs(direction) < 1e-3f)
+            tmin = max(tmin, min(t1, t2));
+            tmax = min(tmax, max(t1, t2));
+
+            if (tmin > tmax || tmin > hit_data.t)
             {
-                if (origin < minbound || origin > maxbound)
-                {
-                    boxhit = false;
-                    break;
-                }
+                boxhit = false;
+                break;
             }
-            else
-            {
-                float ood = 1.f / direction;
-                float t1 = (minbound - origin) * ood;
-                float t2 = (maxbound - origin) * ood;
-
-                if (t1 > t2)
-                {
-                    swap(t1, t2);
-                }
-
-                tmin = max(tmin, t1);
-                tmax = min(tmax, t2);
-
-                if (tmin > tmax || tmin > hit_data.t)
-                {
-                    boxhit = false;
-                    break;
-                }
-                boxhit = true;
-            }
+            boxhit = true;
         }
 
         if (boxhit)
@@ -527,7 +510,7 @@ __device__ bool intersect_triangles(const DRay& ray, const DTriangle* triangles,
     return hit_something;
 }
 
-__device__ const int MAX_DEPTH = 5;
+__device__ const int MAX_DEPTH = 50;
 __device__ const float3 WHITE = {1.f, 1.f, 1.f};
 __device__ const float3 BLACK = {0.f, 0.f, 0.f};
 
@@ -575,7 +558,7 @@ __device__ float3 get_color_for(DRay ray, DSphere* spheres, int sphere_count, DB
             //
             // debug - show normals
             //
-            //return .5f * (1.f + normalize(hit_data.normal));
+            //return .5f * normalize(1.f + hit_data.normal);
 
             DRay scattered;
             float3 attenuation;
