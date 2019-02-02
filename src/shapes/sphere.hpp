@@ -24,38 +24,7 @@ public:
 
     virtual bool hit(const Ray& r, float t_min, float t_max, HitData& rec) const override final
     {
-        vec3 oc{ r.get_origin() - center };
-        float b = dot(oc, r.get_direction());
-        float c = dot(oc, oc) - radius2;
-
-        //
-        // b > 0     - ray pointing away from sphere
-        // c > 0     - ray does not start inside sphere
-        // discr < 0 - ray does not hit the sphere
-        //
-        if (b <= .0f || c <= .0f)
-        {
-            float discriminant = b * b - c;
-            if (discriminant > .0f)
-            {
-                discriminant = sqrtf(discriminant);
-
-                float t0 = -b - discriminant;
-                if (t0 < t_max && t0 > t_min)
-                {
-                    rec.t = t0;
-                    return true;
-                }
-
-                float t1 = -b + discriminant;
-                if (t1 < t_max && t1 > t_min)
-                {
-                    rec.t = t1;
-                    return true;
-                }
-            }
-        }
-
+        // see ShapeList
         return false;
     }
 

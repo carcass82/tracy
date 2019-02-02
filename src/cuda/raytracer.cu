@@ -314,10 +314,20 @@ __host__ __device__ inline DTriangle* triangle_create(float3 v1, float3 v2, floa
     return triangle;
 }
 
+__host__ __device__ inline DTriangle* triangle_create_with_normals(float3 v1, float3 v2, float3 v3, float3 n1, float3 n2, float3 n3, DMaterial mat)
+{
+	DTriangle* triangle = triangle_create(v1, v2, v3, mat);
+    triangle->normal[0] = n0;
+    triangle->normal[1] = n1;
+    triangle->normal[2] = n2;
+
+    return triangle;
+}
+
 __device__ inline void triangle_hit_data(DTriangle& triangle, const DRay& ray, DIntersection& hit)
 {
     hit.point = ray_point_at(ray, hit.t);
-    hit.normal = triangle.normal[0]; //(1.f - hit.uv.x - hit.uv.y) * triangle.normal[0] + hit.uv.x * triangle.normal[1] + hit.uv.y * triangle.normal[2];
+    hit.normal = (1.f - hit.uv.x - hit.uv.y) * triangle.normal[0] + hit.uv.x * triangle.normal[1] + hit.uv.y * triangle.normal[2];
     hit.uv = (1.f - hit.uv.x - hit.uv.y) * triangle.uv[0] + hit.uv.x * triangle.uv[1] + hit.uv.y * triangle.uv[2];
     hit.material = &triangle.material;
 }

@@ -87,7 +87,7 @@ vec3 color(const Ray& r, IShape* world, int depth, int& raycount)
         //
         // debug - show normals
         //
-        //return .5f * (1.f + rec.normal);
+        //return .5f * normalize((1.f + rec.normal));
 
         vec3 emitted = rec.material->emitted(r, rec, rec.uv, rec.point);
 
@@ -118,7 +118,7 @@ vec3 color(const Ray& r, IShape* world, int depth, int& raycount)
             //
             // debug - show normals
             //
-            //return .5f * (1.f + rec.normal);
+            //return .5f * normalize((1.f + rec.normal));
             
             ScatterData srec;
             if (rec.material->scatter(current_ray, rec, srec))
@@ -240,7 +240,7 @@ int main(int argc, char** argv)
 {
     const int nx = 1024; // w
     const int ny = 768;  // h
-    const int ns = 64;   // samples
+    const int ns = 256;   // samples
 
     char filename[256];
     {

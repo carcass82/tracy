@@ -23,36 +23,8 @@ public:
 
     virtual bool hit(const Ray& r, float t_min, float t_max, HitData& rec) const override final
     {
-        float tmin = t_min;
-        float tmax = t_max;
-
-        for (int i = 0; i < 3; ++i)
-        {
-            const float direction = r.get_direction()[i];
-            const float origin = r.get_origin()[i];
-            const float minbound = pmin[i];
-            const float maxbound = pmax[i];
-
-            const float ood = 1.f / direction;
-            float t1 = (minbound - origin) * ood;
-            float t2 = (maxbound - origin) * ood;
-
-            if (t1 > t2)
-            {
-                swap(t1, t2);
-            }
-
-            tmin = max(tmin, t1);
-            tmax = min(tmax, t2);
-
-            if (tmin > tmax || tmin > t_max)
-            {
-                return false;
-            }
-        }
-
-        rec.t = tmin;
-        return true;
+        // see shapelist
+        return false;
     }
 
     virtual void get_hit_data(const Ray& r, HitData& rec) const override final

@@ -126,30 +126,22 @@ public:
             // check boxes
             //
             bool hit_box = false;
+            const vec3 inv_ray = 1.f / r.get_direction();
             for (int i = 0; i < boxes_count; ++i)
             {
                 float tmin = t_min;
                 float tmax = temp_rec.t;
                 bool hit = false;
 
+                const vec3 minbound = (boxes[i].pmin - r.get_origin()) * inv_ray;
+                const vec3 maxbound = (boxes[i].pmax - r.get_origin()) * inv_ray;
                 for (int dim = 0; dim < 3; ++dim)
                 {
-                    const float direction = r.get_direction()[dim];
-                    const float origin = r.get_origin()[dim];
-                    const float minbound = boxes[i].pmin[dim];
-                    const float maxbound = boxes[i].pmax[dim];
+                    float t1 = minbound[dim];
+                    float t2 = maxbound[dim];
 
-                    const float ood = 1.f / direction;
-                    float t1 = (minbound - origin) * ood;
-                    float t2 = (maxbound - origin) * ood;
-
-                    if (t1 > t2)
-                    {
-                        swap(t1, t2);
-                    }
-
-                    tmin = max(tmin, t1);
-                    tmax = min(tmax, t2);
+                    tmin = max(tmin, min(t1, t2));
+                    tmax = min(tmax, max(t1, t2));
 
                     if (tmin > tmax || tmin > temp_rec.t)
                     {
@@ -250,8 +242,27 @@ public:
 private:
     bool hit_bbox(const Ray& r, float t_min, float t_max) const
     {
-        HitData tmp;
-        return bbox.hit(r, t_min, t_max, tmp);
+        const vec3 inv_ray = 1.f / r.get_direction();
+        const vec3 minbound = (bbox.pmin - r.get_origin()) * inv_ray;
+        const vec3 maxbound = (bbox.pmax - r.get_origin()) * inv_ray;
+
+        float tmin = t_min;
+        float tmax = t_max;
+        for (int dim = 0; dim < 3; ++dim)
+        {
+            float t1 = minbound[dim];
+            float t2 = maxbound[dim];
+
+            tmin = max(tmin, min(t1, t2));
+            tmax = min(tmax, max(t1, t2));
+
+            if (tmin > tmax || tmin > t_max)
+            {
+                return false;
+            }
+        }
+
+        return true;
     }
 
     Box* boxes = nullptr;

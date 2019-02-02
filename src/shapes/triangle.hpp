@@ -55,39 +55,7 @@ public:
 
     virtual bool hit(const Ray& r, float t_min, float t_max, HitData& rec) const override final
     {
-        vec3 pvec = cross(r.get_direction(), v0v2);
-        float det = dot(v0v1, pvec);
-
-        // if the determinant is negative the triangle is backfacing
-        // if the determinant is close to 0, the ray misses the triangle
-        if (det < 1e-6)
-        {
-            return false;
-        }
-
-        float invDet = 1.f / det;
-
-        vec3 tvec = r.get_origin() - vertices[0];
-        float u = dot(tvec, pvec) * invDet;
-        if (u < .0f || u > 1.f)
-        {
-            return false;
-        }
-
-        vec3 qvec = cross(tvec, v0v1);
-        float v = dot(r.get_direction(), qvec) * invDet;
-        if (v < .0f || u + v > 1.f)
-        {
-            return false;
-        }
-
-        float t = dot(v0v2, qvec) * invDet;
-        if (t < t_max && t > t_min)
-        {
-            rec.t = dot(v0v2, qvec) * invDet;
-            rec.uv = vec2{ u, v };
-            return true;
-        }
+        // see ShapeList
         return false;
     }
 

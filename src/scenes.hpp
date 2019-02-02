@@ -85,43 +85,77 @@ std::vector<DTriangle*> load_mesh(const char* obj_path, DMaterial* obj_material)
     IShape** list = new IShape*[MAX_SPLIT];
     
     vec3 verts[3];
+    vec3 norms[3];
+    bool has_normals = true;
 
     unsigned int i = 0;
     unsigned int n = 0;
 #else
     float3 verts[3];
+    float3 norms[3];
+    bool has_normals = true;
 #endif
     unsigned int v = 0;
     for (const tinyobj::shape_t& shape : shapes)
     {
         for (const tinyobj::index_t& index : shape.mesh.indices)
         {
-            float v0 = attrib.vertices[3 * index.vertex_index + 0];
-            float v1 = attrib.vertices[3 * index.vertex_index + 1];
-            float v2 = attrib.vertices[3 * index.vertex_index + 2];
+            const float v0 = attrib.vertices[3 * index.vertex_index + 0];
+            const float v1 = attrib.vertices[3 * index.vertex_index + 1];
+            const float v2 = attrib.vertices[3 * index.vertex_index + 2];
+
+            float n0, n1, n2;
+            if (index.normal_index != -1)
+            {
+                n0 = attrib.normals[3 * index.normal_index + 0];
+                n1 = attrib.normals[3 * index.normal_index + 1];
+                n2 = attrib.normals[3 * index.normal_index + 2];
+            }
+            else
+            {
+                has_normals = false;
+            }
 
 #if !defined(USE_CUDA)
-            verts[v++] = vec3{ v0, v1, v2 };
+            verts[v] = vec3{ v0, v1, v2 };
+            norms[v] = vec3{ n0, n1, n2 };
+            ++v;
 
             if (v == 3)
             {
-                list[i++] = new Triangle(verts[0], verts[1], verts[2], obj_material);
+                if (has_normals)
+                {
+                    list[i++] = new Triangle(verts[0], verts[1], verts[2], norms[0], norms[1], norms[2], obj_material);
+                }
+                else
+                {
+                    list[i++] = new Triangle(verts[0], verts[1], verts[2], obj_material);
+                }
                 v = 0;
             }
 
             if (i >= MAX_SPLIT)
             {
                 tmplist[n++] = new ShapeList(list, i);
-                
+
                 i = 0;
                 list = new IShape*[MAX_SPLIT];
             }
 #else
-            verts[v++] = make_float3(v0, v1, v2);
+            verts[v] = make_float3(v0, v1, v2);
+            norms[n] = make_float3(n0, n1, n2);
+            ++v;
 
             if (v == 3)
             {
-                mesh.push_back(triangle_create(verts[0], verts[1], verts[2], *obj_material));
+                if (has_normals)
+                {
+                    mesh.push_back(triangle_create_with_normals(verts[0], verts[1], verts[2], norms[0], norms[1], norms[2], *obj_material));
+                }
+                else
+                {
+                    mesh.push_back(triangle_create(verts[0], verts[1], verts[2], *obj_material));
+                }
                 v = 0;
             }
 #endif
