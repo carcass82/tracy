@@ -14,7 +14,6 @@
 #if defined(USE_OPENGL)
 #include <GL/gl.h>
 #define GL_BGRA 0x80E1
-//#define GL_UNSIGNED_INT_8_8_8_8 0x8035
 #define GL_UNSIGNED_INT_8_8_8_8_REV 0x8367
 #endif
 
@@ -240,6 +239,7 @@ int CALLBACK WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPSTR lpCmdLi
     bool quit = false;
     MSG msg;
     int frame_count = 0;
+    int samples_counter = 0;
     while (!quit)
     {
         if (PeekMessage(&msg, NULL, NULL, NULL, PM_REMOVE))
@@ -299,6 +299,7 @@ int CALLBACK WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPSTR lpCmdLi
         std::this_thread::sleep_for(duration<double, std::milli>(clamp(wait_time.count(), ZERO.count(), THIRTY_FPS.count())));
 
         ++frame_count;
+        samples_counter += samples;
         fps_timer += frame_time;
 
         // print some random stats every 5 frames
@@ -307,7 +308,7 @@ int CALLBACK WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPSTR lpCmdLi
             static char window_title[MAX_PATH];
             snprintf(window_title,
                      MAX_PATH,
-                     ".:: Tracy (%s) ::. %dx%d@%dspp [%.2f MRays/s - %.2ffps]",
+                     ".:: Tracy (%s) ::. %dx%d@%dspp [%.2f MRays/s - %.2ffps] - %dspp done",
 #if defined(USE_CUDA)
                      "GPU",
 #else
@@ -316,8 +317,9 @@ int CALLBACK WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPSTR lpCmdLi
                      width,
                      height,
                      samples,
-                     (totrays / 1'000'000.0) / trace_seconds,
-                     5.f / fps_timer.count() * 1000.f);
+                     totrays * 1e-6 / trace_seconds,
+                     5.f / fps_timer.count() * 1e3f,
+                     samples_counter);
 
             SetWindowTextA(wHandle, window_title);
 

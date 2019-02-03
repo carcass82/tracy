@@ -37,6 +37,7 @@ using cc::math::vec2;
 using cc::util::max;
 using cc::util::min;
 using cc::util::clamp;
+using cc::util::array_size;
 using cc::math::radians;
 using cc::math::lerp;
 using cc::math::dot;
@@ -73,7 +74,7 @@ extern "C" void setup(const char* path, Camera& cam, float aspect, IShape** worl
 
 // max "bounces" for tracing
 #ifndef MAX_DEPTH
- #define MAX_DEPTH 50
+ #define MAX_DEPTH 5
 #endif
 vec3 color(const Ray& r, IShape* world, int depth, int& raycount)
 {

@@ -24,7 +24,7 @@ public:
 
     constexpr const vec3& get_origin() const     { return origin_; }
     constexpr const vec3& get_direction() const  { return direction_; }
-    constexpr vec3 point_at(float t) const       { return origin_ + t * direction_; }
+    vec3 point_at(float t) const                 { return origin_ + t * direction_; }
 
 private:
     vec3 origin_;

@@ -18,10 +18,10 @@
 
 #include "camera.hpp"
 
-#include "shapes/shapelist.hpp"
 #include "shapes/box.hpp"
 #include "shapes/sphere.hpp"
 #include "shapes/triangle.hpp"
+#include "shapes/shapelist.hpp"
 
 #include "materials/lambertian.hpp"
 #include "materials/metal.hpp"
@@ -31,6 +31,22 @@
 #include "textures/bitmap.hpp"
 #include "textures/constant.hpp"
 #include "textures/checker.hpp"
+
+static IMaterial* debug_materials[] = {
+#if defined(DEBUG_BVH)
+        new Lambertian(new Constant(vec3{ 1.f, 0.f, 0.f })),
+        new Lambertian(new Constant(vec3{ 0.f, 1.f, 0.f })),
+        new Lambertian(new Constant(vec3{ 0.f, 0.f, 1.f })),
+        new Lambertian(new Constant(vec3{ 1.f, 0.f, 1.f })),
+        new Lambertian(new Constant(vec3{ 0.f, 1.f, 1.f })),
+        new Lambertian(new Constant(vec3{ 1.f, 1.f, 0.f })),
+        new Lambertian(new Constant(vec3{ 1.f, 1.f, 1.f })),
+        new Lambertian(new Constant(vec3{ .1f, .1f, .1f }))
+#else
+        nullptr, nullptr, nullptr, nullptr, nullptr, nullptr, nullptr, nullptr
+#endif
+};
+static constexpr int debug_materials_size = array_size(debug_materials);
 
 
 struct Scene
@@ -53,6 +69,72 @@ struct DScene
     int num_spheres;
 };
 #endif
+
+IShape* create_bvh(IShape** trimesh, int numtris)
+{
+    vec3 minbound{ FLT_MAX, FLT_MAX, FLT_MAX };
+    vec3 maxbound{ FLT_MIN, FLT_MIN, FLT_MIN };
+    for (int i = 0; i < numtris; ++i)
+    {
+        Triangle* triangle = static_cast<Triangle*>(trimesh[i]);
+
+        for (int j = 0; j < 3; ++j)
+        {
+            minbound = min3(minbound, triangle->get_vertex(j));
+            maxbound = max3(maxbound, triangle->get_vertex(j));
+        }
+    }
+
+    constexpr int leaf_count = 64;
+
+    IShape** leafs = new IShape*[leaf_count];
+    float slice_size = (maxbound.x - minbound.x) / leaf_count;
+    for (int i = 0; i < leaf_count; i += 2)
+    {
+        int leaf_right_tricount = 0;
+        int leaf_left_tricount = 0;
+        IShape** leaf_right = new IShape*[numtris];
+        IShape** leaf_left = new IShape*[numtris];
+
+        for (int j = 0; j < numtris; ++j)
+        {
+            Triangle* triangle = static_cast<Triangle*>(trimesh[j]);
+            const vec3& barycenter = triangle->get_barycenter();
+            if (barycenter.y < maxbound.y && barycenter.y >= minbound.y &&
+                barycenter.z < maxbound.z && barycenter.z >= minbound.z)
+            {
+                if (barycenter.x < minbound.x + (i + 1) * slice_size &&
+                    barycenter.x >= minbound.x + (i) * slice_size)
+                {
+                    leaf_left[leaf_left_tricount++] = trimesh[j];
+                }
+                else if (barycenter.x < minbound.x + (i + 2) * slice_size &&
+                         barycenter.x >= minbound.x + (i + 1) * slice_size)
+                {
+                    leaf_right[leaf_right_tricount++] = trimesh[j];
+                }
+            }
+        }
+
+        leafs[i + 0] = new ShapeList(leaf_left, leaf_left_tricount, debug_materials[(i / 2) % debug_materials_size]);
+        leafs[i + 1] = new ShapeList(leaf_right, leaf_right_tricount, debug_materials[(i / 2) % debug_materials_size]);
+    }
+
+    IShape** prev = leafs;
+    int steps = leaf_count / 2;
+    while (steps >= 1)
+    {
+        IShape** cur = new IShape*[steps];
+        for (int i = 0; i < steps; ++i)
+        {
+            cur[i] = new ShapeList(&prev[i * 2], 2);
+        }
+        steps /= 2;
+        prev = cur;
+    }
+
+    return prev[0];
+}
 
 #if !defined(USE_CUDA)
 IShape* load_mesh(const char* obj_path, IMaterial* obj_material)
@@ -80,7 +162,7 @@ std::vector<DTriangle*> load_mesh(const char* obj_path, DMaterial* obj_material)
 
 #if !defined(USE_CUDA)
     IShape** tmplist = new IShape*[attrib.vertices.size()];
-    
+
     constexpr unsigned MAX_SPLIT = 100;
     IShape** list = new IShape*[MAX_SPLIT];
     
@@ -136,7 +218,7 @@ std::vector<DTriangle*> load_mesh(const char* obj_path, DMaterial* obj_material)
 
             if (i >= MAX_SPLIT)
             {
-                tmplist[n++] = new ShapeList(list, i);
+                tmplist[n++] = new ShapeList(list, i, debug_materials[n % debug_materials_size]);
 
                 i = 0;
                 list = new IShape*[MAX_SPLIT];
@@ -165,10 +247,12 @@ std::vector<DTriangle*> load_mesh(const char* obj_path, DMaterial* obj_material)
 #if !defined(USE_CUDA)
     if (i > 0)
     {
-        tmplist[n++] = new ShapeList(list, i);
+        tmplist[n++] = new ShapeList(list, i, debug_materials[n % debug_materials_size]);
     }
 
     return new ShapeList(tmplist, n);
+
+    //return create_bvh(list, i);
 #else
     return mesh;
 #endif

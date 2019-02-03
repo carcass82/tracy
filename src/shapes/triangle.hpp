@@ -73,9 +73,24 @@ public:
         max = max3(vertices[0], max3(vertices[1], vertices[2]));
     }
 
+    virtual IMaterial* get_material() const override final
+    {
+        return mat;
+    }
+
     virtual uint32_t get_id() const override final
     {
         return make_id('T', 'R', 'I');
+    }
+
+    vec3 get_barycenter() const
+    {
+        return (vertices[0] + vertices[1] + vertices[2]) / 3.f;
+    }
+
+    const vec3& get_vertex(int i) const
+    {
+        return vertices[i];
     }
 
     friend class ShapeList;

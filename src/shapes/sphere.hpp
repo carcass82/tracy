@@ -42,6 +42,11 @@ public:
         max = center + radius;
     }
 
+    virtual IMaterial* get_material() const override final
+    {
+        return mat;
+    }
+
     virtual uint32_t get_id() const override final
     {
         return make_id('S', 'P', 'H');

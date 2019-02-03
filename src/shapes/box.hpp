@@ -41,30 +41,15 @@ public:
         max = pmax;
     }
 
+    virtual IMaterial* get_material() const override final
+    {
+        return mat;
+    }
+
     void expand(const vec3& v)
     {
         pmin = min3(pmin, v);
         pmax = max3(pmax, v);
-    }
-
-    bool contains(IShape* object)
-    {
-        bool contained(false);
-
-        if (object)
-        {
-            vec3 bmin, bmax;
-            object->get_bounds(bmin, bmax);
-
-            contained = (bmin.x >= pmin.x && bmin.x <= pmax.x) ||
-                        (bmin.y >= pmin.y && bmin.y <= pmax.y) ||
-                        (bmin.z >= pmin.z && bmin.z <= pmax.z) ||
-                        (bmax.x >= pmin.x && bmax.x <= pmax.x) ||
-                        (bmax.y >= pmin.y && bmax.y <= pmax.y) ||
-                        (bmax.z >= pmin.z && bmax.z <= pmax.z);
-        }
-
-        return contained;
     }
 
     virtual uint32_t get_id() const override final
