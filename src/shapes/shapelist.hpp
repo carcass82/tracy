@@ -300,7 +300,6 @@ private:
     int sphere_count = 0;
     int triangle_count = 0;
     int list_count = 0;
-    int mesh_count = 0;
 
     IMaterial** materials = nullptr;
     IMaterial* debug_material = nullptr;
