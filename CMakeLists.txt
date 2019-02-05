@@ -20,6 +20,7 @@ set(CUDA_COMPUTECAPABILITY "-arch=sm_30" CACHE STRING "Cuda Arch Compile Option"
 
 option(USE_CPU_RECURSIVE "Select between recursive and iterative trace() implementation for CPU" OFF)
 option(USE_GLM "Use GLM instead of cclib" OFF)
+option(DEBUG_BVH "BVH Debug Visualization" OFF)
 
 option(USE_GUI "Build GUI Application" OFF)
 option(USE_OPENGL "Use OpenGL in GUI Application" OFF)
@@ -136,6 +137,10 @@ endif()
 
 if (USE_GLM)
 	add_definitions(-DUSE_GLM)
+endif()
+
+if (DEBUG_BVH)
+	add_definitions(-DDEBUG_BVH)
 endif()
 
 if (USE_GUI)

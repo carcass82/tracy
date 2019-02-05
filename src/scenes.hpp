@@ -70,7 +70,9 @@ struct DScene
 };
 #endif
 
-IShape* create_bvh(IShape** trimesh, int numtris)
+// NOTE: cubic root of leafcount must be divisible by 8
+// default 512 = 8x8x8
+IShape* create_bvh(IShape** trimesh, int numtris, int leafcount = 512)
 {
     vec3 minbound{ FLT_MAX, FLT_MAX, FLT_MAX };
     vec3 maxbound{ FLT_MIN, FLT_MIN, FLT_MIN };
@@ -85,95 +87,149 @@ IShape* create_bvh(IShape** trimesh, int numtris)
         }
     }
 
-    constexpr int leaf_count = 16;
-    const int sqrt_leafcount = sqrtf(leaf_count);
+    const int leaf_count = leafcount;
+    const int cbrt_leafcount = (int)cbrtf(leaf_count);
+    const int coord_advance = 2;
 
     int inserted_tris = 0;
 
     IShape** leafs = new IShape*[leaf_count];
-    float slice_size_x = (maxbound.x - minbound.x) / sqrt_leafcount;
-    float slice_size_z = (maxbound.z - minbound.z) / sqrt_leafcount;
-    for (int i = 0, i_x = 0; i_x < sqrt_leafcount; i_x += 2)
+    float slice_size_x = (maxbound.x - minbound.x) / cbrt_leafcount;
+    float slice_size_y = (maxbound.y - minbound.y) / cbrt_leafcount;
+    float slice_size_z = (maxbound.z - minbound.z) / cbrt_leafcount;
+    int i = 0;
+    for (int i_x = 0; i_x < cbrt_leafcount; i_x += coord_advance)
     {
-        for (int i_z = 0; i_z < sqrt_leafcount; i_z += 2, ++i)
+        for (int i_y = 0; i_y < cbrt_leafcount; i_y += coord_advance)
         {
-            int leaf_top_right_tricount = 0;
-            int leaf_bottom_right_tricount = 0;
-            int leaf_bottom_left_tricount = 0;
-            int leaf_top_left_tricount = 0;
-
-            IShape** leaf_bottom_right = new IShape*[numtris];
-            IShape** leaf_top_right = new IShape*[numtris];
-            IShape** leaf_bottom_left = new IShape*[numtris];
-            IShape** leaf_top_left = new IShape*[numtris];
-
-            vec3 cur_minbound{ minbound.x + i_x * slice_size_x, .0f, minbound.z + i_z * slice_size_z };
-            vec3 cur_center{ minbound.x + (i_x + 1) * slice_size_x, .0f, minbound.z + (i_z + 1) * slice_size_z };
-            vec3 cur_maxbound{ minbound.x + (i_x + 2) * slice_size_x, .0f, minbound.z + (i_z + 2) * slice_size_z };
-
-            for (int j = 0; j < numtris; ++j)
+            for (int i_z = 0; i_z < cbrt_leafcount; i_z += coord_advance)
             {
-                Triangle* triangle = static_cast<Triangle*>(trimesh[j]);
-                const vec3& barycenter = triangle->get_barycenter();
+                int leaf_low_top_right_tricount = 0;
+                int leaf_low_bottom_right_tricount = 0;
+                int leaf_low_bottom_left_tricount = 0;
+                int leaf_low_top_left_tricount = 0;
+                int leaf_high_top_right_tricount = 0;
+                int leaf_high_bottom_right_tricount = 0;
+                int leaf_high_bottom_left_tricount = 0;
+                int leaf_high_top_left_tricount = 0;
 
-                //
-                // min +----+----+
-                //     |    |    |
-                //     +--center-+
-                //     |    |    |
-                //     +----+----+ max
-                //
+                IShape** leaf_low_bottom_right = new IShape*[numtris];
+                IShape** leaf_low_top_right = new IShape*[numtris];
+                IShape** leaf_low_bottom_left = new IShape*[numtris];
+                IShape** leaf_low_top_left = new IShape*[numtris];
+                IShape** leaf_high_bottom_right = new IShape*[numtris];
+                IShape** leaf_high_top_right = new IShape*[numtris];
+                IShape** leaf_high_bottom_left = new IShape*[numtris];
+                IShape** leaf_high_top_left = new IShape*[numtris];
 
-                if (barycenter.x >= cur_minbound.x && barycenter.x <= cur_center.x &&
-                    barycenter.z >= cur_minbound.z && barycenter.z <= cur_center.z)
+                vec3 cur_minbound = minbound + vec3{ (i_x + 0) * slice_size_x, (i_y + 0) * slice_size_y, (i_z + 0) * slice_size_z };
+                vec3 cur_center   = minbound + vec3{ (i_x + 1) * slice_size_x, (i_y + 1) * slice_size_y, (i_z + 1) * slice_size_z };
+                vec3 cur_maxbound = minbound + vec3{ (i_x + 2) * slice_size_x, (i_y + 2) * slice_size_y, (i_z + 2) * slice_size_z };
+
+                for (int j = 0; j < numtris; ++j)
                 {
-                    leaf_bottom_left[leaf_bottom_left_tricount++] = trimesh[j];
-                    ++inserted_tris;
+                    Triangle* triangle = static_cast<Triangle*>(trimesh[j]);
+                    const vec3& barycenter = triangle->get_barycenter();
+
+                    //       __________ 
+                    //      /----/----/|
+                    // min +----+----+||
+                    //     |    |    |/|
+                    //     +--center-+||
+                    //     |    |    |/
+                    //     +----+----+ max
+                    //
+
+                    if (barycenter.y >= cur_minbound.y && barycenter.y <= cur_center.y)
+                    {
+                        if (barycenter.x >= cur_minbound.x && barycenter.x <= cur_center.x &&
+                            barycenter.z >= cur_minbound.z && barycenter.z <= cur_center.z)
+                        {
+                            leaf_low_bottom_left[leaf_low_bottom_left_tricount++] = trimesh[j];
+                            ++inserted_tris;
+                        }
+                        else if (barycenter.x >= cur_minbound.x && barycenter.x <= cur_center.x &&
+                            barycenter.z >= cur_center.z && barycenter.z <= cur_maxbound.z)
+                        {
+                            leaf_low_top_left[leaf_low_top_left_tricount++] = trimesh[j];
+                            ++inserted_tris;
+                        }
+                        else if (barycenter.x >= cur_center.x && barycenter.x <= cur_maxbound.x &&
+                            barycenter.z >= cur_minbound.z && barycenter.z <= cur_center.z)
+                        {
+                            leaf_low_bottom_right[leaf_low_bottom_right_tricount++] = trimesh[j];
+                            ++inserted_tris;
+                        }
+                        else if (barycenter.x >= cur_center.x && barycenter.x <= cur_maxbound.x &&
+                            barycenter.z >= cur_center.z && barycenter.z <= cur_maxbound.z)
+                        {
+                            leaf_low_top_right[leaf_low_top_right_tricount++] = trimesh[j];
+                            ++inserted_tris;
+                        }
+                    }
+                    else if (barycenter.y >= cur_center.y && barycenter.y <= cur_maxbound.y)
+                    {
+                        if (barycenter.x >= cur_minbound.x && barycenter.x <= cur_center.x &&
+                            barycenter.z >= cur_minbound.z && barycenter.z <= cur_center.z)
+                        {
+                            leaf_high_bottom_left[leaf_high_bottom_left_tricount++] = trimesh[j];
+                            ++inserted_tris;
+                        }
+                        else if (barycenter.x >= cur_minbound.x && barycenter.x <= cur_center.x &&
+                            barycenter.z >= cur_center.z && barycenter.z <= cur_maxbound.z)
+                        {
+                            leaf_high_top_left[leaf_high_top_left_tricount++] = trimesh[j];
+                            ++inserted_tris;
+                        }
+                        else if (barycenter.x >= cur_center.x && barycenter.x <= cur_maxbound.x &&
+                            barycenter.z >= cur_minbound.z && barycenter.z <= cur_center.z)
+                        {
+                            leaf_high_bottom_right[leaf_high_bottom_right_tricount++] = trimesh[j];
+                            ++inserted_tris;
+                        }
+                        else if (barycenter.x >= cur_center.x && barycenter.x <= cur_maxbound.x &&
+                            barycenter.z >= cur_center.z && barycenter.z <= cur_maxbound.z)
+                        {
+                            leaf_high_top_right[leaf_high_top_right_tricount++] = trimesh[j];
+                            ++inserted_tris;
+                        }
+                    }
                 }
-                else if (barycenter.x >= cur_minbound.x && barycenter.x <= cur_center.x &&
-                    barycenter.z >= cur_center.z && barycenter.z <= cur_maxbound.z)
-                {
-                    leaf_top_left[leaf_top_left_tricount++] = trimesh[j];
-                    ++inserted_tris;
-                }
-                else if (barycenter.x >= cur_center.x && barycenter.x <= cur_maxbound.x &&
-                    barycenter.z >= cur_minbound.z && barycenter.z <= cur_center.z)
-                {
-                    leaf_bottom_right[leaf_bottom_right_tricount++] = trimesh[j];
-                    ++inserted_tris;
-                }
-                else if (barycenter.x >= cur_center.x && barycenter.x <= cur_maxbound.x &&
-                    barycenter.z >= cur_center.z && barycenter.z <= cur_maxbound.z)
-                {
-                    leaf_top_right[leaf_top_right_tricount++] = trimesh[j];
-                    ++inserted_tris;
-                }
-            }
 
 #if defined(DEBUG_BVH)
-            leafs[4 * i + 0] = new Box(vec3{ cur_minbound.x, minbound.y, cur_minbound.z }, vec3{ cur_center.x, maxbound.y, cur_center.z }, debug_materials[(i + 0) % debug_materials_size]);
-            leafs[4 * i + 1] = new Box(vec3{ cur_minbound.x, minbound.y, cur_center.z }, vec3{ cur_center.x, maxbound.y, cur_maxbound.z }, debug_materials[(i + 1) % debug_materials_size]);
-            leafs[4 * i + 2] = new Box(vec3{ cur_center.x, minbound.y, cur_minbound.z }, vec3{ cur_maxbound.x, maxbound.y, cur_center.z }, debug_materials[(i + 2) % debug_materials_size]);
-            leafs[4 * i + 3] = new Box(vec3{ cur_center.x, minbound.y, cur_center.z }, vec3{ cur_maxbound.x, maxbound.y, cur_maxbound.z }, debug_materials[(i + 3) % debug_materials_size]);
+                leafs[8 * i + 0] = new Box(vec3{ cur_minbound.x, cur_minbound.y, cur_minbound.z }, vec3{ cur_center.x, cur_center.y, cur_center.z }, debug_materials[(8 * i + 0) % debug_materials_size]);
+                leafs[8 * i + 1] = new Box(vec3{ cur_minbound.x, cur_minbound.y, cur_center.z }, vec3{ cur_center.x, cur_center.y, cur_maxbound.z }, debug_materials[(8 * i + 1) % debug_materials_size]);
+                leafs[8 * i + 2] = new Box(vec3{ cur_center.x, cur_minbound.y, cur_minbound.z }, vec3{ cur_maxbound.x, cur_center.y, cur_center.z }, debug_materials[(8 * i + 2) % debug_materials_size]);
+                leafs[8 * i + 3] = new Box(vec3{ cur_center.x, cur_minbound.y, cur_center.z }, vec3{ cur_maxbound.x, cur_center.y, cur_maxbound.z }, debug_materials[(8 * i + 3) % debug_materials_size]);
+                leafs[8 * i + 4] = new Box(vec3{ cur_minbound.x, cur_center.y, cur_minbound.z }, vec3{ cur_center.x, cur_maxbound.y, cur_center.z }, debug_materials[(8 * i + 4) % debug_materials_size]);
+                leafs[8 * i + 5] = new Box(vec3{ cur_minbound.x, cur_center.y, cur_center.z }, vec3{ cur_center.x, cur_maxbound.y, cur_maxbound.z }, debug_materials[(8 * i + 5) % debug_materials_size]);
+                leafs[8 * i + 6] = new Box(vec3{ cur_center.x, cur_center.y, cur_minbound.z }, vec3{ cur_maxbound.x, cur_maxbound.y, cur_center.z }, debug_materials[(8 * i + 6) % debug_materials_size]);
+                leafs[8 * i + 7] = new Box(vec3{ cur_center.x, cur_center.y, cur_center.z }, vec3{ cur_maxbound.x, cur_maxbound.y, cur_maxbound.z }, debug_materials[(8 * i + 7) % debug_materials_size]);
 #else
-            leafs[4 * i + 0] = new ShapeList(leaf_bottom_left, leaf_bottom_left_tricount);
-            leafs[4 * i + 1] = new ShapeList(leaf_bottom_right, leaf_bottom_right_tricount);
-            leafs[4 * i + 2] = new ShapeList(leaf_top_left, leaf_top_left_tricount);
-            leafs[4 * i + 3] = new ShapeList(leaf_top_right, leaf_top_right_tricount);
+                leafs[8 * i + 0] = new ShapeList(leaf_low_bottom_left,   leaf_low_bottom_left_tricount);
+                leafs[8 * i + 1] = new ShapeList(leaf_low_bottom_right,  leaf_low_bottom_right_tricount);
+                leafs[8 * i + 2] = new ShapeList(leaf_low_top_left,      leaf_low_top_left_tricount);
+                leafs[8 * i + 3] = new ShapeList(leaf_low_top_right,     leaf_low_top_right_tricount);
+                leafs[8 * i + 4] = new ShapeList(leaf_high_bottom_left,  leaf_high_bottom_left_tricount);
+                leafs[8 * i + 5] = new ShapeList(leaf_high_bottom_right, leaf_high_bottom_right_tricount);
+                leafs[8 * i + 6] = new ShapeList(leaf_high_top_left,     leaf_high_top_left_tricount);
+                leafs[8 * i + 7] = new ShapeList(leaf_high_top_right,    leaf_high_top_right_tricount);
 #endif
+                ++i;
+            }
         }
     }
 
     IShape** prev = leafs;
-    int steps = leaf_count / 4;
+    int steps = leaf_count / 8;
     while (steps >= 1)
     {
         IShape** cur = new IShape*[steps];
         for (int i = 0; i < steps; ++i)
         {
-            cur[i] = new ShapeList(&prev[i * 4], 4);
+            cur[i] = new ShapeList(&prev[i * 8], 8);
         }
-        steps /= 4;
+        steps /= 8;
         prev = cur;
     }
 
@@ -216,7 +272,6 @@ std::vector<DTriangle*> load_mesh(const char* obj_path, DMaterial* obj_material)
     bool has_normals = true;
 
     unsigned int i = 0;
-    unsigned int n = 0;
 #else
     float3 verts[3];
     float3 norms[3];
@@ -231,7 +286,9 @@ std::vector<DTriangle*> load_mesh(const char* obj_path, DMaterial* obj_material)
             const float v1 = attrib.vertices[3 * index.vertex_index + 1];
             const float v2 = attrib.vertices[3 * index.vertex_index + 2];
 
-            float n0, n1, n2;
+            float n0 = .0f;
+            float n1 = .0f;
+            float n2 = .0f;
             if (index.normal_index != -1)
             {
                 n0 = attrib.normals[3 * index.normal_index + 0];

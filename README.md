@@ -27,7 +27,7 @@ This is another scene inspired by one of those present in minibook (500 spp) sho
 ![random](doc/output2.jpg)
 
 
-Now Tracy is able to render triangle meshes ~~(cpu version only)~~. Coming next: ~~extension to gpu code,~~ optimization using a decent BVH implementation.
+Now Tracy is able to render triangle meshes ~~(cpu version only). Coming next: extension to gpu code, optimization using a decent BVH implementation.~~ and uses a simple BVH structure to speed up collision tests.
 
 ![triangles](doc/output3.jpg)
 
