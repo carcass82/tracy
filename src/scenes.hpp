@@ -70,6 +70,7 @@ struct DScene
 };
 #endif
 
+#if !defined(USE_CUDA)
 // NOTE: cubic root of leafcount must be divisible by 8
 // default 512 = 8x8x8
 IShape* create_bvh(IShape** trimesh, int numtris, int leafcount = 512)
@@ -235,6 +236,7 @@ IShape* create_bvh(IShape** trimesh, int numtris, int leafcount = 512)
 
     return prev[0];
 }
+#endif
 
 #if !defined(USE_CUDA)
 IShape* load_mesh(const char* obj_path, IMaterial* obj_material)
