@@ -89,7 +89,7 @@ IShape* create_bvh(IShape** trimesh, int numtris, int leafcount = 512)
     }
 
     const int leaf_count = leafcount;
-    const int cbrt_leafcount = (int)cbrtf(leaf_count);
+    const int cbrt_leafcount = (int)cbrtf((float)leaf_count);
     const int coord_advance = 2;
 
     int inserted_tris = 0;
