@@ -64,12 +64,15 @@ endif()
 
 include_directories(. ./src ./ext)
 
-if (USE_GUI AND UNIX)
-	find_package(X11 REQUIRED)
-	find_package(OpenGL REQUIRED)
-	include_directories(${X11_INCLUDE_DIR})
-elseif (USE_GUI AND USE_OPENGL AND WIN32)
-	find_package(OpenGL REQUIRED)
+if (USE_GUI)
+	if (UNIX)
+		find_package(X11 REQUIRED)
+		include_directories(${X11_INCLUDE_DIR})
+	endif()
+
+	if (USE_OPENGL)
+		find_package(OpenGL REQUIRED)
+	endif()
 endif()
 
 #
