@@ -37,6 +37,8 @@ using glm::lerp;
 constexpr float PI = 3.1415926535897932f;
 #else
 #include "cclib/cclib.h"
+using cc::math::mat4;
+using cc::math::vec4;
 using cc::math::vec3;
 using cc::math::vec2;
 using cc::math::radians;
@@ -45,6 +47,8 @@ using cc::util::min;
 using cc::util::clamp;
 using cc::math::lerp;
 using cc::math::dot;
+using cc::math::perspective;
+using cc::math::inverse;
 using cc::math::PI;
 #endif
 
@@ -317,7 +321,7 @@ int CALLBACK WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPSTR lpCmdLi
                      width,
                      height,
                      samples,
-                     totrays * 1e-6 / trace_seconds,
+                     totrays * 1e-6f / trace_seconds,
                      5.f / fps_timer.count() * 1e3f,
                      samples_counter);
 

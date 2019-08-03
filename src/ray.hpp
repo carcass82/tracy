@@ -18,7 +18,7 @@ public:
 
     Ray(const vec3& a, const vec3& b)
         : origin_(a)
-        , direction_(b)
+        , direction_(normalize(b))
     {
     }
 

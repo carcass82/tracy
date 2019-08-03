@@ -18,28 +18,28 @@ public:
 
     void setup(const vec3& eye, const vec3& center, const vec3& up, float fov, float ratio)
     {
-        float theta = radians(fov);
-        float half_height = tanf(theta / 2.0f);
-        float half_width = ratio * half_height;
-
 		position = eye;
-        vec3 w = normalize(eye - center);
-        vec3 u = normalize(cross(up, w));
-        vec3 v = cross(w, u);
+		view = lookAt(eye, center, up);
+		
+		projection = perspective(radians(fov), ratio, .1f, 100.f);
 
-        lower_left_corner = eye - half_width * u - half_height * v - w;
-        horizontal = 2.0f * half_width * u;
-        vertical = 2.0f * half_height * v;
+		projection_inv = inverse(projection);
     }
 
     Ray get_ray(float s, float t) const
     {
-        return Ray(position, normalize(lower_left_corner + s * horizontal + t * vertical - position));
+		vec4 pixel(s, t, 1.f, 1.f);
+		vec4 pixel_ndc = pixel * 2.f - 1.f;
+
+		vec4 point_3d = projection_inv * pixel_ndc;
+		point_3d /= point_3d.w;
+
+		return Ray(position, vec3(point_3d.x, point_3d.y, point_3d.z));
     }
 
 private:
 	vec3 position;
-    vec3 lower_left_corner;
-    vec3 horizontal;
-    vec3 vertical;
+	mat4 view;
+	mat4 projection;
+	mat4 projection_inv;
 };

@@ -32,6 +32,8 @@ template<typename T> constexpr inline void swap(T& a, T& b) { T tmp(a); a = b; b
 #else
 #include "ext/cclib/cclib.h"
 using cc::math::PI;
+using cc::math::mat4;
+using cc::math::vec4;
 using cc::math::vec3;
 using cc::math::vec2;
 using cc::util::max;
@@ -42,6 +44,9 @@ using cc::math::radians;
 using cc::math::lerp;
 using cc::math::dot;
 using cc::util::swap;
+using cc::math::lookAt;
+using cc::math::perspective;
+using cc::math::inverse;
 #define atan2f(x, y) cc::math::fast::atan2f(x, y)
 #define sinf(x) cc::math::fast::sinf(x)
 #define cosf(x) cc::math::fast::cosf(x)
