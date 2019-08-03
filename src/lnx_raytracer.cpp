@@ -37,6 +37,8 @@ using glm::lerp;
 constexpr float PI = 3.1415926535897932f;
 #else
 #include "cclib/cclib.h"
+using cc::math::mat4;
+using cc::math::vec4;
 using cc::math::vec3;
 using cc::math::vec2;
 using cc::math::radians;
@@ -44,6 +46,8 @@ using cc::util::max;
 using cc::util::min;
 using cc::util::clamp;
 using cc::math::lerp;
+using cc::math::perspective;
+using cc::math::inverse;
 using cc::math::PI;
 #endif
 

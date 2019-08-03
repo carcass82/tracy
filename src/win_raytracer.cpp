@@ -46,7 +46,6 @@ using cc::util::max;
 using cc::util::min;
 using cc::util::clamp;
 using cc::math::lerp;
-using cc::math::dot;
 using cc::math::perspective;
 using cc::math::inverse;
 using cc::math::PI;
