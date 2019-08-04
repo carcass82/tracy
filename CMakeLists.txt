@@ -108,6 +108,9 @@ add_executable(${PROJECT_NAME} ${SRC_MAIN} ${SRC_GUI} ${INC_LIST} ${INC_SHAPES} 
 target_link_libraries(${PROJECT_NAME} ${X11_LIBRARIES} ${OPENGL_LIBRARIES})
 else()
 add_executable(${PROJECT_NAME} ${SRC_MAIN} ${INC_LIST} ${INC_SHAPES} ${INC_SHAPES_MOD} ${INC_MATERIALS} ${INC_TEXTURES} ${INC_PDF} ${INC_CCLIB} ${INC_EXT})
+if (UNIX)
+target_link_libraries(${PROJECT_NAME} pthread)
+endif()
 endif()
 
 #
