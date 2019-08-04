@@ -26,7 +26,10 @@ using std::chrono::high_resolution_clock;
 #if USE_GLM
 #define GLM_ENABLE_EXPERIMENTAL
 #include <glm/glm.hpp>
+#include <glm/gtc/matrix_transform.hpp>
 #include <glm/gtx/compatibility.hpp>
+using glm::mat4;
+using glm::vec4;
 using glm::vec3;
 using glm::vec2;
 using glm::radians;
@@ -34,6 +37,8 @@ using glm::max;
 using glm::min;
 using glm::clamp;
 using glm::lerp;
+using glm::perspective;
+using glm::lookAt;
 constexpr float PI = 3.1415926535897932f;
 #else
 #include "cclib/cclib.h"
@@ -221,7 +226,7 @@ int main(int argc, char** argv)
                 for (int i = 0; i < width; ++i)
                 {
                     const vec3 old_color = *dst_bbuf;
-                    const vec3 new_color = lerp(old_color, *src++, blend_factor);
+                    const vec3 new_color = lerp(*src++, old_color, blend_factor);
                     *dst_bbuf++ = new_color;
 
                     const vec3 bitmap_col = clamp3(255.99f * sqrtf3(new_color), .0f, 255.f);

@@ -15,17 +15,23 @@
 #if USE_GLM
 #define GLM_ENABLE_EXPERIMENTAL
 #include <glm/glm.hpp>
+#include <glm/gtc/matrix_transform.hpp>
 #include <glm/gtx/compatibility.hpp>
 #include <glm/gtx/fast_trigonometry.hpp>
 constexpr float PI = 3.1415926535897932f;
+using glm::mat4;
+using glm::vec4;
 using glm::vec3;
 using glm::vec2;
 using glm::max;
 using glm::min;
 using glm::clamp;
 using glm::radians;
+using glm::perspective;
+using glm::lookAt;
 using glm::lerp;
 template<typename T> constexpr inline void swap(T& a, T& b) { T tmp(a); a = b; b = tmp; }
+template<typename T, size_t N> constexpr inline uint32_t array_size(const T(&)[N]) { return N; }
 #define atan2f(x, y) glm::fastAtan(x, y)
 #define sinf(x) glm::fastSin(x)
 #define cosf(x) glm::fastCos(x)
