@@ -174,8 +174,10 @@ extern "C" void trace(Camera& cam, IShape* world, int nx, int ny, int ns, vec3* 
     //         scheduling must be dynamic to avoid work imbalance
     //         since rays could hit nothing or bounce "forever"
     //
-#if defined(_MSC_VER)
- #define collapse(x) /* ms compiler does not support openmp 3.0 */
+#if defined(_MSC_VER) && _MSC_VER < 1920
+ // ms compiler does not support openmp 3.0 until vs2019
+ // (where it must be enabled with /openmp:experimental switch)
+ #define collapse(x) 
 #endif
 
     #pragma omp parallel for collapse(3) schedule(dynamic)
