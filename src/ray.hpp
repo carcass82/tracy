@@ -6,19 +6,14 @@
  */
 #pragma once
 
-//
-// a ray represented in its parametric form
-// A - ray origin
-// B - ray direction
-//
 class Ray
 {
 public:
     Ray() {}
 
-    Ray(const vec3& a, const vec3& b)
-        : origin_(a)
-        , direction_(normalize(b))
+    Ray(const vec3& origin, const vec3& direction)
+        : origin_(origin)
+        , direction_(normalize(direction))
     {
     }
 

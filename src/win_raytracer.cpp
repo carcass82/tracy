@@ -196,6 +196,18 @@ int CALLBACK WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPSTR lpCmdLi
     glClearColor(0.0f, 0.0f, 0.0f, 0.0f);
     glClear(GL_COLOR_BUFFER_BIT);
     glMatrixMode(GL_MODELVIEW);
+
+#if defined(OPENGL_TEXTURE)
+	GLuint gl_tex;
+	glGenTextures(1, &gl_tex);
+	glBindTexture(GL_TEXTURE_2D, gl_tex);
+	glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA8, width, height, 0, GL_BGRA, GL_UNSIGNED_INT_8_8_8_8_REV, 0);
+	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_NEAREST);
+	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_NEAREST);
+	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_REPEAT);
+	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_REPEAT);
+#endif
+
 #endif
 
     ShowWindow(wHandle, SW_SHOW);
@@ -290,6 +302,12 @@ int CALLBACK WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPSTR lpCmdLi
                               ((uint8_t)bitmap_col.g << 8) |
                               ((uint8_t)bitmap_col.r << 16);
             }
+
+#if defined(USE_OPENGL) && defined(OPENGL_TEXTURE)
+			glBindTexture(GL_TEXTURE_2D, gl_tex);
+			glTexSubImage2D(GL_TEXTURE_2D, 0, 0, 0, width, height, GL_BGRA, GL_UNSIGNED_INT_8_8_8_8_REV, out_bitmap_bytes);
+			glBindTexture(GL_TEXTURE_2D, 0);
+#endif
         }
 
 #if !defined(USE_OPENGL)
@@ -297,7 +315,21 @@ int CALLBACK WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPSTR lpCmdLi
         UpdateWindow(wHandle);
 #else
         glClear(GL_COLOR_BUFFER_BIT);
+
+#if !defined(OPENGL_TEXTURE)
         glDrawPixels(width, height, GL_BGRA, GL_UNSIGNED_INT_8_8_8_8_REV, out_bitmap_bytes);
+#else
+		glColor3f(1, 1, 1);
+		glEnable(GL_TEXTURE_2D);
+		glBindTexture(GL_TEXTURE_2D, gl_tex);
+		glBegin(GL_QUADS);
+		 glTexCoord2d(0, 0); glVertex2f(-1, -1);
+		 glTexCoord2d(1, 0); glVertex2f( 1, -1);
+		 glTexCoord2d(1, 1); glVertex2f( 1,  1);
+		 glTexCoord2d(0, 1); glVertex2f(-1,  1);
+		glEnd();
+#endif
+
         SwapBuffers(hDC);
 #endif
 
@@ -339,6 +371,10 @@ int CALLBACK WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPSTR lpCmdLi
 
 #if defined(USE_CUDA)
     cuda_cleanup();
+#endif
+
+#if defined(USE_OPENGL) && defined(OPENGL_TEXTURE)
+	glDeleteTextures(1, &gl_tex);
 #endif
 
     return 0;

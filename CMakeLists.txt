@@ -23,7 +23,9 @@ option(USE_GLM "Use GLM instead of cclib" OFF)
 option(DEBUG_BVH "BVH Debug Visualization" OFF)
 
 option(USE_GUI "Build GUI Application" OFF)
-option(USE_OPENGL "Use OpenGL in GUI Application" OFF)
+
+set(USE_OPENGL "No" CACHE STRING "Use OpenGL in GUI Application")
+set_property(CACHE USE_OPENGL PROPERTY STRINGS No glDrawPixels glTexSubImage)
 
 #
 # sources + headers (grouped)
@@ -70,7 +72,7 @@ if (USE_GUI)
 		include_directories(${X11_INCLUDE_DIR})
 	endif()
 
-	if (USE_OPENGL)
+	if (NOT USE_OPENGL STREQUAL "No")
 		find_package(OpenGL REQUIRED)
 	endif()
 endif()
@@ -163,6 +165,11 @@ if (USE_GUI)
 	add_definitions(-DBUILD_GUI)
 endif()
 
-if (USE_OPENGL)
+if (NOT USE_OPENGL STREQUAL "No")
 	add_definitions(-DUSE_OPENGL)
+
+	if (USE_OPENGL STREQUAL "glTexSubImage")
+		add_definitions(-DOPENGL_TEXTURE)
+	endif()
+
 endif()

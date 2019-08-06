@@ -339,6 +339,11 @@ struct DCamera
     float3 horizontal;
     float3 vertical;
     float3 origin;
+	
+	//float3 position;
+	//mat4 view;
+	//mat4 projection;
+	//mat4 view_projection_inv;
 };
 
 __host__ __device__ inline DCamera* camera_create(const float3& eye, const float3& center, const float3& up, float fov, float ratio)
@@ -348,15 +353,22 @@ __host__ __device__ inline DCamera* camera_create(const float3& eye, const float
     float theta = radians(fov);
     float height_2 = tanf(theta / 2.f);
     float width_2 = height_2 * ratio;
-
+	
     float3 w = normalize(eye - center);
     float3 u = normalize(cross(up, w));
     float3 v = cross(w, u);
-
+	
     camera->pos = eye;
     camera->horizontal = 2.f * width_2 * u;
     camera->vertical = 2.f * height_2 * v;
     camera->origin = eye - width_2 * u - height_2 * v - w;
+
+	//camera->position = eye;
+	//
+	//camera->view = lookAt(eye, center, up);
+	//camera->projection = perspective(radians(fov), ratio, .1f, 1000.f);
+	//
+	//camera->view_projection_inv = inverse(camera->projection * camera->view);
 
     return camera;
 }
@@ -367,6 +379,14 @@ __device__ inline DRay camera_get_ray(const DCamera& camera, float s, float t)
 
     ray.origin = camera.pos;
     ray.direction = normalize(camera.origin + s * camera.horizontal + t * camera.vertical - camera.pos);
+
+	//float3 pixel_ndc = make_float3(s, t, 1.f) * 2.f - 1.f;
+	//
+	//float4 point_3d = camera.view_projection_inv * make_float4(pixel_ndc.x, pixel_ndc.y, pixel_ndc.z, 1.f);
+	//point_3d /= point_3d.w;
+	//
+	//ray.origin = camera.position;
+	//ray.direction = make_float3(point_3d.x, point_3d.y, point_3d.z) - camera.position;
 
     return ray;
 }
@@ -753,15 +773,15 @@ extern "C" void cuda_setup(const char* path, int w, int h)
             }
         }
 
-        data.num_triangles = scene.num_triangles;
-        if (scene.num_triangles > 0)
-        {
-            checkCudaErrors(cudaMalloc((void**)&data.d_triangles[i], sizeof(DTriangle) * scene.num_triangles));
-            for (int t = 0; t < scene.num_triangles; ++t)
-            {
-                checkCudaErrors(cudaMemcpy(&data.d_triangles[i][t], scene.h_triangles[t], sizeof(DTriangle), cudaMemcpyHostToDevice));
-            }
-        }
+		data.num_triangles = 0; // scene.num_triangles;
+        //if (scene.num_triangles > 0)
+        //{
+        //    checkCudaErrors(cudaMalloc((void**)&data.d_triangles[i], sizeof(DTriangle) * scene.num_triangles));
+        //    for (int t = 0; t < scene.num_triangles; ++t)
+        //    {
+        //        checkCudaErrors(cudaMemcpy(&data.d_triangles[i][t], scene.h_triangles[t], sizeof(DTriangle), cudaMemcpyHostToDevice));
+        //    }
+        //}
     }
 
     data.initialized = true;
