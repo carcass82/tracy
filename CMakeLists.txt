@@ -28,6 +28,14 @@ set(USE_OPENGL "No" CACHE STRING "Use OpenGL in GUI Application")
 set_property(CACHE USE_OPENGL PROPERTY STRINGS No glDrawPixels glTexSubImage)
 
 #
+# default to Release build
+#
+if(NOT CMAKE_BUILD_TYPE)
+	set(CMAKE_BUILD_TYPE "Release" CACHE STRING "Choose the type of build." FORCE)
+	set_property(CACHE CMAKE_BUILD_TYPE PROPERTY STRINGS "Debug" "Release")
+endif()
+
+#
 # sources + headers (grouped)
 #
 file(GLOB INC_LIST "./src/*.hpp" "./src/*.h")
@@ -56,8 +64,8 @@ source_group("Ext\\" FILES ${INC_EXT})
 
 file(GLOB SRC_MAIN "./src/raytracer.cpp")
 
-if (USE_GUI)
-	if (UNIX)
+if(USE_GUI)
+	if(UNIX)
 		file(GLOB SRC_GUI "./src/lnx_raytracer.cpp")
 	elseif(WIN32)
 		file(GLOB SRC_GUI "./src/win_raytracer.cpp")
@@ -66,13 +74,13 @@ endif()
 
 include_directories(. ./src ./ext)
 
-if (USE_GUI)
-	if (UNIX)
+if(USE_GUI)
+	if(UNIX)
 		find_package(X11 REQUIRED)
 		include_directories(${X11_INCLUDE_DIR})
 	endif()
 
-	if (NOT USE_OPENGL STREQUAL "No")
+	if(NOT USE_OPENGL STREQUAL "No")
 		find_package(OpenGL REQUIRED)
 	endif()
 endif()
@@ -80,7 +88,7 @@ endif()
 #
 # Compiler options
 #
-if (MSVC)
+if(MSVC)
     message(STATUS "Found MSVC: " ${CMAKE_CXX_COMPILER})
     set(CMAKE_CXX_FLAGS "/nologo /W3 /D_CRT_SECURE_NO_WARNINGS")
 	set(CMAKE_CXX_FLAGS_DEBUG "${CMAKE_CXX_FLAGS_DEBUG} /EHsc /Zi /Od /D_DEBUG /DNOVTABLE= ")
@@ -109,15 +117,15 @@ message(STATUS "Release CMAKE_CXX_FLAGS: ${CMAKE_CXX_FLAGS} ${CMAKE_CXX_FLAGS_RE
 message(STATUS "Debug CMAKE_EXE_LINKER_FLAGS: ${CMAKE_EXE_LINKER_FLAGS} ${CMAKE_EXE_LINKER_FLAGS_DEBUG}")
 message(STATUS "Release CMAKE_EXE_LINKER_FLAGS: ${CMAKE_EXE_LINKER_FLAGS} ${CMAKE_EXE_LINKER_FLAGS_RELEASE}")
 
-if (USE_GUI AND WIN32)
+if(USE_GUI AND WIN32)
  add_executable(${PROJECT_NAME} WIN32 ${SRC_MAIN} ${SRC_GUI} ${INC_LIST} ${INC_SHAPES} ${INC_SHAPES_MOD} ${INC_MATERIALS} ${INC_TEXTURES} ${INC_PDF} ${INC_CCLIB} ${INC_EXT})
  target_link_libraries(${PROJECT_NAME} ${OPENGL_LIBRARIES})
-elseif (USE_GUI AND UNIX)
+elseif(USE_GUI AND UNIX)
  add_executable(${PROJECT_NAME} ${SRC_MAIN} ${SRC_GUI} ${INC_LIST} ${INC_SHAPES} ${INC_SHAPES_MOD} ${INC_MATERIALS} ${INC_TEXTURES} ${INC_PDF} ${INC_CCLIB} ${INC_EXT})
  target_link_libraries(${PROJECT_NAME} ${X11_LIBRARIES} ${OPENGL_LIBRARIES})
 else()
  add_executable(${PROJECT_NAME} ${SRC_MAIN} ${INC_LIST} ${INC_SHAPES} ${INC_SHAPES_MOD} ${INC_MATERIALS} ${INC_TEXTURES} ${INC_PDF} ${INC_CCLIB} ${INC_EXT})
- if (UNIX)
+ if(UNIX)
   target_link_libraries(${PROJECT_NAME} pthread)
  endif()
 endif()
@@ -125,18 +133,18 @@ endif()
 #
 # CUDA related settings
 #
-if (BUILD_WITH_CUDA)
+if(BUILD_WITH_CUDA)
 	enable_language(CUDA)
 	add_definitions(-DUSE_CUDA)
 	set(CMAKE_CUDA_FLAGS "-std=c++11 -D_FORCE_INLINES ${CUDA_COMPUTECAPABILITY}")
 	set(CMAKE_CUDA_FLAGS_DEBUG "-G -D_DEBUG")
 	set(CMAKE_CUDA_FLAGS_RELEASE "--use_fast_math -O2 -lineinfo -DNDEBUG")
 
-	if (CUDA_USE_STREAMS)
+	if(CUDA_USE_STREAMS)
 		add_definitions(-DCUDA_USE_STREAMS)
 	endif()
 
-	if (CUDA_USE_MULTIGPU)
+	if(CUDA_USE_MULTIGPU)
 		add_definitions(-DCUDA_USE_MULTIGPU)
 	endif()
 	
@@ -149,26 +157,26 @@ if (BUILD_WITH_CUDA)
 	set_target_properties(${PROJECT_NAME} PROPERTIES CUDA_PROPAGATE_HOST_FLAGS OFF)
 endif()
 
-if (USE_CPU_RECURSIVE)
+if(USE_CPU_RECURSIVE)
 	add_definitions(-DCPU_RECURSIVE)
 endif()
 
-if (USE_GLM)
+if(USE_GLM)
 	add_definitions(-DUSE_GLM)
 endif()
 
-if (DEBUG_BVH)
+if(DEBUG_BVH)
 	add_definitions(-DDEBUG_BVH)
 endif()
 
-if (USE_GUI)
+if(USE_GUI)
 	add_definitions(-DBUILD_GUI)
 endif()
 
-if (NOT USE_OPENGL STREQUAL "No")
+if(NOT USE_OPENGL STREQUAL "No")
 	add_definitions(-DUSE_OPENGL)
 
-	if (USE_OPENGL STREQUAL "glTexSubImage")
+	if(USE_OPENGL STREQUAL "glTexSubImage")
 		add_definitions(-DOPENGL_TEXTURE)
 	endif()
 
