@@ -109,19 +109,32 @@ int main(int argc, char** argv)
     GLXContext glc = glXCreateContext(dpy, vi, nullptr, GL_TRUE);
     glXMakeCurrent(dpy, win, glc);
 
+#if !defined(OPENGL_TEXTURE)
     glMatrixMode(GL_PROJECTION);
     glLoadIdentity();
     glOrtho(0, width, 0, height, -1, 1);
 
     glRasterPos2f(.0f, height);
     glPixelZoom(1.f, -1.f);
+#endif
 
     glDisable(GL_DEPTH_TEST);
     glClearColor(0.0f, 0.0f, 0.0f, 1.0f);
     glClear(GL_COLOR_BUFFER_BIT);
 
     glMatrixMode(GL_MODELVIEW);
-    glLoadIdentity();
+
+#if defined(OPENGL_TEXTURE)
+	GLuint gl_tex;
+	glGenTextures(1, &gl_tex);
+	glBindTexture(GL_TEXTURE_2D, gl_tex);
+	glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA8, width, height, 0, GL_BGRA, GL_UNSIGNED_INT_8_8_8_8_REV, 0);
+	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_NEAREST);
+	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_NEAREST);
+	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_REPEAT);
+	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_REPEAT);
+#endif
+
 #endif
 
 #if !defined(USE_CUDA)
@@ -154,12 +167,13 @@ int main(int argc, char** argv)
 
     double trace_seconds = .0;
     duration<double, std::milli> fps_timer = 0ms;
-    constexpr duration<double, std::milli> ZERO(0ms);
-    constexpr duration<double, std::milli> THIRTY_FPS(33.3ms);
+    constexpr auto ZERO = duration<double, std::milli>(0ms);
+    constexpr auto THIRTY_FPS = duration<double, std::milli>(33.3ms);
 
     bool quit = false;
     XEvent e;
     int frame_count = 0;
+    int samples_counter = 0;
     while (!quit)
     {
         if (XPending(dpy))
@@ -234,6 +248,12 @@ int main(int argc, char** argv)
                     XPutPixel(bitmap, i, height - j, dst);
                 }
             }
+
+#if defined(USE_OPENGL) && defined(OPENGL_TEXTURE)
+			glBindTexture(GL_TEXTURE_2D, gl_tex);
+			glTexSubImage2D(GL_TEXTURE_2D, 0, 0, 0, width, height, GL_BGRA, GL_UNSIGNED_INT_8_8_8_8_REV, bitmap_data);
+			glBindTexture(GL_TEXTURE_2D, 0);
+#endif
         }
 
         auto frame_end = high_resolution_clock::now();
@@ -242,12 +262,13 @@ int main(int argc, char** argv)
         std::this_thread::sleep_for(std::min(std::max(wait_time, ZERO), THIRTY_FPS));
 
         ++frame_count;
+        samples_counter += samples;
         fps_timer += frame_time;
 
         if (frame_count % 5 == 0)
         {
             static char titlebuf[512];
-            snprintf(titlebuf, 512, ".:: Tracy (%s) ::. %dx%d@%dspp [%.2f MRays/s - %.2ffps]",
+            snprintf(titlebuf, 512, ".:: Tracy (%s) ::. %dx%d@%dspp [%.2f MRays/s - %.2ffps] - %dspp done",
 #if defined(USE_CUDA)
                 "GPU",
 #else
@@ -256,8 +277,9 @@ int main(int argc, char** argv)
                 width,
                 height,
                 samples,
-                (totrays / 1'000'000.0) / trace_seconds,
-                5.f / fps_timer.count() * 1000.f);
+                totrays * 1e-6f / trace_seconds,
+                5.f / fps_timer.count() * 1e3f,
+                samples_counter);
 
             XStoreName(dpy, win, titlebuf);
 
@@ -271,7 +293,20 @@ int main(int argc, char** argv)
         XFlush(dpy);
 #else
         glClear(GL_COLOR_BUFFER_BIT);
+
+#if !defined(OPENGL_TEXTURE)
         glDrawPixels(width, height, GL_BGRA, GL_UNSIGNED_INT_8_8_8_8_REV, bitmap_data);
+#else
+		glColor3f(1, 1, 1);
+		glEnable(GL_TEXTURE_2D);
+		glBindTexture(GL_TEXTURE_2D, gl_tex);
+		glBegin(GL_QUADS);
+		 glTexCoord2d(0, 1); glVertex2f(-1, -1);
+		 glTexCoord2d(1, 1); glVertex2f( 1, -1);
+		 glTexCoord2d(1, 0); glVertex2f( 1,  1);
+		 glTexCoord2d(0, 0); glVertex2f(-1,  1);
+		glEnd();
+#endif
         glXSwapBuffers(dpy, win);
 #endif
     }
