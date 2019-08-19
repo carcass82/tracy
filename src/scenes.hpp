@@ -574,6 +574,7 @@ DScene load_scene(const char* scn_file, float ratio)
                     break;
 
                 case id_tri:
+                    fprintf(stderr, "found tri: %s\n", params);
                     {
                         char file_name[256];
                         char mat_name[16];
