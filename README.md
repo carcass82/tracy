@@ -1,4 +1,4 @@
-# Tracy [![Build Status](https://travis-ci.org/carcass82/tracy.svg?branch=master)](https://travis-ci.org/carcass82/tracy)
+# Tracy [![Build Status](https://travis-ci.org/carcass82/tracy.svg?branch=master)](https://travis-ci.org/carcass82/tracy) [![Build Status](https://ci.appveyor.com/api/projects/status/rqsg04bl5sxoeigd?svg=true)](https://ci.appveyor.com/project/carcass82/tracy)
 
 
 A simple raytracer based on *"Raytracing in One Weekend"* series by P. Shirley ([Link](https://www.amazon.com/dp/B01B5AODD8)).
