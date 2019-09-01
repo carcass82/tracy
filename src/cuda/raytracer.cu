@@ -530,7 +530,7 @@ __device__ bool intersect_triangles(const DRay& ray, const DTriangle* triangles,
     return hit_something;
 }
 
-__device__ const int MAX_DEPTH = 50;
+__device__ const int MAX_DEPTH = 5;
 __device__ const float3 WHITE = {1.f, 1.f, 1.f};
 __device__ const float3 BLACK = {0.f, 0.f, 0.f};
 
@@ -865,7 +865,7 @@ extern "C" void cuda_trace(int w, int h, int ns, float* out_buffer, int& out_ray
 #if CUDA_USE_MULTIGPU
         int gpu_split = data.num_gpus;
 
-        for (int j = 0; j < w * h * 3; ++j)
+		for (int j = 0; j < w * h * 3; ++j)
         {
             out_buffer[j] += data.h_output_cuda[i][j] / gpu_split;
         }

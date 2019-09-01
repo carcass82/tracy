@@ -80,6 +80,7 @@ struct CommonData
     int h;
     HBITMAP bitmap;
     vec3* backbuffer;
+	Camera* camera;
 };
 CommonData WinData;
 
@@ -100,14 +101,49 @@ LRESULT CALLBACK WindowProc(HWND hwnd, UINT uMsg, WPARAM wParam, LPARAM lParam)
             PostQuitMessage(0);
             break;
 
-        case 'S':
+        case 'O':
             save_screenshot(WinData.w, WinData.h, WinData.backbuffer);
             break;
+
+		case 'W':
+		case 'A':
+		case 'S':
+		case 'D':
+		case 'Q':
+		case 'E':
+			if (WinData.camera)
+			{
+				vec3 movement;
+				movement.x = wParam == 'A' ? +100.f : wParam == 'D' ? -100.f : .0f;
+				movement.y = wParam == 'E' ? +100.f : wParam == 'Q' ? -100.f : .0f;
+				movement.z = wParam == 'W' ? +100.f : wParam == 'S' ? -100.f : .0f;
+
+				WinData.camera->translate_cam(movement);
+			}
+			break;
 
         default:
             break;
         }
         break;
+
+	case WM_MOUSEMOVE:
+		{
+			static POINTS pos = MAKEPOINTS(lParam);
+			POINTS newpos = MAKEPOINTS(lParam);
+
+			if (wParam & MK_LBUTTON)
+			{
+				if (WinData.camera)
+				{
+					WinData.camera->rotate_cam(vec3{ .0f, float(newpos.x - pos.x), .0f });
+					WinData.camera->rotate_cam(vec3{ float(newpos.y - pos.y), .0f, .0f });
+				}
+			}
+
+			pos = newpos;
+		}
+		break;
 
 #if !defined(USE_OPENGL)
     case WM_PAINT:
@@ -219,6 +255,7 @@ int CALLBACK WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPSTR lpCmdLi
     Camera cam;
     IShape* world = nullptr;
     setup(scene_path, cam, float(width) / float(height), &world);
+	WinData.camera = &cam;
 #else
     cuda_setup(scene_path, width, height);
 #endif
@@ -272,7 +309,7 @@ int CALLBACK WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPSTR lpCmdLi
             continue;
         }
 
-        auto frame_start = high_resolution_clock::now();
+		auto frame_start = high_resolution_clock::now();
         
         Timer t;
         t.begin();
@@ -286,7 +323,12 @@ int CALLBACK WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPSTR lpCmdLi
 
         //update bitmap
         {
-            const float blend_factor = frame_count / float(frame_count + 1);
+#if !defined(USE_CUDA)
+			const float blend_factor = cam.dirty()? .0f : frame_count / float(frame_count + 1);
+			frame_count = cam.dirty() ? 0 : frame_count;
+#else
+			const float blend_factor = frame_count / float(frame_count + 1);
+#endif
 
             vec3* src = output;
             vec3* dst_bbuf = output_backbuffer;
@@ -302,6 +344,10 @@ int CALLBACK WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPSTR lpCmdLi
                               ((uint8_t)bitmap_col.g << 8) |
                               ((uint8_t)bitmap_col.r << 16);
             }
+
+#if !defined(USE_CUDA)
+			cam.reset_dirty_flag();
+#endif
 
 #if defined(USE_OPENGL) && defined(OPENGL_TEXTURE)
 			glBindTexture(GL_TEXTURE_2D, gl_tex);
