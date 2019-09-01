@@ -88,7 +88,7 @@ int main(int argc, char** argv)
 
     int ds = DefaultScreen(dpy);
     Window win = XCreateSimpleWindow(dpy, RootWindow(dpy, ds), 0, 0, width, height, 1, BlackPixel(dpy, ds), WhitePixel(dpy, ds));
-    XSelectInput(dpy, win, KeyPressMask | KeyReleaseMask | ButtonPressMask | ButtonReleaseMask | StructureNotifyMask);
+    XSelectInput(dpy, win, KeyPressMask | KeyReleaseMask | ButtonPressMask | ButtonReleaseMask | ButtonMotionMask | StructureNotifyMask);
     
     const Atom WM_PROTOCOL = XInternAtom(dpy, "WM_PROTOCOLS", false);
     Atom close_win_msg = XInternAtom(dpy, "WM_DELETE_WINDOW", false);
@@ -176,7 +176,7 @@ int main(int argc, char** argv)
     int samples_counter = 0;
     while (!quit)
     {
-        if (XPending(dpy))
+        while (XPending(dpy))
         {
             XNextEvent(dpy, &e);
             switch (e.type)
@@ -186,16 +186,46 @@ int main(int argc, char** argv)
                 {
                     quit = true;
                 }
-                if (XLookupKeysym(&e.xkey, 0) == XK_s)
+                if (XLookupKeysym(&e.xkey, 0) == XK_o)
                 {
                     save_screenshot(width, height, output_backbuffer);
                 }
-                break;
+#if !defined(USE_CUDA)
+                if (XLookupKeysym(&e.xkey, 0) == XK_w ||
+                    XLookupKeysym(&e.xkey, 0) == XK_a ||
+                    XLookupKeysym(&e.xkey, 0) == XK_s ||
+                    XLookupKeysym(&e.xkey, 0) == XK_d ||
+                    XLookupKeysym(&e.xkey, 0) == XK_q ||
+                    XLookupKeysym(&e.xkey, 0) == XK_e)
+                {
+                    KeySym key = XLookupKeysym(&e.xkey, 0);
 
-            case KeyRelease:
-            case ButtonPress:
-            case ButtonRelease:
+                    vec3 movement;
+                    movement.x = key == XK_a ? +100.f : key == XK_d ? -100.f : .0f;
+                    movement.y = key == XK_e ? +100.f : key == XK_q ? -100.f : .0f;
+                    movement.z = key == XK_w ? +100.f : key == XK_s ? -100.f : .0f;
+
+                    cam.translate_cam(movement);
+                }
+#endif
+                break;                
+
+#if !defined(USE_CUDA)
+            case MotionNotify:
+                {
+                    static vec2 mouse_pos = vec2(e.xmotion.x, e.xmotion.y);
+                    vec2 new_mouse_pos = vec2(e.xmotion.x, e.xmotion.y);
+
+                    if (e.xmotion.state & Button1Mask)
+                    {
+                        cam.rotate_cam(vec3{ .0f, new_mouse_pos.x - mouse_pos.x, .0f });
+                        cam.rotate_cam(vec3{ new_mouse_pos.y - mouse_pos.y, .0f, .0f });
+                    }
+
+                    mouse_pos = new_mouse_pos;
+                }
                 break;
+#endif
 
             case ClientMessage:
                 if ((Atom)e.xclient.message_type == WM_PROTOCOL && (Atom)e.xclient.data.l[0] == close_win_msg)
@@ -231,7 +261,12 @@ int main(int argc, char** argv)
 
         //update bitmap
         {
+#if !defined(USE_CUDA)
+            const float blend_factor = cam.dirty()? .0f : frame_count / float(frame_count + 1);
+            frame_count = cam.dirty() ? 0 : frame_count;
+#else
             const float blend_factor = frame_count / float(frame_count + 1);
+#endif
 
             vec3* src = output;
             vec3* dst_bbuf = output_backbuffer;
@@ -248,6 +283,10 @@ int main(int argc, char** argv)
                     XPutPixel(bitmap, i, height - j, dst);
                 }
             }
+
+#if !defined(USE_CUDA)
+            cam.reset_dirty_flag();
+#endif                  
 
 #if defined(USE_OPENGL) && defined(OPENGL_TEXTURE)
 			glBindTexture(GL_TEXTURE_2D, gl_tex);

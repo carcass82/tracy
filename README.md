@@ -12,7 +12,8 @@ Tracing is ~~not yet~~ visible in realtime if you build with ``USE_GUI`` ~~(only
 ![tracing](doc/cmd.jpg)
 
 
-When GUI version is used tracing will continue in background and image will keep getting better over time. ``S`` key will save a screenshot. Coming next: realtime camera movement
+When GUI version is used tracing will continue in background and image will keep getting better over time. ``O`` key will save a screenshot.
+~~Coming next: realtime camera movement~~ Camera can be moved in realtime using ``W``, ``A``, ``S``, ``D``, ``Q``, ``E`` keys and mouse (FPS-style). CPU version only.
 
 ![proggui](doc/gui.jpg)
 
