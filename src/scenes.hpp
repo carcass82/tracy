@@ -59,6 +59,9 @@ struct DScene
 {
     DCamera cam;
 
+	DMesh** h_meshes;
+	int num_meshes;
+
     DTriangle** h_triangles;
     int num_triangles;
 
@@ -67,6 +70,15 @@ struct DScene
 
     DSphere** h_spheres;
     int num_spheres;
+
+
+	void clear()
+	{
+		for (int i = 0; i < num_meshes; ++i)    { delete h_meshes[i]; }    delete[] h_meshes;
+		for (int i = 0; i < num_triangles; ++i) { delete h_triangles[i]; } delete[] h_triangles;
+		for (int i = 0; i < num_boxes; ++i)     { delete h_boxes[i]; }     delete[] h_boxes;
+		for (int i = 0; i < num_spheres; ++i)   { delete h_spheres[i]; }   delete[] h_spheres;
+	}
 };
 #endif
 
@@ -242,9 +254,9 @@ IShape* create_bvh(IShape** trimesh, int numtris, int leafcount = 512)
 IShape* load_mesh(const char* obj_path, IMaterial* obj_material)
 {
 #else
-std::vector<DTriangle*> load_mesh(const char* obj_path, DMaterial* obj_material)
+std::vector<DTriangle> load_mesh(const char* obj_path, DMaterial* obj_material)
 {
-    std::vector<DTriangle*> mesh;
+    std::vector<DTriangle> mesh;
 #endif
 
     tinyobj::attrib_t attrib;
@@ -336,11 +348,11 @@ std::vector<DTriangle*> load_mesh(const char* obj_path, DMaterial* obj_material)
             {
                 if (has_normals)
                 {
-                    mesh.push_back(triangle_create_with_normals(verts[0], verts[1], verts[2], norms[0], norms[1], norms[2], *obj_material));
+                    mesh.push_back(*triangle_create_with_normals(verts[0], verts[1], verts[2], norms[0], norms[1], norms[2], *obj_material));
                 }
                 else
                 {
-                    mesh.push_back(triangle_create(verts[0], verts[1], verts[2], *obj_material));
+                    mesh.push_back(*triangle_create(verts[0], verts[1], verts[2], *obj_material));
                 }
                 v = 0;
             }
@@ -387,6 +399,7 @@ DScene load_scene(const char* scn_file, float ratio)
         std::vector<DSphere*> spheres;
         std::vector<DBox*> boxes;
         std::vector<DTriangle*> triangles;
+		std::vector<DMesh*> meshes;
 #endif
 
         while (fgets(line, 512, fp))
@@ -583,8 +596,8 @@ DScene load_scene(const char* scn_file, float ratio)
 #if !defined(USE_CUDA)
                             objects.push_back(load_mesh(file_name, materials[mat_name]));
 #else
-                            std::vector<DTriangle*> mesh = load_mesh(file_name, materials[mat_name]);
-                            triangles.insert(triangles.end(), mesh.begin(), mesh.end());
+                            std::vector<DTriangle> mesh = load_mesh(file_name, materials[mat_name]);
+                            meshes.push_back(mesh_create(&mesh[0], mesh.size()));
 #endif
                         }
                     }
@@ -604,6 +617,13 @@ DScene load_scene(const char* scn_file, float ratio)
         }
         scene.world = new ShapeList(shape_objects, i);
 #else
+		scene.num_meshes = meshes.size();
+		scene.h_meshes = new DMesh*[scene.num_meshes];
+		for (int i = 0; i < scene.num_meshes; ++i)
+		{
+			scene.h_meshes[i] = meshes[i];
+		}
+
         scene.num_triangles = triangles.size();
         scene.h_triangles = new DTriangle*[scene.num_triangles];
         for (int i = 0; i < scene.num_triangles; ++i)

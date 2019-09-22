@@ -58,7 +58,7 @@ __device__ inline float schlick(float costheta, float ior)
 {
     float r0 = (1.f - ior) / (1.f + ior);
     r0 *= r0;
-    return r0 + (1.f - r0) * powf(fmaxf(.0f, (1.f - costheta)), 5);
+    return r0 + (1.f - r0) * __powf(fmaxf(.0f, (1.f - costheta)), 5);
 }
 
 __device__ inline float fastrand(curandState* curand_ctx)
@@ -70,9 +70,13 @@ __device__ inline float3 random_on_unit_sphere(curandState* curand_ctx)
 {
     float z = fastrand(curand_ctx) * 2.f - 1.f;
     float a = fastrand(curand_ctx) * 2.f * pi();
-    float r = sqrtf(fmaxf(.0f, 1.f - z * z));
+    float r = __fsqrt_rz(fmaxf(.0f, 1.f - z * z));
 
-    return make_float3(r * cosf(a), r * sinf(a), z);
+	float sin_a;
+	float cos_a;
+	__sincosf(a, &sin_a, &cos_a);
+
+    return make_float3(r * cos_a, r * sin_a, z);
 }
 
 //
@@ -93,7 +97,7 @@ __device__ inline float3 ray_point_at(const DRay& ray, float t)
 struct DMaterial;
 struct DIntersection
 {
-    enum Type { eSPHERE, eBOX, eTRIANGLE };
+    enum Type { eSPHERE, eBOX, eTRIANGLE, eMESH };
 
     Type type;
     int index;
@@ -167,7 +171,7 @@ __device__ inline bool material_scatter(DMaterial& material, const DRay& ray, co
             outward_normal = -1.f * hit.normal;
             ni_nt = material.ior;
             cosine = dot(ray.direction, hit.normal);
-            cosine = sqrtf(1.f - material.ior * material.ior * (1.f - cosine - cosine));
+            cosine = __fsqrt_rz(1.f - material.ior * material.ior * (1.f - cosine - cosine));
         }
         else
         {
@@ -332,6 +336,29 @@ __device__ inline void triangle_hit_data(DTriangle& triangle, const DRay& ray, D
     hit.material = &triangle.material;
 }
 
+struct DMesh
+{
+	DBox bbox;
+};
+
+__host__ __device__ inline DMesh* mesh_create(DTriangle* triangles, int num_tris)
+{
+	DMesh* mesh = new DMesh;
+
+	for (int i = 0; i < num_tris; ++i)
+	{
+		mesh->bbox.min_limit = min(mesh->bbox.min_limit, min(triangles[i].vertices[0], min(triangles[i].vertices[1], triangles[i].vertices[2])));
+		mesh->bbox.max_limit = max(mesh->bbox.max_limit, max(triangles[i].vertices[0], max(triangles[i].vertices[1], triangles[i].vertices[2])));
+	}
+	mesh->bbox.material = *material_create(DMaterial::eLAMBERTIAN, make_float3(.8f, .1f, .2f), .0f, .0f);
+
+	return mesh;
+}
+
+__device__ inline void mesh_hit_data(DMesh& mesh, const DRay& ray, DIntersection& hit)
+{
+	return box_hit_data(mesh.bbox, ray, hit);
+}
 
 struct DCamera
 {
@@ -405,7 +432,7 @@ __device__ bool intersect_spheres(const DRay& ray, const DSphere* spheres, int s
 
         if (b <= .0f || c <= .0f)
         {
-            const float discriminant = sqrtf(b * b - c);
+            const float discriminant = __fsqrt_rz(b * b - c);
             if (discriminant > 0.f)
             {
                 const float t0 = -b - discriminant;
@@ -530,12 +557,27 @@ __device__ bool intersect_triangles(const DRay& ray, const DTriangle* triangles,
     return hit_something;
 }
 
+__device__ bool intersect_meshes(const DRay& ray, const DMesh* meshes, int mesh_count, DIntersection& hit_data)
+{
+	bool hit_something = false;
+
+	for (int i = 0; i < mesh_count; ++i)
+	{
+		const DMesh& mesh = meshes[i];
+		{
+			hit_something = intersect_boxes(ray, &mesh.bbox, 1, hit_data);
+		}
+	}
+
+	return hit_something;
+}
+
 __device__ const int MAX_DEPTH = 5;
 __device__ const float3 WHITE = {1.f, 1.f, 1.f};
 __device__ const float3 BLACK = {0.f, 0.f, 0.f};
 
 
-__device__ float3 get_color_for(DRay ray, DSphere* spheres, int sphere_count, DBox* boxes, int box_count, DTriangle* triangles, int tri_count, int* raycount, curandState* curand_ctx)
+__device__ float3 get_color_for(DRay ray, DSphere* spheres, int sphere_count, DBox* boxes, int box_count, DTriangle* triangles, int tri_count, DMesh* meshes, int meshcount, int* raycount, curandState* curand_ctx)
 {
     float3 total_color = WHITE;
     DRay current_ray = ray;
@@ -548,19 +590,21 @@ __device__ float3 get_color_for(DRay ray, DSphere* spheres, int sphere_count, DB
         bool hitspheres = false;
         bool hitboxes = false;
         bool hittris = false;
+		bool hitmeshes = false;
         DIntersection hit_data;
         hit_data.t = FLT_MAX;
 
         hitspheres = intersect_spheres(current_ray, spheres, sphere_count, hit_data);
         hitboxes = intersect_boxes(current_ray, boxes, box_count, hit_data);
         hittris = intersect_triangles(current_ray, triangles, tri_count, hit_data);
+		hitmeshes = intersect_meshes(current_ray, meshes, meshcount, hit_data);
 
         ++(*raycount);
 
         //
         // return color or continue
         //
-        if (hitspheres || hitboxes || hittris)
+        if (hitspheres || hitboxes || hittris || hitmeshes)
         {
             if (hit_data.type == DIntersection::eSPHERE)
             {
@@ -570,10 +614,14 @@ __device__ float3 get_color_for(DRay ray, DSphere* spheres, int sphere_count, DB
             {
                 box_hit_data(boxes[hit_data.index], current_ray, hit_data);
             }
-            else
+            else if (hit_data.type == DIntersection::eTRIANGLE)
             {
                 triangle_hit_data(triangles[hit_data.index], current_ray, hit_data);
             }
+			else
+			{
+				mesh_hit_data(meshes[hit_data.index], current_ray, hit_data);
+			}
 
             //
             // debug - show normals
@@ -603,7 +651,12 @@ __device__ float3 get_color_for(DRay ray, DSphere* spheres, int sphere_count, DB
     return BLACK;
 }
 
-__global__ void raytrace(int width, int height, int samples, float3* pixels, int* raycount, DSphere* spheres, int spherecount, DBox* boxes, int boxcount, DTriangle* triangles, int tricount, DCamera* camera)
+__global__ void raytrace(int width, int height, int samples, float3* pixels, int* raycount,
+	                     DSphere* spheres, int spherecount,
+	                     DBox* boxes, int boxcount,
+	                     DTriangle* triangles, int tricount,
+	                     DMesh* meshes, int meshcount,
+	                     DCamera* camera)
 {
     const int i = (blockIdx.x * blockDim.x) + threadIdx.x;
     const int j = (blockIdx.y * blockDim.y) + threadIdx.y;
@@ -623,7 +676,7 @@ __global__ void raytrace(int width, int height, int samples, float3* pixels, int
         float t = ((j + fastrand(local_curand_ctx)) / static_cast<float>(height));
 
         DRay ray = camera_get_ray(*camera, s, t);
-        color += get_color_for(ray, spheres, spherecount, boxes, boxcount, triangles, tricount, &raycount_inst, local_curand_ctx);
+        color += get_color_for(ray, spheres, spherecount, boxes, boxcount, triangles, tricount, meshes, meshcount, &raycount_inst, local_curand_ctx);
     }
 
     atomicAdd(raycount, raycount_inst);
@@ -674,6 +727,9 @@ struct DCudaData
 
     DTriangle* d_triangles[MAX_GPU];
     int num_triangles;
+
+	DMesh* d_meshes[MAX_GPU];
+	int num_meshes;
 
     // output buffer
     float3* d_output_cuda[MAX_GPU];
@@ -754,35 +810,47 @@ extern "C" void cuda_setup(const char* path, int w, int h)
         checkCudaErrors(cudaMemcpy(data.d_camera[i], &scene.cam, sizeof(DCamera), cudaMemcpyHostToDevice));
 
         data.num_spheres = scene.num_spheres;
-        if (scene.num_spheres > 0)
+        if (data.num_spheres > 0)
         {
-            checkCudaErrors(cudaMalloc((void**)&data.d_spheres[i], sizeof(DSphere) * scene.num_spheres));
-            for (int s = 0; s < scene.num_spheres; ++s)
+            checkCudaErrors(cudaMalloc((void**)&data.d_spheres[i], sizeof(DSphere) * data.num_spheres));
+            for (int s = 0; s < data.num_spheres; ++s)
             {
                 checkCudaErrors(cudaMemcpy(&data.d_spheres[i][s], scene.h_spheres[s], sizeof(DSphere), cudaMemcpyHostToDevice));
             }
         }
 
         data.num_boxes = scene.num_boxes;
-        if (scene.num_boxes > 0)
+        if (data.num_boxes > 0)
         {
-            checkCudaErrors(cudaMalloc((void**)&data.d_boxes[i], sizeof(DBox) * scene.num_boxes));
-            for (int b = 0; b < scene.num_boxes; ++b)
+            checkCudaErrors(cudaMalloc((void**)&data.d_boxes[i], sizeof(DBox) * data.num_boxes));
+            for (int b = 0; b < data.num_boxes; ++b)
             {
                 checkCudaErrors(cudaMemcpy(&data.d_boxes[i][b], scene.h_boxes[b], sizeof(DBox), cudaMemcpyHostToDevice));
             }
         }
 
-		data.num_triangles = 0; // scene.num_triangles;
-        //if (scene.num_triangles > 0)
-        //{
-        //    checkCudaErrors(cudaMalloc((void**)&data.d_triangles[i], sizeof(DTriangle) * scene.num_triangles));
-        //    for (int t = 0; t < scene.num_triangles; ++t)
-        //    {
-        //        checkCudaErrors(cudaMemcpy(&data.d_triangles[i][t], scene.h_triangles[t], sizeof(DTriangle), cudaMemcpyHostToDevice));
-        //    }
-        //}
+		data.num_triangles = scene.num_triangles;
+        if (data.num_triangles > 0)
+        {
+            checkCudaErrors(cudaMalloc((void**)&data.d_triangles[i], sizeof(DTriangle) * data.num_triangles));
+            for (int t = 0; t < data.num_triangles; ++t)
+            {
+                checkCudaErrors(cudaMemcpy(&data.d_triangles[i][t], scene.h_triangles[t], sizeof(DTriangle), cudaMemcpyHostToDevice));
+            }
+        }
+
+		data.num_meshes = scene.num_meshes;
+		if (data.num_meshes > 0)
+		{
+			checkCudaErrors(cudaMalloc((void**)& data.d_meshes[i], sizeof(DMesh) * data.num_meshes));
+			for (int m = 0; m < data.num_meshes; ++m)
+			{
+				checkCudaErrors(cudaMemcpy(&data.d_meshes[i][m], scene.h_meshes[m], sizeof(DMesh), cudaMemcpyHostToDevice));
+			}
+		}
     }
+
+	scene.clear();
 
     data.initialized = true;
 }
@@ -827,6 +895,7 @@ extern "C" void cuda_trace(int w, int h, int ns, float* out_buffer, int& out_ray
                                                                                data.d_spheres[i],   data.num_spheres,
                                                                                data.d_boxes[i],     data.num_boxes,
                                                                                data.d_triangles[i], data.num_triangles,
+			                                                                   data.d_meshes[i],    data.num_meshes,
                                                                                data.d_camera[i]);
 
 #else
@@ -838,6 +907,7 @@ extern "C" void cuda_trace(int w, int h, int ns, float* out_buffer, int& out_ray
                                                            data.d_spheres[i],   data.num_spheres,
                                                            data.d_boxes[i],     data.num_boxes,
                                                            data.d_triangles[i], data.num_triangles,
+			                                               data.d_meshes[i], data.num_meshes,
                                                            data.d_camera[i]);
 #endif
         checkCudaAssert(cudaGetLastError());
@@ -912,6 +982,11 @@ extern "C" void cuda_cleanup()
             {
                 checkCudaErrors(cudaFree(data.d_triangles[i]));
             }
+
+			if (data.num_meshes > 0)
+			{
+				checkCudaErrors(cudaFree(data.d_meshes[i]));
+			}
 
 #if CUDA_USE_STREAMS
             checkCudaErrors(cudaStreamDestroy(data.d_stream[i]));
