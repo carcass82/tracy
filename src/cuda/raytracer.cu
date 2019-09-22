@@ -338,26 +338,131 @@ __device__ inline void triangle_hit_data(DTriangle& triangle, const DRay& ray, D
 
 struct DMesh
 {
+	DBox leafs_bbox[8];
+	DTriangle* leafs_triangles[8];
+	int leafs_tricount[8];
+	
+	int tricount;
 	DBox bbox;
 };
 
-__host__ __device__ inline DMesh* mesh_create(DTriangle* triangles, int num_tris)
+__host__ __device__ inline DMesh* mesh_create(DTriangle* triangles, int num_tris, DMaterial mat)
 {
 	DMesh* mesh = new DMesh;
+	mesh->bbox = *box_create(make_float3(FLT_MAX, FLT_MAX, FLT_MAX), make_float3(-FLT_MAX, -FLT_MAX, -FLT_MAX), mat);
 
+	// preallocate 8 * all tris.
+	// tricount will be used to copy the right number of triangles on device
+	for (int i = 0; i < 8; ++i)
+	{
+		mesh->leafs_triangles[i] = new DTriangle[num_tris];
+		mesh->leafs_tricount[i] = 0;
+	}
+
+	//
+	// build BVH (WIP, now it just splits triangles in 8 groups)
+	//
 	for (int i = 0; i < num_tris; ++i)
 	{
 		mesh->bbox.min_limit = min(mesh->bbox.min_limit, min(triangles[i].vertices[0], min(triangles[i].vertices[1], triangles[i].vertices[2])));
 		mesh->bbox.max_limit = max(mesh->bbox.max_limit, max(triangles[i].vertices[0], max(triangles[i].vertices[1], triangles[i].vertices[2])));
 	}
-	mesh->bbox.material = *material_create(DMaterial::eLAMBERTIAN, make_float3(.8f, .1f, .2f), .0f, .0f);
+
+	DMaterial debug_materials[] = {
+		{ DMaterial::eLAMBERTIAN, make_float3(1.f, 0.f, 0.f), 1.f, 0.f },
+		{ DMaterial::eLAMBERTIAN, make_float3(0.f, 1.f, 0.f), 1.f, 0.f },
+		{ DMaterial::eLAMBERTIAN, make_float3(0.f, 0.f, 1.f), 1.f, 0.f },
+		{ DMaterial::eLAMBERTIAN, make_float3(1.f, 0.f, 1.f), 1.f, 0.f },
+		{ DMaterial::eLAMBERTIAN, make_float3(0.f, 1.f, 1.f), 1.f, 0.f },
+		{ DMaterial::eLAMBERTIAN, make_float3(1.f, 1.f, 0.f), 1.f, 0.f },
+		{ DMaterial::eLAMBERTIAN, make_float3(1.f, 1.f, 1.f), 1.f, 0.f },
+		{ DMaterial::eLAMBERTIAN, make_float3(.1f, .1f, .1f), 1.f, 0.f }
+	};
+
+	mesh->tricount = 0;
+	{
+		float3 cur_minbound = mesh->bbox.min_limit;
+		float3 cur_center   = (mesh->bbox.min_limit + mesh->bbox.max_limit) / 2.f;
+		float3 cur_maxbound = mesh->bbox.max_limit;
+
+		mesh->leafs_bbox[0] = *box_create(cur_minbound,                                              cur_center,                                                debug_materials[0]);
+		mesh->leafs_bbox[1] = *box_create(make_float3(cur_minbound.x, cur_minbound.y, cur_center.z), make_float3(cur_center.x, cur_center.y, cur_maxbound.z),   debug_materials[1]);
+		mesh->leafs_bbox[2] = *box_create(make_float3(cur_center.x, cur_minbound.y, cur_minbound.z), make_float3(cur_maxbound.x, cur_center.y, cur_center.z),   debug_materials[2]);
+		mesh->leafs_bbox[3] = *box_create(make_float3(cur_center.x, cur_minbound.y, cur_center.z),   make_float3(cur_maxbound.x, cur_center.y, cur_maxbound.z), debug_materials[3]);
+		
+		mesh->leafs_bbox[4] = *box_create(make_float3(cur_minbound.x, cur_center.y, cur_minbound.z), make_float3(cur_center.x, cur_maxbound.y, cur_center.z),   debug_materials[4]);
+		mesh->leafs_bbox[5] = *box_create(make_float3(cur_minbound.x, cur_center.y, cur_center.z),   make_float3(cur_center.x, cur_maxbound.y, cur_maxbound.z), debug_materials[5]);
+		mesh->leafs_bbox[6] = *box_create(make_float3(cur_center.x, cur_center.y, cur_minbound.z),   make_float3(cur_maxbound.x, cur_maxbound.y, cur_center.z), debug_materials[6]);
+		mesh->leafs_bbox[7] = *box_create(cur_center,                                                cur_maxbound,                                              debug_materials[7]);
+
+		for (int i = 0; i < num_tris; ++i)
+		{
+			DTriangle* triangle = &triangles[i];
+			float3 barycenter = (triangle->vertices[0] + triangle->vertices[1] + triangle->vertices[2]) / 3.f;
+
+			if (barycenter.y >= cur_minbound.y && barycenter.y <= cur_center.y)
+			{
+				if (barycenter.x >= cur_minbound.x && barycenter.x <= cur_center.x &&
+					barycenter.z >= cur_minbound.z && barycenter.z <= cur_center.z)
+				{
+					mesh->leafs_triangles[0][mesh->leafs_tricount[0]++] = *triangle;
+					mesh->tricount++;
+				}
+				else if (barycenter.x >= cur_minbound.x && barycenter.x <= cur_center.x &&
+					     barycenter.z >= cur_center.z && barycenter.z <= cur_maxbound.z)
+				{
+					mesh->leafs_triangles[1][mesh->leafs_tricount[1]++] = *triangle;
+					mesh->tricount++;
+				}
+				else if (barycenter.x >= cur_center.x && barycenter.x <= cur_maxbound.x &&
+					     barycenter.z >= cur_minbound.z && barycenter.z <= cur_center.z)
+				{
+					mesh->leafs_triangles[2][mesh->leafs_tricount[2]++] = *triangle;
+					mesh->tricount++;
+				}
+				else if (barycenter.x >= cur_center.x && barycenter.x <= cur_maxbound.x &&
+					     barycenter.z >= cur_center.z && barycenter.z <= cur_maxbound.z)
+				{
+					mesh->leafs_triangles[3][mesh->leafs_tricount[3]++] = *triangle;
+					mesh->tricount++;
+				}
+			}
+			else if (barycenter.y >= cur_center.y && barycenter.y <= cur_maxbound.y)
+			{
+				if (barycenter.x >= cur_minbound.x && barycenter.x <= cur_center.x &&
+					barycenter.z >= cur_minbound.z && barycenter.z <= cur_center.z)
+				{
+					mesh->leafs_triangles[4][mesh->leafs_tricount[4]++] = *triangle;
+					mesh->tricount++;
+				}
+				else if (barycenter.x >= cur_minbound.x && barycenter.x <= cur_center.x &&
+					     barycenter.z >= cur_center.z && barycenter.z <= cur_maxbound.z)
+				{
+					mesh->leafs_triangles[5][mesh->leafs_tricount[5]++] = *triangle;
+					mesh->tricount++;
+				}
+				else if (barycenter.x >= cur_center.x && barycenter.x <= cur_maxbound.x &&
+					     barycenter.z >= cur_minbound.z && barycenter.z <= cur_center.z)
+				{
+					mesh->leafs_triangles[6][mesh->leafs_tricount[6]++] = *triangle;
+					mesh->tricount++;
+				}
+				else if (barycenter.x >= cur_center.x && barycenter.x <= cur_maxbound.x &&
+					     barycenter.z >= cur_center.z && barycenter.z <= cur_maxbound.z)
+				{
+					mesh->leafs_triangles[7][mesh->leafs_tricount[7]++] = *triangle;
+					mesh->tricount++;
+				}
+			}
+		}
+	}
 
 	return mesh;
 }
 
 __device__ inline void mesh_hit_data(DMesh& mesh, const DRay& ray, DIntersection& hit)
 {
-	return box_hit_data(mesh.bbox, ray, hit);
+	return;
 }
 
 struct DCamera
@@ -565,7 +670,30 @@ __device__ bool intersect_meshes(const DRay& ray, const DMesh* meshes, int mesh_
 	{
 		const DMesh& mesh = meshes[i];
 		{
-			hit_something = intersect_boxes(ray, &mesh.bbox, 1, hit_data);
+			DIntersection bvh_hitdata = hit_data;
+			hit_something = intersect_boxes(ray, &mesh.bbox, 1, bvh_hitdata);
+			if (hit_something)
+			{
+				hit_something = intersect_boxes(ray, mesh.leafs_bbox, 8, bvh_hitdata);
+
+				if (hit_something)
+				{
+					// DEBUG - show BVH boxes
+					//hit_data = bvh_hitdata;
+					//box_hit_data(*const_cast<DBox*>(&mesh.leafs_bbox[bvh_hitdata.index]), ray, hit_data);
+
+					int bvh_index = bvh_hitdata.index;
+					hit_something = intersect_triangles(ray, mesh.leafs_triangles[bvh_index], mesh.leafs_tricount[bvh_index], hit_data);
+					
+					if (hit_something)
+					{
+						triangle_hit_data(mesh.leafs_triangles[bvh_index][hit_data.index], ray, hit_data);
+						
+						hit_data.index = i;
+						hit_data.type = DIntersection::eMESH;
+					}
+				}
+			}
 		}
 	}
 
@@ -626,7 +754,7 @@ __device__ float3 get_color_for(DRay ray, DSphere* spheres, int sphere_count, DB
             //
             // debug - show normals
             //
-            //return .5f * normalize(1.f + hit_data.normal);
+            //return .5f * (1.f + hit_data.normal);
 
             DRay scattered;
             float3 attenuation;
@@ -842,10 +970,18 @@ extern "C" void cuda_setup(const char* path, int w, int h)
 		data.num_meshes = scene.num_meshes;
 		if (data.num_meshes > 0)
 		{
-			checkCudaErrors(cudaMalloc((void**)& data.d_meshes[i], sizeof(DMesh) * data.num_meshes));
+			checkCudaErrors(cudaMalloc((void**)&data.d_meshes[i], sizeof(DMesh) * data.num_meshes));
 			for (int m = 0; m < data.num_meshes; ++m)
 			{
-				checkCudaErrors(cudaMemcpy(&data.d_meshes[i][m], scene.h_meshes[m], sizeof(DMesh), cudaMemcpyHostToDevice));
+				DMesh device_helper;
+				memcpy(&device_helper, scene.h_meshes[m], sizeof(DMesh));
+				for (int bvh = 0; bvh < 8; ++bvh)
+				{
+					checkCudaErrors(cudaMalloc((void**)&device_helper.leafs_triangles[bvh], sizeof(DTriangle) * scene.h_meshes[m]->leafs_tricount[bvh]));
+					checkCudaErrors(cudaMemcpy(device_helper.leafs_triangles[bvh], scene.h_meshes[m]->leafs_triangles[bvh], sizeof(DTriangle) * scene.h_meshes[m]->leafs_tricount[bvh], cudaMemcpyHostToDevice));
+				}
+
+				checkCudaErrors(cudaMemcpy(&data.d_meshes[i][m], &device_helper, sizeof(DMesh), cudaMemcpyHostToDevice));
 			}
 		}
     }

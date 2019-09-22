@@ -74,7 +74,7 @@ struct DScene
 
 	void clear()
 	{
-		for (int i = 0; i < num_meshes; ++i)    { delete h_meshes[i]; }    delete[] h_meshes;
+		for (int i = 0; i < num_meshes; ++i)    { /* TODO: cleanup tris  */ delete h_meshes[i]; }    delete[] h_meshes;
 		for (int i = 0; i < num_triangles; ++i) { delete h_triangles[i]; } delete[] h_triangles;
 		for (int i = 0; i < num_boxes; ++i)     { delete h_boxes[i]; }     delete[] h_boxes;
 		for (int i = 0; i < num_spheres; ++i)   { delete h_spheres[i]; }   delete[] h_spheres;
@@ -87,8 +87,8 @@ struct DScene
 #if !defined(USE_CUDA)
 IShape* create_bvh(IShape** trimesh, int numtris, int leafcount = 512)
 {
-    vec3 minbound{ FLT_MAX, FLT_MAX, FLT_MAX };
-    vec3 maxbound{ FLT_MIN, FLT_MIN, FLT_MIN };
+    vec3 minbound{  FLT_MAX,  FLT_MAX,  FLT_MAX };
+    vec3 maxbound{ -FLT_MAX, -FLT_MAX, -FLT_MAX };
     for (int i = 0; i < numtris; ++i)
     {
         Triangle* triangle = static_cast<Triangle*>(trimesh[i]);
@@ -597,7 +597,7 @@ DScene load_scene(const char* scn_file, float ratio)
                             objects.push_back(load_mesh(file_name, materials[mat_name]));
 #else
                             std::vector<DTriangle> mesh = load_mesh(file_name, materials[mat_name]);
-                            meshes.push_back(mesh_create(&mesh[0], mesh.size()));
+                            meshes.push_back(mesh_create(&mesh[0], mesh.size(), *materials[mat_name]));
 #endif
                         }
                     }
