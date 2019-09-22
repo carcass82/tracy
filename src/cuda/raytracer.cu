@@ -176,7 +176,7 @@ __device__ inline bool material_scatter(DMaterial& material, const DRay& ray, co
         else
         {
             outward_normal = hit.normal;
-            ni_nt = 1.f / material.ior;
+            ni_nt = __frcp_rz(material.ior);
             cosine = -dot(ray.direction, hit.normal);
         }
 
@@ -368,6 +368,7 @@ __host__ __device__ inline DMesh* mesh_create(DTriangle* triangles, int num_tris
 		mesh->bbox.max_limit = max(mesh->bbox.max_limit, max(triangles[i].vertices[0], max(triangles[i].vertices[1], triangles[i].vertices[2])));
 	}
 
+#if defined(DEBUG_BVH)
 	DMaterial debug_materials[] = {
 		{ DMaterial::eLAMBERTIAN, make_float3(1.f, 0.f, 0.f), 1.f, 0.f },
 		{ DMaterial::eLAMBERTIAN, make_float3(0.f, 1.f, 0.f), 1.f, 0.f },
@@ -378,6 +379,7 @@ __host__ __device__ inline DMesh* mesh_create(DTriangle* triangles, int num_tris
 		{ DMaterial::eLAMBERTIAN, make_float3(1.f, 1.f, 1.f), 1.f, 0.f },
 		{ DMaterial::eLAMBERTIAN, make_float3(.1f, .1f, .1f), 1.f, 0.f }
 	};
+#endif
 
 	mesh->tricount = 0;
 	{
@@ -385,6 +387,7 @@ __host__ __device__ inline DMesh* mesh_create(DTriangle* triangles, int num_tris
 		float3 cur_center   = (mesh->bbox.min_limit + mesh->bbox.max_limit) / 2.f;
 		float3 cur_maxbound = mesh->bbox.max_limit;
 
+#if defined(DEBUG_BVH)
 		mesh->leafs_bbox[0] = *box_create(cur_minbound,                                              cur_center,                                                debug_materials[0]);
 		mesh->leafs_bbox[1] = *box_create(make_float3(cur_minbound.x, cur_minbound.y, cur_center.z), make_float3(cur_center.x, cur_center.y, cur_maxbound.z),   debug_materials[1]);
 		mesh->leafs_bbox[2] = *box_create(make_float3(cur_center.x, cur_minbound.y, cur_minbound.z), make_float3(cur_maxbound.x, cur_center.y, cur_center.z),   debug_materials[2]);
@@ -394,6 +397,17 @@ __host__ __device__ inline DMesh* mesh_create(DTriangle* triangles, int num_tris
 		mesh->leafs_bbox[5] = *box_create(make_float3(cur_minbound.x, cur_center.y, cur_center.z),   make_float3(cur_center.x, cur_maxbound.y, cur_maxbound.z), debug_materials[5]);
 		mesh->leafs_bbox[6] = *box_create(make_float3(cur_center.x, cur_center.y, cur_minbound.z),   make_float3(cur_maxbound.x, cur_maxbound.y, cur_center.z), debug_materials[6]);
 		mesh->leafs_bbox[7] = *box_create(cur_center,                                                cur_maxbound,                                              debug_materials[7]);
+#else
+		mesh->leafs_bbox[0] = *box_create(cur_minbound, cur_center, mat);
+		mesh->leafs_bbox[1] = *box_create(make_float3(cur_minbound.x, cur_minbound.y, cur_center.z), make_float3(cur_center.x, cur_center.y, cur_maxbound.z), mat);
+		mesh->leafs_bbox[2] = *box_create(make_float3(cur_center.x, cur_minbound.y, cur_minbound.z), make_float3(cur_maxbound.x, cur_center.y, cur_center.z), mat);
+		mesh->leafs_bbox[3] = *box_create(make_float3(cur_center.x, cur_minbound.y, cur_center.z), make_float3(cur_maxbound.x, cur_center.y, cur_maxbound.z), mat);
+
+		mesh->leafs_bbox[4] = *box_create(make_float3(cur_minbound.x, cur_center.y, cur_minbound.z), make_float3(cur_center.x, cur_maxbound.y, cur_center.z), mat);
+		mesh->leafs_bbox[5] = *box_create(make_float3(cur_minbound.x, cur_center.y, cur_center.z), make_float3(cur_center.x, cur_maxbound.y, cur_maxbound.z), mat);
+		mesh->leafs_bbox[6] = *box_create(make_float3(cur_center.x, cur_center.y, cur_minbound.z), make_float3(cur_maxbound.x, cur_maxbound.y, cur_center.z), mat);
+		mesh->leafs_bbox[7] = *box_create(cur_center, cur_maxbound, mat);
+#endif
 
 		for (int i = 0; i < num_tris; ++i)
 		{
@@ -631,7 +645,7 @@ __device__ bool intersect_triangles(const DRay& ray, const DTriangle* triangles,
                 continue;
             }
     
-            float inv_det = 1.f / det;
+            float inv_det = __frcp_rz(det);
     
             float3 tvec = ray.origin - triangle.vertices[0];
             float u = dot(tvec, pvec) * inv_det;
@@ -678,10 +692,14 @@ __device__ bool intersect_meshes(const DRay& ray, const DMesh* meshes, int mesh_
 
 				if (hit_something)
 				{
+#if defined(DEBUG_BVH)
 					// DEBUG - show BVH boxes
-					//hit_data = bvh_hitdata;
-					//box_hit_data(*const_cast<DBox*>(&mesh.leafs_bbox[bvh_hitdata.index]), ray, hit_data);
+					hit_data = bvh_hitdata;
+					box_hit_data(*const_cast<DBox*>(&mesh.leafs_bbox[bvh_hitdata.index]), ray, hit_data);
 
+					hit_data.index = i;
+					hit_data.type = DIntersection::eMESH;
+#else
 					int bvh_index = bvh_hitdata.index;
 					hit_something = intersect_triangles(ray, mesh.leafs_triangles[bvh_index], mesh.leafs_tricount[bvh_index], hit_data);
 					
@@ -692,6 +710,7 @@ __device__ bool intersect_meshes(const DRay& ray, const DMesh* meshes, int mesh_
 						hit_data.index = i;
 						hit_data.type = DIntersection::eMESH;
 					}
+#endif
 				}
 			}
 		}
