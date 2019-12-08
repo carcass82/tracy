@@ -274,6 +274,12 @@ void CpuTrace::RenderScene()
 {
 	float blend_factor = frame_counter_ / float(frame_counter_ + 1);
 
+#if defined(_MSC_VER) && _MSC_VER < 1920
+ // ms compiler does not support openmp 3.0 until vs2019
+ // (where it must be enabled with /openmp:experimental switch)
+ #define collapse(x) 
+#endif
+
 	#pragma omp parallel for collapse(3) schedule(dynamic)
 	for (int j = 0; j < win_height_; ++j)
 	{
