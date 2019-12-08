@@ -6,10 +6,8 @@
  */
 #include "cpu_trace.h"
 #include "random.h"
-
 #include <cfloat>
 
-#define CPU_NAIVE_TEST 1
 
 namespace
 {
@@ -226,6 +224,9 @@ void CpuTrace::UpdateScene()
 #if defined(WIN32)
 	InvalidateRect(win_handle_, nullptr, FALSE);
 	UpdateWindow(win_handle_);
+#else
+	XPutImage(win_handle_->dpy, win_handle_->win, DefaultGC(win_handle_->dpy, win_handle_->ds), details_->bitmap, 0, 0, 0, 0, win_width_, win_height_);
+	XFlush(win_handle_->dpy);
 #endif
 }
 
@@ -319,7 +320,5 @@ void CpuTrace::OnPaint()
 	DeleteObject(srcDC);
 
 	EndPaint(win_handle_, &ps);
-#else
-	XPutImage(win_handle_->dpy, win_handle_->win, DefaultGC(win_handle_->dpy, win_handle_->ds), details_->bitmap, 0, 0, 0, 0, win_width_, win_height_);
 #endif
 }

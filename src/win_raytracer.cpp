@@ -127,6 +127,8 @@ Handle TracyCreateWindow(int width, int height)
 
 void TracyDestroyWindow(Handle window_handle)
 {
+	XDestroyWindow(window_handle->dpy, window_handle->win);
+	XCloseDisplay(window_handle->dpy);
 }
 
 void TracyDisplayWindow(Handle window_handle)
@@ -162,7 +164,6 @@ bool TracyProcessMessages(Handle window_handle)
 		case Expose:
 			g_kernel.OnPaint();
 			break;
-
 		default:
 			break;
 		}
