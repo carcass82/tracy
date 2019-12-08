@@ -127,8 +127,10 @@ Handle TracyCreateWindow(int width, int height)
 
 void TracyDestroyWindow(Handle window_handle)
 {
+#if !defined(WIN32)
 	XDestroyWindow(window_handle->dpy, window_handle->win);
 	XCloseDisplay(window_handle->dpy);
+#endif
 }
 
 void TracyDisplayWindow(Handle window_handle)
