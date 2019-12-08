@@ -5,10 +5,11 @@
  * (c) Carlo Casta, 2018
  */
 #include "mesh.h"
+#include <cfloat>
 
 void Mesh::ComputeNormals()
 {
-	for (int i = 0; i < indices_.size(); i += 3)
+	for (int i = 0; i < static_cast<int>(indices_.size()); i += 3)
 	{
 		Vertex& v1 = vertices_[indices_[i + 0]];
 		Vertex& v2 = vertices_[indices_[i + 1]];
@@ -24,7 +25,7 @@ void Mesh::ComputeTangentsAndBitangents()
 	// Lengyel, Eric. "Computing Tangent Space Basis Vectors for an Arbitrary Mesh"
 	// http://www.terathon.com/code/tangent.html
 	
-	for (int i = 0; i < indices_.size(); i += 3)
+	for (int i = 0; i < static_cast<int>(indices_.size()); i += 3)
 	{
 		Vertex& v1 = vertices_[indices_[i + 0]];
 		Vertex& v2 = vertices_[indices_[i + 1]];

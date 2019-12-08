@@ -8,14 +8,20 @@
 #include "materials.h"
 #include "GL/glew.h"
 
+#if !defined(WIN32)
+#include <GL/glx.h>
+#endif
+
 //
 // OpenGL - Details
 //
 
 struct OpenGLRender::Details
 {
+#if defined(WIN32)
 	HDC hDC;
-	
+#endif
+
 	struct GLMesh
 	{
 		GLMesh(GLuint in_vao, int in_indexcount, const vec3& in_albedo, float in_metalness, float in_roughness, float in_ior)
@@ -81,6 +87,7 @@ void OpenGLRender::Initialize(Handle in_window, int in_width, int in_height, con
 
 	camera_ = &in_scene.GetCamera();
 
+#if defined(WIN32)
 	PIXELFORMATDESCRIPTOR pfd;
 	memset(&pfd, 0, sizeof(PIXELFORMATDESCRIPTOR));
 	pfd.nSize = sizeof(PIXELFORMATDESCRIPTOR);
@@ -96,6 +103,12 @@ void OpenGLRender::Initialize(Handle in_window, int in_width, int in_height, con
 	SetPixelFormat(details_->hDC, PixelFormat, &pfd);
 	HGLRC hRC = wglCreateContext(details_->hDC);
 	wglMakeCurrent(details_->hDC, hRC);
+#else
+	GLint att[] = { GLX_RGBA, GLX_DEPTH_SIZE, 24, GLX_DOUBLEBUFFER, None };
+    XVisualInfo* vi = glXChooseVisual(win_handle_->dpy, 0, att);
+    GLXContext glc = glXCreateContext(win_handle_->dpy, vi, nullptr, GL_TRUE);
+    glXMakeCurrent(win_handle_->dpy, win_handle_->win, glc);
+#endif
 
 	glewExperimental = GL_TRUE;
 	GLenum err = glewInit();
@@ -231,7 +244,7 @@ void OpenGLRender::RenderScene()
 
 		glUseProgram(details_->shader);
 
-		for (int i = 0; i < details_->meshes.size(); ++i)
+		for (int i = 0; i < static_cast<int>(details_->meshes.size()); ++i)
 		{
 			glUniform3fv(glGetUniformLocation(details_->shader, "material.albedo"), 1, value_ptr(details_->meshes[i].albedo));
 			glUniform1f(glGetUniformLocation(details_->shader, "material.metalness"), details_->meshes[i].metalness);
@@ -243,6 +256,10 @@ void OpenGLRender::RenderScene()
 		}
 		glBindVertexArray(0);
 
+#if defined(WIN32)
 		SwapBuffers(details_->hDC);
+#else
+		glXSwapBuffers(win_handle_->dpy, win_handle_->win);
+#endif
 	}
 }

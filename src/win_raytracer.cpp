@@ -5,6 +5,9 @@
  * (c) Carlo Casta, 2018
  */
 #include "common.h"
+#if !defined(MAX_PATH)
+	#define MAX_PATH 260
+#endif
 
 #include "timer.h"
 #include "ray.h"
@@ -12,19 +15,17 @@
 #include "mesh.h"
 #include "scene.h"
 
-#if CPU_KERNEL
+#if defined(CPU_KERNEL)
  #include "kernels/raytracing/software/cpu_trace.h"
  CpuTrace& g_kernel = CpuTrace::GetInstance();
-#elif OPENGL_KERNEL
+#elif defined(OPENGL_KERNEL)
  #include "kernels/rasterization/opengl/opengl_render.h"
  OpenGLRender& g_kernel = OpenGLRender::GetInstance();
-#elif CUDA_KERNEL
- #include "kernels/raytracing/cuda/cuda_trace.h"
- CUDATrace& g_kernel = CUDATrace::GetInstance();
 #else
  #error "at least one module should be enabled!"
 #endif
 
+#if defined(WIN32)
 LRESULT CALLBACK WindowProc(HWND hwnd, UINT uMsg, WPARAM wParam, LPARAM lParam)
 {
 	switch (uMsg)
@@ -55,14 +56,17 @@ LRESULT CALLBACK WindowProc(HWND hwnd, UINT uMsg, WPARAM wParam, LPARAM lParam)
 
 	return 0;
 }
+#endif
 
 static bool IsValidHandle(Handle window)
 {
-	return window != nullptr;
+	return window && window->win;
 }
 
 Handle TracyCreateWindow(int width, int height)
 {
+#if defined(WIN32)
+
 	WNDCLASSEXA win_class = {};
 	win_class.cbSize = sizeof(WNDCLASSEX);
 	win_class.style = CS_OWNDC | CS_VREDRAW | CS_HREDRAW;
@@ -92,7 +96,29 @@ Handle TracyCreateWindow(int width, int height)
 	                                 (HINSTANCE)GetModuleHandle(nullptr),
 	                                 nullptr);
 
-	return win_handle;
+#else
+
+	Display* dpy = XOpenDisplay(nullptr);
+	
+	int ds = DefaultScreen(dpy);
+    Window win = XCreateSimpleWindow(dpy, RootWindow(dpy, ds), 0, 0, width, height, 1, BlackPixel(dpy, ds), WhitePixel(dpy, ds));
+    XSelectInput(dpy, win, KeyPressMask | KeyReleaseMask | ButtonPressMask | ButtonReleaseMask | ButtonMotionMask | StructureNotifyMask);
+    
+    XInternAtom(dpy, "WM_PROTOCOLS", false);
+    Atom close_win_msg = XInternAtom(dpy, "WM_DELETE_WINDOW", false);
+    XSetWMProtocols(dpy, win, &close_win_msg, 1);
+
+    XMapWindow(dpy, win);
+	XStoreName(dpy, win, ".:: Tracy 2.0 ::. (collecting data...)");
+
+    handle_t* win_handle = new handle_t;
+    win_handle->ds = ds;
+    win_handle->dpy = dpy;
+    win_handle->win = win;
+
+#endif
+
+    return win_handle;
 }
 
 void TracyDestroyWindow(Handle window_handle)
@@ -101,14 +127,17 @@ void TracyDestroyWindow(Handle window_handle)
 
 void TracyDisplayWindow(Handle window_handle)
 {
+#if defined(WIN32)
 	ShowWindow(window_handle, SW_SHOW);
 	SetForegroundWindow(window_handle);
 	UpdateWindow(window_handle);
 	SetFocus(window_handle);
+#endif
 }
 
-bool TracyProcessMessages()
+bool TracyProcessMessages(Handle window_handle)
 {
+#if defined(WIN32)
 	MSG msg;
 	if (PeekMessage(&msg, NULL, NULL, NULL, PM_REMOVE | PM_QS_SENDMESSAGE | PM_QS_INPUT | PM_QS_POSTMESSAGE))
 	{
@@ -118,16 +147,49 @@ bool TracyProcessMessages()
 		return true;
 	}
 
+#else
+
+	if (XPending(window_handle->dpy))
+	{
+		XEvent e;
+		XNextEvent(window_handle->dpy, &e);
+		switch (e.type)
+		{
+		case Expose:
+			g_kernel.OnPaint();
+			break;
+
+		default:
+			break;
+		}
+	}
+
+#endif
+
 	return false;
 }
 
-bool ShouldQuit()
+bool ShouldQuit(Handle window_handle)
 {
+#if defined(WIN32)
 	MSG msg;
 	return (PeekMessage(&msg, NULL, NULL, NULL, PM_NOREMOVE) && msg.message == WM_QUIT);
+#else
+	const Atom WM_PROTOCOL = XInternAtom(window_handle->dpy, "WM_PROTOCOLS", false);
+    const Atom close_win_msg = XInternAtom(window_handle->dpy, "WM_DELETE_WINDOW", false);
+
+	XEvent e;
+	XPeekEvent(window_handle->dpy, &e);
+	return (e.type == KeyPress && (XLookupKeysym(&e.xkey, 0) == XK_Escape)) ||
+	       (e.type == ClientMessage && ((Atom)e.xclient.message_type == WM_PROTOCOL && (Atom)e.xclient.data.l[0] == close_win_msg));
+#endif
 }
 
+#if defined(WIN32)
 int WINAPI WinMain(HINSTANCE /* hInstance */, HINSTANCE /* hPrevInstance */, LPSTR /* lpCmdLine */, int /* nCmdShow */)
+#else
+int main(int /* argc */, char** /* argv */)
+#endif
 {
 	const int WIDTH = 640;
 	const int HEIGHT = 480;
@@ -149,9 +211,9 @@ int WINAPI WinMain(HINSTANCE /* hInstance */, HINSTANCE /* hPrevInstance */, LPS
 			Timer frame_timer;
 
 			// TODO: threads
-			while (!ShouldQuit())
+			while (!ShouldQuit(win_handle))
 			{
-				if (TracyProcessMessages())
+				if (TracyProcessMessages(win_handle))
 				{
 					continue;
 				}
@@ -184,7 +246,11 @@ int WINAPI WinMain(HINSTANCE /* hInstance */, HINSTANCE /* hPrevInstance */, LPS
 					         (has_ray_count? (g_kernel.GetRayCount() * 1e-6f) / frame_timer.GetDuration() : frame_count / frame_timer.GetDuration()),
 					         (has_ray_count? "MRays/s" : "fps"));
 
+#if defined(WIN32)
 					SetWindowTextA(win_handle, window_title);
+#else
+					XStoreName(win_handle->dpy, win_handle->win, window_title);
+#endif
 
 					g_kernel.ResetRayCount();
 					trace_timer.Reset();

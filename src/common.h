@@ -79,13 +79,23 @@ constexpr inline uint32_t make_id(char a, char b, char c = '\0', char d = '\0')
 #define NOSERVICE
 #define NOMCX
 #include <Windows.h>
-
 using Handle = HWND;
 
-#else
+#elif defined(__linux__)
 
 #include <X11/Xlib.h>
 #include <X11/Xutil.h>
 #include <X11/keysym.h>
+struct handle_t
+{
+	int ds;
+	Display* dpy;
+	Window win;
+};
+using Handle = struct handle_t*;
+
+#else
+
+#error "only windows and linux are supported at this time!"
 
 #endif

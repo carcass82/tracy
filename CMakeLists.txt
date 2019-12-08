@@ -24,10 +24,6 @@ else()
 	source_group("Ext\\CCLib" FILES ${INC_CCLIB})
 endif()
 
-# reset all modules activation
-add_definitions(-DCPU_KERNEL=0)
-add_definitions(-DOPENGL_KERNEL=0)
-
 set(RENDER_MODULE "CPU (RayTracing)" CACHE STRING "Render Module")
 set_property(CACHE RENDER_MODULE PROPERTY STRINGS "CPU (RayTracing)" "OpenGL (Raster)")
 
@@ -132,5 +128,5 @@ if(WIN32)
  target_link_libraries(${PROJECT_NAME} ${OPENGL_LIBRARIES})
 elseif(UNIX)
  add_executable(${PROJECT_NAME} ${SRC_MAIN} ${SRC_GUI} ${INC_LIST} ${INC_CCLIB} ${INC_EXT})
- target_link_libraries(${PROJECT_NAME} ${X11_LIBRARIES})
+ target_link_libraries(${PROJECT_NAME} ${X11_LIBRARIES} ${OPENGL_LIBRARIES})
 endif()

@@ -128,12 +128,15 @@ Mesh& Scene::AddBox(const vec3& bottom, const vec3& top)
 		{ bottom.x, bottom.y, top.z    }
 	};
 
-	const vec2 uv[] = {
-		vec2{ 0.0f, 0.0f },
-		vec2{ 1.0f, 0.0f },
-		vec2{ 1.0f, 1.0f },
-		vec2{ 0.0f, 1.0f }
-	};
+	//
+	// TODO: set UVs
+	//
+	//const vec2 uv[] = {
+	//	vec2{ 0.0f, 0.0f },
+	//	vec2{ 1.0f, 0.0f },
+	//	vec2{ 1.0f, 1.0f },
+	//	vec2{ 0.0f, 1.0f }
+	//};
 
 	const vec3 normals[] = {
 		vec3{  0.0f,  1.0f,  0.0f },

@@ -7,6 +7,8 @@
 #include "cpu_trace.h"
 #include "random.h"
 
+#include <cfloat>
+
 #define CPU_NAIVE_TEST 1
 
 namespace
@@ -143,7 +145,12 @@ struct CpuTrace::CpuTraceDetails
 	//
 	vector<vec3> output;
 	uint32_t* bitmap_bytes;
+	
+#if defined(WIN32)
 	HBITMAP bitmap;
+#else
+	XImage* bitmap{};
+#endif
 };
 
 
@@ -170,7 +177,7 @@ void CpuTrace::Initialize(Handle in_window, int in_width, int in_height, const S
 	scene_ = &in_scene;
 
 	details_->output.resize(in_width * in_height);
-
+#if defined(WIN32)
 	BITMAPINFO bmi;
 	bmi.bmiHeader.biSize = sizeof(BITMAPINFOHEADER);
 	bmi.bmiHeader.biWidth = in_width;
@@ -181,22 +188,45 @@ void CpuTrace::Initialize(Handle in_window, int in_width, int in_height, const S
 	bmi.bmiHeader.biSizeImage = in_width * in_height * 4;
 	HDC hdc = CreateCompatibleDC(GetDC(in_window));
 	details_->bitmap = CreateDIBSection(hdc, &bmi, DIB_RGB_COLORS, (void**)&details_->bitmap_bytes, nullptr, 0x0);
+#else
+	details_->bitmap_bytes = new uint32_t[in_width * in_height];
+    details_->bitmap = XCreateImage(win_handle_->dpy,
+                                  DefaultVisual(win_handle_->dpy, win_handle_->ds),
+                                  DefaultDepth(win_handle_->dpy, win_handle_->ds),
+                                  ZPixmap,
+                                  0,
+                                  reinterpret_cast<char*>(details_->bitmap_bytes),
+                                  in_width,
+                                  in_height,
+                                  32,
+                                  0);
+#endif
 }
 
 void CpuTrace::UpdateScene()
 {
 	// copy last frame result to bitmap for displaying
 	#pragma omp parallel for
-	for (int i = 0; i < win_width_ * win_height_; ++i)
+	for (int j = 0; j < win_height_; ++j)
 	{
-		const vec3 bitmap_col = clamp3(255.99f * sqrtf3(details_->output[i]), .0f, 255.f);
-		details_->bitmap_bytes[i] = (uint8_t)bitmap_col.b        |
-			                        ((uint8_t)bitmap_col.g << 8) |
-			                        ((uint8_t)bitmap_col.r << 16);
+		for (int i = 0; i < win_width_; ++i)
+		{
+			const vec3 bitmap_col = clamp3(255.99f * sqrtf3(details_->output[j * win_width_ + i]), .0f, 255.f);
+			const uint32_t dst = (uint8_t)bitmap_col.b         |
+			                     ((uint8_t)bitmap_col.g << 8)  |
+								 ((uint8_t)bitmap_col.r << 16) ;
+			
+#if defined(WIN32)
+			details_->bitmap_bytes[j * win_width_ + i] = dst;
+#else
+			XPutPixel(details_->bitmap, i, win_height_ - j, dst);
+#endif
+		}
 	}
-	
+#if defined(WIN32)
 	InvalidateRect(win_handle_, nullptr, FALSE);
 	UpdateWindow(win_handle_);
+#endif
 }
 
 vec3 CpuTrace::Trace(const Ray& ray)
@@ -270,6 +300,7 @@ void CpuTrace::RenderScene()
 
 void CpuTrace::OnPaint()
 {
+#if defined(WIN32)
 	PAINTSTRUCT ps;
 	RECT rect;
 	HDC hdc = BeginPaint(win_handle_, &ps);
@@ -282,4 +313,7 @@ void CpuTrace::OnPaint()
 	DeleteObject(srcDC);
 
 	EndPaint(win_handle_, &ps);
+#else
+	XPutImage(win_handle_->dpy, win_handle_->win, DefaultGC(win_handle_->dpy, win_handle_->ds), details_->bitmap, 0, 0, 0, 0, win_width_, win_height_);
+#endif
 }
