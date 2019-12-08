@@ -61,9 +61,9 @@ LRESULT CALLBACK WindowProc(HWND hwnd, UINT uMsg, WPARAM wParam, LPARAM lParam)
 static bool IsValidHandle(Handle window)
 {
 #if defined(WIN32)
-	return window && window->win;
-#else
 	return window != nullptr;
+#else
+	return window && window->win;
 #endif
 }
 
