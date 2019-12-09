@@ -18,10 +18,6 @@
 
 struct OpenGLRender::Details
 {
-#if defined(WIN32)
-	HDC hDC;
-#endif
-
 	struct GLMesh
 	{
 		GLMesh(GLuint in_vao, int in_indexcount, const vec3& in_albedo, float in_metalness, float in_roughness, float in_ior)
@@ -98,11 +94,11 @@ void OpenGLRender::Initialize(Handle in_window, int in_width, int in_height, con
 	pfd.cDepthBits = 16;
 	pfd.iLayerType = PFD_MAIN_PLANE;
 
-	details_->hDC = GetDC(win_handle_);
-	GLuint PixelFormat = ChoosePixelFormat(details_->hDC, &pfd);
-	SetPixelFormat(details_->hDC, PixelFormat, &pfd);
-	HGLRC hRC = wglCreateContext(details_->hDC);
-	wglMakeCurrent(details_->hDC, hRC);
+	HDC hDC = GetDC(win_handle_);
+	GLuint PixelFormat = ChoosePixelFormat(hDC, &pfd);
+	SetPixelFormat(hDC, PixelFormat, &pfd);
+	HGLRC hRC = wglCreateContext(hDC);
+	wglMakeCurrent(hDC, hRC);
 #else
 	GLint att[] = { GLX_RGBA, GLX_DEPTH_SIZE, 24, GLX_DOUBLEBUFFER, None };
     XVisualInfo* vi = glXChooseVisual(win_handle_->dpy, 0, att);
@@ -257,7 +253,7 @@ void OpenGLRender::RenderScene()
 		glBindVertexArray(0);
 
 #if defined(WIN32)
-		SwapBuffers(details_->hDC);
+		SwapBuffers(GetDC(win_handle_));
 #else
 		glXSwapBuffers(win_handle_->dpy, win_handle_->win);
 #endif

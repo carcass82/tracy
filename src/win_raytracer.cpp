@@ -58,7 +58,16 @@ LRESULT CALLBACK WindowProc(HWND hwnd, UINT uMsg, WPARAM wParam, LPARAM lParam)
 }
 #endif
 
-static bool IsValidHandle(Handle window)
+void UpdateWindowText(Handle window, const char* text)
+{
+#if defined(WIN32)
+	SetWindowTextA(window, text);
+#else
+	XStoreName(window->dpy, window->win, text);
+#endif
+}
+
+bool IsValidHandle(Handle window)
 {
 #if defined(WIN32)
 	return window != nullptr;
@@ -206,8 +215,7 @@ int main(int /* argc */, char** /* argv */)
 	if (IsValidHandle(win_handle))
 	{
 		TracyDisplayWindow(win_handle);
-		char window_title[MAX_PATH];
-
+		
 		Scene world;
 		if (world.Init(SCENE_PATH, WIDTH, HEIGHT))
 		{
@@ -240,6 +248,7 @@ int main(int /* argc */, char** /* argv */)
 				{
 					bool has_ray_count = g_kernel.GetRayCount() > 0;
 
+					static char window_title[MAX_PATH];
 					snprintf(window_title,
 						     MAX_PATH,
 						     ".:: Tracy 2.0 (%s) ::. '%s' :: %dx%d@%dspp :: [%d objs] [%d tris] [%.2f %s]",
@@ -253,11 +262,7 @@ int main(int /* argc */, char** /* argv */)
 					         (has_ray_count? (g_kernel.GetRayCount() * 1e-6f) / frame_timer.GetDuration() : frame_count / frame_timer.GetDuration()),
 					         (has_ray_count? "MRays/s" : "fps"));
 
-#if defined(WIN32)
-					SetWindowTextA(win_handle, window_title);
-#else
-					XStoreName(win_handle->dpy, win_handle->win, window_title);
-#endif
+					UpdateWindowText(win_handle, window_title);
 
 					g_kernel.ResetRayCount();
 					trace_timer.Reset();

@@ -210,21 +210,22 @@ void CpuTrace::UpdateScene()
 		for (int i = 0; i < win_width_; ++i)
 		{
 			const vec3 bitmap_col = clamp3(255.99f * sqrtf3(details_->output[j * win_width_ + i]), .0f, 255.f);
-			const uint32_t dst = (uint8_t)bitmap_col.b         |
-			                     ((uint8_t)bitmap_col.g << 8)  |
-								 ((uint8_t)bitmap_col.r << 16) ;
-			
+			const uint32_t dst = (uint8_t)bitmap_col.b |
+				((uint8_t)bitmap_col.g << 8) |
+				((uint8_t)bitmap_col.r << 16);
+
 #if defined(WIN32)
 			details_->bitmap_bytes[j * win_width_ + i] = dst;
-#else
-			XPutPixel(details_->bitmap, i, win_height_ - j, dst);
-#endif
 		}
 	}
-#if defined(WIN32)
 	InvalidateRect(win_handle_, nullptr, FALSE);
 	UpdateWindow(win_handle_);
+
 #else
+
+			XPutPixel(details_->bitmap, i, win_height_ - j, dst);
+		}
+	}
 	XPutImage(win_handle_->dpy, win_handle_->win, DefaultGC(win_handle_->dpy, win_handle_->ds), details_->bitmap, 0, 0, 0, 0, win_width_, win_height_);
 	XFlush(win_handle_->dpy);
 #endif
