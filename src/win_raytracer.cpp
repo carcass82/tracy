@@ -18,6 +18,9 @@
 #if defined(CPU_KERNEL)
  #include "kernels/raytracing/software/cpu_trace.h"
  CpuTrace& g_kernel = CpuTrace::GetInstance();
+#elif defined(CUDA_KERNEL)
+ #include "kernels/raytracing/cuda/cuda_trace.h"
+ CUDATrace& g_kernel = CUDATrace::GetInstance();
 #elif defined(OPENGL_KERNEL)
  #include "kernels/rasterization/opengl/opengl_render.h"
  OpenGLRender& g_kernel = OpenGLRender::GetInstance();

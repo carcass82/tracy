@@ -62,10 +62,10 @@ namespace
 
 		const BBox& GetAABB() const { return aabb; }
 
-		vec3 v0, v1, v2;
-		vec3 v0v1, v0v2;
 		int mesh_idx;
 		int tri_idx;
+		vec3 v0, v1, v2;
+		vec3 v0v1, v0v2;
 		BBox aabb;
 	};
 }
@@ -84,13 +84,13 @@ struct CpuTrace::CpuTraceDetails
 		bool hit_triangle = false;
 
 		int triangle_idx = -1;
-		int mesh_idx = -1;
 		vec2 triangle_uv{};
 
 		vec3 ray_direction = in_ray.GetDirection();
 		vec3 ray_origin = in_ray.GetOrigin();
 
 #if USE_KDTREE
+		int mesh_idx = -1;
 		
 		for (auto&& tri : mesh)
 		{
@@ -227,10 +227,13 @@ struct CpuTrace::CpuTraceDetails
 		}
 
 		SceneTree = *accel::BuildTree<Triangle, 200, 2>(trimesh, root);
-#endif
+
 	}
 
 	accel::Tree<Triangle> SceneTree;
+#else
+	}
+#endif
 
 	//
 	// -- platform data for rendering --

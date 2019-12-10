@@ -1,7 +1,7 @@
 cmake_minimum_required(VERSION 3.8)
 include(CMakeDependentOption)
 
-project(Tracy LANGUAGES C CXX)
+project(Tracy LANGUAGES CXX)
 
 #set(CMAKE_VERBOSE_MAKEFILE ON)
 set(CMAKE_RUNTIME_OUTPUT_DIRECTORY ${Tracy_SOURCE_DIR}/bin/)
@@ -15,6 +15,9 @@ if(DEBUG_SHOW_NORMALS)
 	add_definitions(-DDEBUG_SHOW_NORMALS)
 endif()
 
+#
+# math library selection
+#
 set(MATH_LIBRARY "cclib" CACHE STRING "Math Lib")
 set_property(CACHE MATH_LIBRARY PROPERTY STRINGS cclib glm)
 if(MATH_LIBRARY STREQUAL "glm")
@@ -24,43 +27,11 @@ else()
 	source_group("Ext\\CCLib" FILES ${INC_CCLIB})
 endif()
 
+#
+# kernel selection
+#
 set(RENDER_MODULE "CPU (RayTracing)" CACHE STRING "Render Module")
-set_property(CACHE RENDER_MODULE PROPERTY STRINGS "CPU (RayTracing)" "OpenGL (Raster)")
-
-if(RENDER_MODULE STREQUAL "CPU (RayTracing)")
-
-	add_definitions(-DCPU_KERNEL=1)
-
-	include_directories(./src/kernels/raytracing/software/)
-
-	file(GLOB SRC_MAIN "./src/kernels/raytracing/software/*.cpp" "./src/kernels/raytracing/software/*.h")
-	source_group("Module\\CPU" FILES ${SRC_MAIN})
-	
-	set(CPU_RAND_ALGORITHM "Default" CACHE STRING "Random Algorithm to use")
-	set_property(CACHE CPU_RAND_ALGORITHM PROPERTY STRINGS "Default" "XorShift" "PCG" "Intel")
-	
-	if(CPU_RAND_ALGORITHM STREQUAL "XorShift")
-		add_definitions(-DRANDOM_XORSHIFT=1)
-	elseif(CPU_RAND_ALGORITHM STREQUAL "PCG")
-		add_definitions(-DRANDOM_PCG=1)
-	elseif(CPU_RAND_ALGORITHM STREQUAL "Intel")
-		add_definitions(-DRANDOM_INTEL=1)
-	endif()
-
-elseif(RENDER_MODULE STREQUAL "OpenGL (Raster)")
-
-	find_package(OpenGL REQUIRED)
-
-	add_definitions(-DOPENGL_KERNEL=1)
-	add_definitions(-DGLEW_STATIC)
-	
-	include_directories(./src/kernels/rasterization/opengl/)
-	include_directories(./src/kernels/rasterization/opengl/ext/include)
-
-	file(GLOB SRC_MAIN "./src/kernels/rasterization/opengl/*.cpp" "./src/kernels/rasterization/opengl/ext/glew.c" "./src/kernels/rasterization/opengl/*.h")
-	source_group("Module\\OpenGL" FILES ${SRC_MAIN})
-
-endif()
+set_property(CACHE RENDER_MODULE PROPERTY STRINGS "CPU (RayTracing)" "CUDA (RayTracing)" "OpenGL (Raster)")
 
 #
 # default to Release build
@@ -71,7 +42,7 @@ if(NOT CMAKE_BUILD_TYPE)
 endif()
 
 #
-# sources + headers (grouped)
+# default sources + headers (grouped)
 #
 file(GLOB INC_LIST "./src/*.h")
 source_group("Includes" FILES ${INC_LIST})
@@ -81,11 +52,6 @@ source_group("Ext\\" FILES ${INC_EXT})
 
 include_directories(. ./src ./ext)
 file(GLOB SRC_GUI "./src/*.cpp" "./src/*.h")
-
-if(UNIX)
-	find_package(X11 REQUIRED)
-	include_directories(${X11_INCLUDE_DIR})
-endif()
 
 #
 # Compiler options
@@ -114,7 +80,49 @@ else()
 	endif()
 endif()
 
+#
+# kernels
+#
+if(RENDER_MODULE STREQUAL "CPU (RayTracing)")
 
+	add_definitions(-DCPU_KERNEL=1)
+
+	include_directories(./src/kernels/raytracing/software/)
+
+	file(GLOB SRC_MAIN "./src/kernels/raytracing/software/*.cpp" "./src/kernels/raytracing/software/*.h")
+	source_group("Module\\CPU" FILES ${SRC_MAIN})
+	
+	set(CPU_RAND_ALGORITHM "Default" CACHE STRING "Random Algorithm to use")
+	set_property(CACHE CPU_RAND_ALGORITHM PROPERTY STRINGS "Default" "XorShift" "PCG" "Intel")
+	
+	if(CPU_RAND_ALGORITHM STREQUAL "XorShift")
+		add_definitions(-DRANDOM_XORSHIFT=1)
+	elseif(CPU_RAND_ALGORITHM STREQUAL "PCG")
+		add_definitions(-DRANDOM_PCG=1)
+	elseif(CPU_RAND_ALGORITHM STREQUAL "Intel")
+		add_definitions(-DRANDOM_INTEL=1)
+	endif()
+
+elseif(RENDER_MODULE STREQUAL "OpenGL (Raster)")
+
+	find_package(OpenGL REQUIRED)
+	
+	add_definitions(-DOPENGL_KERNEL=1)
+	
+	add_definitions(-DGLEW_STATIC)
+	enable_language(C) # for glew.c
+	
+	include_directories(./src/kernels/rasterization/opengl/)
+	include_directories(./src/kernels/rasterization/opengl/ext/include)
+
+	file(GLOB SRC_MAIN "./src/kernels/rasterization/opengl/*.cpp" "./src/kernels/rasterization/opengl/ext/glew.c" "./src/kernels/rasterization/opengl/*.h")
+	source_group("Module\\OpenGL" FILES ${SRC_MAIN})
+
+endif()
+
+#
+# show build flags
+#
 if(CMAKE_BUILD_TYPE STREQUAL "Debug")
 	message(STATUS "Debug CMAKE_CXX_FLAGS:  ${CMAKE_CXX_FLAGS} ${CMAKE_CXX_FLAGS_DEBUG}")
 	message(STATUS "Debug CMAKE_EXE_LINKER_FLAGS: ${CMAKE_EXE_LINKER_FLAGS} ${CMAKE_EXE_LINKER_FLAGS_DEBUG}")
@@ -123,10 +131,40 @@ elseif(CMAKE_BUILD_TYPE STREQUAL "Release")
 	message(STATUS "Release CMAKE_EXE_LINKER_FLAGS: ${CMAKE_EXE_LINKER_FLAGS} ${CMAKE_EXE_LINKER_FLAGS_RELEASE}")
 endif()
 
+#
+# main app build rule
+#
 if(WIN32)
  add_executable(${PROJECT_NAME} WIN32 ${SRC_MAIN} ${SRC_GUI} ${INC_LIST} ${INC_CCLIB} ${INC_EXT})
  target_link_libraries(${PROJECT_NAME} ${OPENGL_LIBRARIES})
 elseif(UNIX)
+ find_package(X11 REQUIRED)
+ include_directories(${X11_INCLUDE_DIR})
  add_executable(${PROJECT_NAME} ${SRC_MAIN} ${SRC_GUI} ${INC_LIST} ${INC_CCLIB} ${INC_EXT})
  target_link_libraries(${PROJECT_NAME} ${X11_LIBRARIES} ${OPENGL_LIBRARIES})
+endif()
+
+#
+# CUDA must be defined here as it needs to be appended to existing target executable
+#
+if(RENDER_MODULE STREQUAL "CUDA (RayTracing)")
+
+	enable_language(CUDA)
+	
+	add_definitions(-DCUDA_KERNEL=1)
+
+	set(CMAKE_CUDA_FLAGS "-std=c++14 -D_FORCE_INLINES ${CUDA_COMPUTECAPABILITY}")
+	set(CMAKE_CUDA_FLAGS_DEBUG "-G -D_DEBUG")
+	set(CMAKE_CUDA_FLAGS_RELEASE "--use_fast_math -O2 -g -lineinfo -DNDEBUG")
+
+	include_directories(../src/kernels/raytracing/cuda/)
+
+	file(GLOB SRC_CUDA "./src/kernels/raytracing/cuda/*.cpp" "./src/kernels/raytracing/cuda/*.h" "./src/kernels/raytracing/cuda/*.cu" "./src/kernels/raytracing/cuda/*.cuh")
+	source_group("CUDA\\" FILES ${SRC_CUDA})
+
+	add_library(CUDA_CODE STATIC ${SRC_CUDA})
+	target_link_libraries(${PROJECT_NAME} CUDA_CODE)
+
+	set_target_properties(${PROJECT_NAME} PROPERTIES CUDA_SEPARABLE_COMPILATION ON)
+	set_target_properties(${PROJECT_NAME} PROPERTIES CUDA_PROPAGATE_HOST_FLAGS OFF)
 endif()

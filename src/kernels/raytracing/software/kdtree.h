@@ -95,7 +95,7 @@ vector<T> IntersectsWithTree(const Tree<T>& tree, const Ray& ray)
 			{
 				root = root->children[0];
 			}
-			else if (root->children[1] && IntersectsWithBoundingBox(root->children[1]->aabb, ray))
+			else if (root->children[1] /* && IntersectsWithBoundingBox(root->children[1]->aabb, ray) */)
 			{
 				root = root->children[1];
 			}
@@ -111,5 +111,4 @@ vector<T> IntersectsWithTree(const Tree<T>& tree, const Ray& ray)
 		return EMPTY;
 	}
 }
-
 }
