@@ -23,7 +23,7 @@ class Scene
 {
 public:
 
-	Mesh& AddSphere(const vec3& in_center, float in_radius, int steps = 32);
+	Mesh& AddSphere(const vec3& in_center, float in_radius, int steps = 8);
 
 	Mesh& AddBox(const vec3& bottom, const vec3& top);
 

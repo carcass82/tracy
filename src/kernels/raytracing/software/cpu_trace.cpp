@@ -6,6 +6,7 @@
  */
 #include "cpu_trace.h"
 #include "random.h"
+#include "kdtree.h"
 #include <cfloat>
 
 
@@ -20,17 +21,11 @@ namespace
 	{
 		return vec3{ clamp(a.x, min, max), clamp(a.y, min, max), clamp(a.z, min, max) };
 	}
-}
 
-//
-// CPU Trace - Details
-//
-struct CpuTrace::CpuTraceDetails
-{
 	//
 	// https://tavianator.com/fast-branchless-raybounding-box-intersections/
 	//
-	bool IntersectsWithBoundingBox(const BBox& box, const Ray& ray, float nearest_intersection = FLT_MAX) const
+	bool IntersectsWithBoundingBox(const BBox& box, const Ray& ray, float nearest_intersection = FLT_MAX)
 	{
 		const vec3 inv_ray = ray.GetInvDirection();
 		const vec3 minbound = (box.minbound - ray.GetOrigin()) * inv_ray;
@@ -45,29 +40,81 @@ struct CpuTrace::CpuTraceDetails
 		return (tmax >= max(1.e-8f, tmin) && tmin < nearest_intersection);
 	}
 
+	struct Triangle
+	{
+		Triangle(int in_mesh_idx, int in_tri_idx, const vec3& in_v0, const vec3& in_v1, const vec3& in_v2)
+			: mesh_idx(in_mesh_idx)
+			, tri_idx(in_tri_idx)
+			, v0(in_v0)
+			, v1(in_v1)
+			, v2(in_v2)
+		{
+			ComputeAABB();
+			v0v1 = v1 - v0;
+			v0v2 = v2 - v0;
+		}
+
+		void ComputeAABB()
+		{
+			aabb.minbound = pmin(v0, pmin(v1, v2));
+			aabb.maxbound = pmax(v0, pmax(v1, v2));
+		}
+
+		const BBox& GetAABB() const { return aabb; }
+
+		vec3 v0, v1, v2;
+		vec3 v0v1, v0v2;
+		int mesh_idx;
+		int tri_idx;
+		BBox aabb;
+	};
+}
+
+//
+// CPU Trace - Details
+//
+struct CpuTrace::CpuTraceDetails
+{
+#if USE_KDTREE
+	bool IntersectsWithMesh(const Scene& scene, const vector<Triangle>& mesh, const Ray& in_ray, HitData& inout_intersection) const
+#else
 	bool IntersectsWithMesh(const Mesh& mesh, const Ray& in_ray, HitData& inout_intersection) const
+#endif
 	{
 		bool hit_triangle = false;
 
 		int triangle_idx = -1;
+		int mesh_idx = -1;
 		vec2 triangle_uv{};
 
-		int tris = mesh.GetTriCount();
 		vec3 ray_direction = in_ray.GetDirection();
 		vec3 ray_origin = in_ray.GetOrigin();
 
+#if USE_KDTREE
+		
+		for (auto&& tri : mesh)
+		{
+			const vec3 v0 = tri.v0;
+			const vec3 v1 = tri.v1;
+			const vec3 v2 = tri.v2;
+
+			const vec3 v0v1 = tri.v0v1;
+			const vec3 v0v2 = tri.v0v2;
+#else
+		int tris = mesh.GetTriCount();
 		for (int i = 0; i < tris; ++i)
 		{
 			const Index i0 = mesh.GetIndex(i * 3);
 			const Index i1 = mesh.GetIndex(i * 3 + 1);
 			const Index i2 = mesh.GetIndex(i * 3 + 2);
-
+			
 			const vec3 v0 = mesh.GetVertex(i0).pos;
 			const vec3 v1 = mesh.GetVertex(i1).pos;
 			const vec3 v2 = mesh.GetVertex(i2).pos;
 
 			const vec3 v0v1 = v1 - v0;
 			const vec3 v0v2 = v2 - v0;
+#endif
 
 			vec3 pvec = cross(ray_direction, v0v2);
 			float det = dot(v0v1, pvec);
@@ -100,14 +147,23 @@ struct CpuTrace::CpuTraceDetails
 			{
 				inout_intersection.t = dot(v0v2, qvec) * invDet;
 				triangle_uv = vec2{ u, v };
+#if USE_KDTREE
+				triangle_idx = tri.tri_idx;
+				mesh_idx = tri.mesh_idx;
+#else
 				triangle_idx = i * 3;
+#endif
 				hit_triangle = true;
 			}
 		}
 
 		if (hit_triangle)
 		{
+#if USE_KDTREE
+			FillTriangleIntersectionData(scene.GetObject(mesh_idx), in_ray, triangle_idx, triangle_uv, inout_intersection);
+#else
 			FillTriangleIntersectionData(mesh, in_ray, triangle_idx, triangle_uv, inout_intersection);
+#endif
 		}
 
 		return hit_triangle;
@@ -127,6 +183,9 @@ struct CpuTrace::CpuTraceDetails
 
 	bool ComputeIntersection(const Scene& scene, const Ray& ray, HitData& intersection_data) const
 	{
+#if USE_KDTREE
+		return IntersectsWithMesh(scene, accel::IntersectsWithTree<Triangle>(SceneTree, ray), ray, intersection_data);
+#else
 		bool hit_any_mesh = false;
 		for (const Mesh& mesh : scene.GetObjects())
 		{
@@ -140,7 +199,38 @@ struct CpuTrace::CpuTraceDetails
 		}
 
 		return hit_any_mesh;
+#endif
 	}
+
+	void BuildInternalScene(const Scene& scene)
+	{
+#if USE_KDTREE
+		BBox root;
+		vector<const Triangle*> trimesh;
+		for (int i = 0; i < scene.GetObjects().size(); ++i)
+		{
+			const Mesh& mesh = scene.GetObject(i);
+
+			for (int t = 0; t < mesh.GetTriCount(); ++t)
+			{
+				int tri_idx = t * 3;
+
+				const vec3& v0 = mesh.GetVertex(mesh.GetIndex(tri_idx + 0)).pos;
+				const vec3& v1 = mesh.GetVertex(mesh.GetIndex(tri_idx + 1)).pos;
+				const vec3& v2 = mesh.GetVertex(mesh.GetIndex(tri_idx + 2)).pos;
+
+				root.minbound = pmin(mesh.GetAABB().minbound, root.minbound);
+				root.maxbound = pmax(mesh.GetAABB().maxbound, root.maxbound);
+
+				trimesh.emplace_back(new Triangle{ i, tri_idx, v0, v1, v2 });
+			}
+		}
+
+		SceneTree = *accel::BuildTree<Triangle, 200, 2>(trimesh, root);
+#endif
+	}
+
+	accel::Tree<Triangle> SceneTree;
 
 	//
 	// -- platform data for rendering --
@@ -203,6 +293,8 @@ void CpuTrace::Initialize(Handle in_window, int in_width, int in_height, const S
                                   32,
                                   0);
 #endif
+
+	details_->BuildInternalScene(in_scene);
 }
 
 void CpuTrace::UpdateScene()

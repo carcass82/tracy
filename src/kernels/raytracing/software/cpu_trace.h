@@ -32,6 +32,8 @@ public:
 	int GetRayCount() const              { return raycount_; }
 	void ResetRayCount()                 { raycount_ = 0; }
 
+	const Scene* GetScene() const        { return scene_; }
+
 private:
 	CpuTrace();
 	vec3 Trace(const Ray& ray);
