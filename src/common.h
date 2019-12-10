@@ -6,10 +6,19 @@
  */
 #pragma once
 
+#include <cstdint>
+
 #if USE_GLM
 #define GLM_ENABLE_EXPERIMENTAL
-#include <glm/glm.hpp>
-#include <glm/gtc/matrix_transform.hpp>
+#define GLM_FORCE_PRECISION_MEDIUMP_FLOAT
+#define GLM_FORCE_DEFAULT_ALIGNED_GENTYPES
+#include <glm/vec2.hpp>
+#include <glm/vec3.hpp>
+#include <glm/vec4.hpp>
+#include <glm/mat4x4.hpp>
+#include <glm/mat3x3.hpp>
+#include <glm/ext/matrix_transform.hpp>
+#include <glm/gtx/fast_trigonometry.hpp>
 #include <glm/gtx/compatibility.hpp>
 using glm::mat4;
 using glm::mat3;
@@ -23,7 +32,12 @@ using glm::clamp;
 using glm::lerp;
 using glm::perspective;
 using glm::lookAt;
-constexpr float PI = 3.1415926535897932f;
+#define cosf(x) glm::fastCos(x)
+#define sinf(x) glm::fastSin(x)
+constexpr inline vec3 pmin(const vec3& a, const vec3& b) { return { min(a.x, b.x), min(a.y, b.y), min(a.z, b.z) }; }
+constexpr inline vec3 pmax(const vec3& a, const vec3& b) { return { max(a.x, b.x), max(a.y, b.y), max(a.z, b.z) }; }
+constexpr float PI = glm::pi<float>();
+#define CC_CONSTEXPR
 #else
 #include "cclib/cclib.h"
 using cc::math::mat4;
@@ -38,7 +52,10 @@ using cc::util::clamp;
 using cc::math::lerp;
 using cc::math::perspective;
 using cc::math::inverse;
+#define cosf(x) cc::math::fast::cosf(x)
+#define sinf(x) cc::math::fast::sinf(x)
 using cc::math::PI;
+#define CC_CONSTEXPR constexpr
 #endif
 
 class Material;

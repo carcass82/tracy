@@ -18,7 +18,7 @@ namespace
         float a = fastrand() * 2.f * PI;
         float r = sqrtf(max(.0f, 1.f - z * z));
 
-        return vec3{ r * cc::math::fast::cosf(a), r * cc::math::fast::sinf(a), z };
+        return vec3{ r * cosf(a), r * sinf(a), z };
     }
 
     float schlick(float cos, float ref_idx)

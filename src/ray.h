@@ -21,10 +21,10 @@ public:
 		, inv_direction_(1.f / direction_)
     {}
 
-    constexpr const vec3& GetOrigin() const        { return origin_; }
-    constexpr const vec3& GetDirection() const     { return direction_; }
-	constexpr const vec3& GetInvDirection() const  { return inv_direction_; }
-    constexpr       vec3  GetPoint(float t) const  { return origin_ + t * direction_; }
+    constexpr    const vec3& GetOrigin() const        { return origin_; }
+    constexpr    const vec3& GetDirection() const     { return direction_; }
+	constexpr    const vec3& GetInvDirection() const  { return inv_direction_; }
+    CC_CONSTEXPR const vec3  GetPoint(float t) const  { return origin_ + t * direction_; }
 
 private:
     vec3 origin_;
