@@ -11,7 +11,7 @@ namespace shaders
 	//
 	// common VS
 	// 
-	const char* vs_source = R"vs(
+	static const char* vs_source = R"vs(
     #version 330
 	layout (location = 0) in vec3 position;
 	layout (location = 1) in vec3 normal;
@@ -50,7 +50,7 @@ namespace shaders
 	//
 	// standard FS
 	// 
-	const char* fs_source = R"fs(
+	static const char* fs_source = R"fs(
 	#version 330
 
 	in VS_OUT
@@ -98,7 +98,7 @@ namespace shaders
 	//
 	// debug FS
 	// 
-	const char* fs_source = R"fs(
+	static const char* fs_source = R"fs(
 	#version 330
 
 	in VS_OUT

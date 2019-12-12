@@ -5,10 +5,6 @@
  * (c) Carlo Casta, 2018
  */
 #include "common.h"
-#if !defined(MAX_PATH)
-	#define MAX_PATH 260
-#endif
-
 #include "timer.h"
 #include "ray.h"
 #include "camera.h"

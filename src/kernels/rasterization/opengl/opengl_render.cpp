@@ -115,6 +115,8 @@ void OpenGLRender::Initialize(Handle in_window, int in_width, int in_height, con
 		glEnable(GL_DEPTH_TEST);
 		glClearColor(0.0f, 0.0f, 0.0f, 0.0f);
 		glClearDepth(1.0f);
+		
+		glViewport(0, 0, win_width_, win_height_);
 
 		glEnable(GL_CULL_FACE);
 
@@ -190,14 +192,14 @@ void OpenGLRender::Initialize(Handle in_window, int in_width, int in_height, con
 			glGetShaderiv(details_->vs, GL_COMPILE_STATUS, &status);
 			if (status != GL_TRUE)
 			{
-				glGetShaderInfoLog(details_->vs, 512, NULL, buffer);
+				glGetShaderInfoLog(details_->vs, array_size(buffer), nullptr, buffer);
 				__debugbreak();
 			}
 
 			glGetShaderiv(details_->fs, GL_COMPILE_STATUS, &status);
 			if (status != GL_TRUE)
 			{
-				glGetShaderInfoLog(details_->fs, 512, NULL, buffer);
+				glGetShaderInfoLog(details_->fs, array_size(buffer), nullptr, buffer);
 				__debugbreak();
 			}
 #endif
@@ -206,6 +208,15 @@ void OpenGLRender::Initialize(Handle in_window, int in_width, int in_height, con
 			glAttachShader(details_->shader, details_->vs);
 			glAttachShader(details_->shader, details_->fs);
 			glLinkProgram(details_->shader);
+			
+#if defined(_DEBUG)
+            glGetProgramiv(details_->shader, GL_LINK_STATUS, &status);
+            if (status != GL_TRUE)
+            {
+                glGetProgramInfoLog(details_->shader, array_size(buffer), nullptr, buffer);
+                __debugbreak();
+            }
+#endif
 		}
 
 		// map UBO

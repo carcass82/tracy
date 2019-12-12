@@ -103,6 +103,14 @@ if(RENDER_MODULE STREQUAL "CPU (RayTracing)")
 		add_definitions(-DRANDOM_INTEL=1)
 	endif()
 
+elseif(RENDER_MODULE STREQUAL "CUDA (RayTracing)")
+
+	find_package(OpenGL REQUIRED)
+
+	add_definitions(-DGLEW_STATIC)
+	enable_language(C) # for glew.c
+	include_directories(./ext/glew/include)
+
 elseif(RENDER_MODULE STREQUAL "OpenGL (Raster)")
 
 	find_package(OpenGL REQUIRED)
@@ -113,9 +121,9 @@ elseif(RENDER_MODULE STREQUAL "OpenGL (Raster)")
 	enable_language(C) # for glew.c
 	
 	include_directories(./src/kernels/rasterization/opengl/)
-	include_directories(./src/kernels/rasterization/opengl/ext/include)
+	include_directories(./ext/glew/include)
 
-	file(GLOB SRC_MAIN "./src/kernels/rasterization/opengl/*.cpp" "./src/kernels/rasterization/opengl/ext/glew.c" "./src/kernels/rasterization/opengl/*.h")
+	file(GLOB SRC_MAIN "./src/kernels/rasterization/opengl/*.cpp" "./src/kernels/rasterization/opengl/*.h" "./ext/glew/glew.c")
 	source_group("Module\\OpenGL" FILES ${SRC_MAIN})
 
 endif()
@@ -153,13 +161,15 @@ if(RENDER_MODULE STREQUAL "CUDA (RayTracing)")
 	
 	add_definitions(-DCUDA_KERNEL=1)
 
+	set(CUDA_COMPUTECAPABILITY "-arch=sm_30" CACHE STRING "Cuda Arch Compile Option")
+
 	set(CMAKE_CUDA_FLAGS "-std=c++14 -D_FORCE_INLINES ${CUDA_COMPUTECAPABILITY}")
 	set(CMAKE_CUDA_FLAGS_DEBUG "-G -D_DEBUG")
 	set(CMAKE_CUDA_FLAGS_RELEASE "--use_fast_math -O2 -g -lineinfo -DNDEBUG")
 
 	include_directories(../src/kernels/raytracing/cuda/)
 
-	file(GLOB SRC_CUDA "./src/kernels/raytracing/cuda/*.cpp" "./src/kernels/raytracing/cuda/*.h" "./src/kernels/raytracing/cuda/*.cu" "./src/kernels/raytracing/cuda/*.cuh")
+	file(GLOB SRC_CUDA "./src/kernels/raytracing/cuda/*.cpp" "./src/kernels/raytracing/cuda/*.h" "./src/kernels/raytracing/cuda/*.cu" "./src/kernels/raytracing/cuda/*.cuh" "./ext/glew/glew.c")
 	source_group("CUDA\\" FILES ${SRC_CUDA})
 
 	add_library(CUDA_CODE STATIC ${SRC_CUDA})

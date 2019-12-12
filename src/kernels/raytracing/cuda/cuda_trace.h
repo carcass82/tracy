@@ -23,8 +23,8 @@ public:
 
 	void Initialize(Handle in_window, int in_width, int in_height, const Scene& in_scene);
 	void Shutdown() {}
-	void UpdateScene() {}
-	void RenderScene() {}
+	void UpdateScene();
+	void RenderScene();
 	void OnPaint() {}
 
 	const char* GetName() const          { return "CUDA"; }

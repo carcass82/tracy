@@ -37,6 +37,7 @@ using glm::lookAt;
 constexpr inline vec3 pmin(const vec3& a, const vec3& b) { return { min(a.x, b.x), min(a.y, b.y), min(a.z, b.z) }; }
 constexpr inline vec3 pmax(const vec3& a, const vec3& b) { return { max(a.x, b.x), max(a.y, b.y), max(a.z, b.z) }; }
 constexpr float PI = glm::pi<float>();
+template<typename T, size_t N> constexpr inline uint32_t array_size(const T(&)[N]) { return N; }
 #define CC_CONSTEXPR
 #else
 #include "cclib/cclib.h"
@@ -49,6 +50,7 @@ using cc::math::radians;
 using cc::util::max;
 using cc::util::min;
 using cc::util::clamp;
+using cc::util::array_size;
 using cc::math::lerp;
 using cc::math::perspective;
 using cc::math::inverse;
@@ -110,6 +112,10 @@ struct handle_t
 	Window win;
 };
 using Handle = struct handle_t*;
+
+#if !defined(MAX_PATH)
+ #define MAX_PATH 260
+#endif
 
 #else
 
