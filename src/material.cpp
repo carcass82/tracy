@@ -29,7 +29,7 @@ namespace
     }
 }
 
-bool Material::Scatter(const Ray& ray, const HitData& hit, vec3& out_attenuation, vec3& out_emission, Ray& out_scattered) const
+CUDA_CALL bool Material::Scatter(const Ray& ray, const HitData& hit, vec3& out_attenuation, vec3& out_emission, Ray& out_scattered) const
 {
     switch (material_type_)
     {

@@ -5,14 +5,21 @@
 #include "common.h"
 #include "log.h"
 
-constexpr int MAX_GPU = 32;
+#include "ray.h"
+#include "camera.h"
+#include "material.h"
 
-__device__ inline int ColorByteToInt(float r, float g, float b)
+constexpr int MAX_GPU = 32;
+constexpr int MAX_DEPTH = 5;
+
+__device__ constexpr inline uint32_t ToInt(vec3 color)
 {
-    r = clamp(r, 0.0f, 255.0f);
-    g = clamp(g, 0.0f, 255.0f);
-    b = clamp(b, 0.0f, 255.0f);
-    return (int(b) << 16) | (int(g) << 8) | int(r);
+    color.r = clamp(color.r, 0.0f, 255.0f);
+    color.g = clamp(color.g, 0.0f, 255.0f);
+    color.b = clamp(color.b, 0.0f, 255.0f);
+
+    uint32_t packed = (uint8_t(color.b) << 16) | (uint8_t(color.g) << 8) | uint8_t(color.r);
+    return packed;
 }
 
 __device__ inline float fastrand(curandState* curand_ctx)
@@ -20,7 +27,47 @@ __device__ inline float fastrand(curandState* curand_ctx)
     return curand_normal(curand_ctx);
 }
 
-__global__ void cudaProcess(unsigned int* output, int width, int height)
+__device__ inline vec3 TraceInternal(const Ray& in_ray)
+{
+    vec3 current_color = { 1.f, 1.f, 1.f };
+    Ray current_ray = { in_ray };
+
+    HitData hit_data;
+    hit_data.t = FLT_MAX;
+
+    for (int i = 0; i < MAX_DEPTH; ++i)
+    {
+        if (true) //if (details_->ComputeIntersection(*scene_, current_ray, intersection_data))
+        {
+
+#if DEBUG_SHOW_NORMALS
+            //return .5f * normalize((1.f + mat3(camera_->GetView()) * hit_data.normal));
+#else
+            Ray scattered;
+            vec3 attenuation;
+            vec3 emission;
+            if (hit_data.material->Scatter(current_ray, hit_data, attenuation, emission, scattered))
+            {
+                current_color *= attenuation;
+                current_ray = scattered;
+            }
+            //else
+            {
+                current_color *= emission;
+                return current_color;
+            }
+#endif
+        }
+        else
+        {
+            return {};
+        }
+    }
+
+    return {};
+}
+
+__global__ void Trace(uint32_t* output, int width, int height)
 {
     const int i = (blockIdx.x * blockDim.x) + threadIdx.x;
     const int j = (blockIdx.y * blockDim.y) + threadIdx.y;
@@ -28,9 +75,30 @@ __global__ void cudaProcess(unsigned int* output, int width, int height)
     curandState curand_ctx;
     curand_init(clock64(), i, j, &curand_ctx);
 
-    float s = fastrand(&curand_ctx) * 255.99;
+    //
+    // main loop
+    //
+    
+    //int raycount_inst = 0;
 
-    output[j * width + i] = ColorByteToInt(s, s, s);
+    float f_width = static_cast<float>(width);
+    float f_height = static_cast<float>(height);
+
+    Camera c;
+    c.Setup({ 0.5, 0.5, 1.5 }, { 0.0, 0.0, 0.0 }, { 0.0, 1.0, 0.0 }, 60.f, f_width / max(1.f, f_height));
+
+    vec3 color{};
+    for (int sample = 0; sample < 1; ++sample)
+    {
+        float s = ((i + fastrand(&curand_ctx)) / f_width);
+        float t = ((j + fastrand(&curand_ctx)) / f_height);
+
+        Ray r = c.GetRayFrom(s, t);
+        color += TraceInternal(r);
+    }
+    //atomicAdd(raycount, raycount_inst);
+
+    output[j * width + i] = ToInt(color * 255.99f);
 }
 
 extern "C" void cuda_setup()
@@ -65,7 +133,7 @@ extern "C" void cuda_trace(unsigned int* output, int w, int h)
 
     dim3 block(16, 16, 1);
     dim3 grid(w / block.x, h / block.y, 1);
-    cudaProcess<<<grid, block>>>(output, w, h);
+    Trace<<<grid, block>>>(output, w, h);
 
     CUDAAssert(cudaGetLastError());
 }

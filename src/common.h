@@ -9,6 +9,9 @@
 #include <cstdint>
 
 #if USE_GLM
+ #if defined(__CUDACC__)
+  #define GLM_FORCE_CUDA
+ #endif
 #define GLM_ENABLE_EXPERIMENTAL
 #define GLM_FORCE_PRECISION_MEDIUMP_FLOAT
 #define GLM_FORCE_DEFAULT_ALIGNED_GENTYPES

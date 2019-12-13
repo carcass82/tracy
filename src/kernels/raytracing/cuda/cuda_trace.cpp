@@ -79,10 +79,9 @@ void CUDATrace::Initialize(Handle in_window, int in_width, int in_height, const 
         glEnable(GL_FRAMEBUFFER_SRGB);
 
         glDisable(GL_DEPTH_TEST);
+        
         glClearColor(0.0f, 0.0f, 0.0f, 0.0f);
-        glClearDepth(1.0f);
-        glEnable(GL_CULL_FACE);
-        glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
+        glClear(GL_COLOR_BUFFER_BIT);
 
         glViewport(0, 0, win_width_, win_height_);
 
@@ -113,10 +112,10 @@ void CUDATrace::Initialize(Handle in_window, int in_width, int in_height, const 
         )vs";
 
         static const char* fragment_shader = R"fs(
-        uniform usampler2D texImage;
+        uniform usampler2D in_texture;
         void main()
         {
-            gl_FragColor = texture(texImage, gl_TexCoord[0].xy);
+            gl_FragColor = texture(in_texture, gl_TexCoord[0].xy);
         }
         )fs";
 
@@ -183,18 +182,18 @@ void CUDATrace::UpdateScene()
 
 void CUDATrace::RenderScene()
 {
-    glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
+    glClear(GL_COLOR_BUFFER_BIT);
 
     glUseProgram(details_->shader);
-    glUniform1i(glGetUniformLocation(details_->shader, "texImage"), 0);
+    glUniform1i(glGetUniformLocation(details_->shader, "in_texture"), 0);
 
     glBindTexture(GL_TEXTURE_2D, details_->texture);
 
     glBegin(GL_QUADS);
-     glTexCoord2f(0.0, 0.0); glVertex3f(-1.0, -1.0, 0.5);
-     glTexCoord2f(1.0, 0.0); glVertex3f(1.0, -1.0, 0.5);
-     glTexCoord2f(1.0, 1.0); glVertex3f(1.0, 1.0, 0.5);
-     glTexCoord2f(0.0, 1.0); glVertex3f(-1.0, 1.0, 0.5);
+     glTexCoord2f(0.0, 0.0); glVertex2f(-1.0, -1.0);
+     glTexCoord2f(1.0, 0.0); glVertex2f( 1.0, -1.0);
+     glTexCoord2f(1.0, 1.0); glVertex2f( 1.0,  1.0);
+     glTexCoord2f(0.0, 1.0); glVertex2f(-1.0,  1.0);
     glEnd();
 
     glUseProgram(0);

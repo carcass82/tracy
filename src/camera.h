@@ -11,15 +11,15 @@
 class Camera
 {
 public:
-	Camera()
+	CUDA_CALL Camera()
 	{}
 
-	Camera(const vec3& eye, const vec3& center, const vec3& up, float fov, float ratio)
+	CUDA_CALL Camera(const vec3& eye, const vec3& center, const vec3& up, float fov, float ratio)
 	{
 		Setup(eye, center, up, fov, ratio);
 	}
 
-	void Setup(const vec3& eye, const vec3& center, const vec3& up, float fov, float ratio)
+	CUDA_CALL void Setup(const vec3& eye, const vec3& center, const vec3& up, float fov, float ratio)
 	{
 		eye_ = eye;
 		view_ = lookAt(eye, center, up);
@@ -27,7 +27,7 @@ public:
 		view_projection_inv_ = inverse(projection_ * view_);
 	}
 
-	Ray GetRayFrom(float s, float t) const
+	CUDA_CALL Ray GetRayFrom(float s, float t) const
 	{
 		vec3 pixel_ndc = vec3(s, t, 1.f) * 2.f - 1.f;
 		vec4 point_3d = view_projection_inv_ * vec4(pixel_ndc, 1.f);

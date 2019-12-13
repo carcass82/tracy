@@ -6,7 +6,7 @@ project(Tracy LANGUAGES CXX)
 #set(CMAKE_VERBOSE_MAKEFILE ON)
 set(CMAKE_RUNTIME_OUTPUT_DIRECTORY ${Tracy_SOURCE_DIR}/bin/)
 
-set(CMAKE_CXX_STANDARD 17)
+set(CMAKE_CXX_STANDARD 11)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
 set(CMAKE_CXX_EXTENSIONS OFF)
 
@@ -158,23 +158,29 @@ endif()
 if(RENDER_MODULE STREQUAL "CUDA (RayTracing)")
 
 	enable_language(CUDA)
+	set(CMAKE_CUDA11_STANDARD_COMPILE_OPTION  "-std=c++11")
+	set(CMAKE_CUDA11_EXTENSION_COMPILE_OPTION "-std=c++11")
+
 	
 	add_definitions(-DCUDA_KERNEL=1)
-
+	
 	set(CUDA_COMPUTECAPABILITY "-arch=sm_30" CACHE STRING "Cuda Arch Compile Option")
-
-	set(CMAKE_CUDA_FLAGS "-std=c++14 -D_FORCE_INLINES ${CUDA_COMPUTECAPABILITY}")
+	
+	set(CMAKE_CUDA_FLAGS "-D_FORCE_INLINES ${CUDA_COMPUTECAPABILITY}")
 	set(CMAKE_CUDA_FLAGS_DEBUG "-G -D_DEBUG")
 	set(CMAKE_CUDA_FLAGS_RELEASE "--use_fast_math -O2 -g -lineinfo -DNDEBUG")
-
+	
 	include_directories(../src/kernels/raytracing/cuda/)
+	
+	file(GLOB SRC_MAIN "./src/kernels/raytracing/cuda/*.cpp" "./src/kernels/raytracing/cuda/*.h" "./src/kernels/raytracing/cuda/*.cu" "./src/kernels/raytracing/cuda/*.cuh" "./ext/glew/glew.c")
+	source_group("CUDA\\" FILES ${SRC_MAIN})
 
-	file(GLOB SRC_CUDA "./src/kernels/raytracing/cuda/*.cpp" "./src/kernels/raytracing/cuda/*.h" "./src/kernels/raytracing/cuda/*.cu" "./src/kernels/raytracing/cuda/*.cuh" "./ext/glew/glew.c")
-	source_group("CUDA\\" FILES ${SRC_CUDA})
+	add_library(CUDA_CODE STATIC ${SRC_MAIN})
+	set_target_properties(CUDA_CODE PROPERTIES CUDA_SEPARABLE_COMPILATION ON)
 
-	add_library(CUDA_CODE STATIC ${SRC_CUDA})
 	target_link_libraries(${PROJECT_NAME} CUDA_CODE)
 
+	set_target_properties(${PROJECT_NAME} PROPERTIES CUDA_RESOLVE_DEVICE_SYMBOLS ON)
 	set_target_properties(${PROJECT_NAME} PROPERTIES CUDA_SEPARABLE_COMPILATION ON)
 	set_target_properties(${PROJECT_NAME} PROPERTIES CUDA_PROPAGATE_HOST_FLAGS OFF)
 endif()
