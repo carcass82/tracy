@@ -16,8 +16,8 @@ endif()
 ###############################################################################
 # Debug Options                                                               #
 ###############################################################################
-option(DEBUG_VERBOSE "Debug CMake Build (Verbose Makefile)" OFF)
-if(DEBUG_VERBOSE)
+option(DEBUG_VERBOSE_MAKEFILE "Debug CMake Build (Verbose Makefile)" OFF)
+if(DEBUG_VERBOSE_MAKEFILE)
     set(CMAKE_VERBOSE_MAKEFILE ON)
 endif()
 
@@ -193,11 +193,13 @@ if(MSVC)
 	set(CMAKE_CXX_FLAGS_DEBUG "${CMAKE_CXX_FLAGS_DEBUG} /EHsc /Zi /Od /D_DEBUG /DNOVTABLE= ")
 	set(CMAKE_CXX_FLAGS_RELEASE "${CMAKE_CXX_FLAGS_RELEASE} /EHsc /Zi /GR- /GL /Gs- /O2 /fp:fast /DNDEBUG /DNOVTABLE=__declspec(novtable)")
 	
+	# choose "experimental" openmp implementation if available
+	# (and suppress warning C4849 about 'collapse' clause ignored)
 	if(MSVC_VERSION GREATER_EQUAL 1920)
-		set(CMAKE_CXX_FLAGS_RELEASE "${CMAKE_CXX_FLAGS_RELEASE} /openmp:experimental")
+		set(CMAKE_CXX_FLAGS_RELEASE "${CMAKE_CXX_FLAGS_RELEASE} /openmp:experimental /wd4849")
 		#set(CMAKE_CXX_FLAGS_RELEASE "${CMAKE_CXX_FLAGS_RELEASE} -Qvec-report:2")
 	else()
-		set(CMAKE_CXX_FLAGS_RELEASE "${CMAKE_CXX_FLAGS_RELEASE} /openmp")
+		set(CMAKE_CXX_FLAGS_RELEASE "${CMAKE_CXX_FLAGS_RELEASE} /openmp /wd4849")
 	endif()
     
 	set(CMAKE_EXE_LINKER_FLAGS_RELEASE "${CMAKE_EXE_LINKER_FLAGS_RELEASE} /DEBUG /LTCG /INCREMENTAL:NO /OPT:REF")
@@ -218,7 +220,15 @@ endif()
 ###############################################################################
 # Build Rules                                                                 #
 ###############################################################################
-add_executable(${PROJECT_NAME} WIN32 ${tracy_sources} ${tracy_includes})
+if(WIN32)
+	set(WIN32_MAIN WIN32)
+elseif(UNIX)
+	find_package(X11 REQUIRED)
+	include_directories(${X11_INCLUDE_DIR})
+	list(APPEND tracy_libraries ${X11_LIBRARIES})
+endif()
+
+add_executable(${PROJECT_NAME} ${WIN32_MAIN} ${tracy_sources} ${tracy_includes})
 target_link_libraries(${PROJECT_NAME} ${tracy_libraries})
 
 # TODO: should be something like this
