@@ -44,9 +44,6 @@ private:
 	int frame_counter_{};
 	int raycount_{};
 
-	const Scene* scene_{};
-	const Camera* camera_{};
-
 	struct CUDATraceDetails;
 	CUDATraceDetails* details_{};
 };

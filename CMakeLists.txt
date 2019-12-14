@@ -39,8 +39,8 @@ if(MATH_LIBRARY STREQUAL "glm")
 else()
 	add_definitions(-DUSE_CCLIB)
 	set(cclib_includes "./ext/cclib/cclib.h")
-	list(APPEND tracy_includes ${cclib_includes})
 	source_group("ext\\cclib\\" FILES ${cclib_includes})
+	list(APPEND tracy_includes ${cclib_includes})
 endif()
 
 
@@ -49,7 +49,7 @@ endif()
 # Common Sources                                                              #
 ###############################################################################
 
-set(CMAKE_CXX_STANDARD 14)
+set(CMAKE_CXX_STANDARD 17)
 
 include_directories(. ./src ./ext)
 
@@ -133,7 +133,7 @@ elseif(RENDER_MODULE STREQUAL "CUDA (RayTracing)")
 	list(APPEND tracy_sources ${glew_source})
 
 	enable_language(CUDA)
-	set(CMAKE_CUDA_STANDARD 14)
+	set(CMAKE_CUDA_STANDARD 17)
 
 	include_directories(./src/kernels/raytracing/cuda/)
 
@@ -148,6 +148,8 @@ elseif(RENDER_MODULE STREQUAL "CUDA (RayTracing)")
 	list(APPEND tracy_sources ${cuda_sources})
 
 	set(cuda_includes "./src/kernels/raytracing/cuda/cuda_trace.h"
+	                  "./src/kernels/raytracing/cuda/cuda_mesh.h"
+					  "./src/kernels/raytracing/cuda/cuda_scene.h"
 	                  "./src/kernels/raytracing/cuda/log.h")
 	source_group("kernel\\cuda\\include" FILES ${cuda_includes})
 	list(APPEND tracy_includes ${cuda_includes})

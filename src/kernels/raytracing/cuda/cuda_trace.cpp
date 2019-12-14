@@ -5,30 +5,32 @@
  * (c) Carlo Casta, 2018
  */
 #include "cuda_trace.h"
-#include "log.h"
-
 #include "GL/glew.h"
 
 #include <cuda_runtime.h>
 #include <cuda_gl_interop.h>
+#include "log.h"
+#include "cuda_mesh.h"
+#include "cuda_scene.h"
 
 #if !defined(WIN32)
 #include <GL/glx.h>
 #endif
 
-extern "C" void cuda_setup();
-extern "C" void cuda_trace(unsigned* out, int w, int h);
+extern "C" void cuda_setup(const Scene & in_scene, CUDAScene* out_scene);
+extern "C" void cuda_trace(CUDAScene* scene, unsigned* out, int w, int h);
 
 
 struct CUDATrace::CUDATraceDetails
 {
+    CUDAScene scene_;
+
     GLuint vs;
     GLuint fs;
     GLuint shader;
-
     GLuint texture;
-    cudaGraphicsResource* cuda_mapped_texture;
-    unsigned int* cuda_output_buffer;
+    cudaGraphicsResource* mapped_texture;
+    unsigned int* output_buffer;
 };
 
 CUDATrace::CUDATrace()
@@ -46,8 +48,6 @@ void CUDATrace::Initialize(Handle in_window, int in_width, int in_height, const 
     win_handle_ = in_window;
     win_width_ = in_width;
     win_height_ = in_height;
-    camera_ = &in_scene.GetCamera();
-    scene_ = &in_scene;
 
 #if defined(WIN32)
     PIXELFORMATDESCRIPTOR pfd;
@@ -99,9 +99,9 @@ void CUDATrace::Initialize(Handle in_window, int in_width, int in_height, const 
         glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE);
         glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_NEAREST);
         glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_NEAREST);
-        glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA8UI_EXT, win_width_, win_height_, 0, GL_RGBA_INTEGER_EXT, GL_UNSIGNED_BYTE, NULL);
+        glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA8UI, win_width_, win_height_, 0, GL_RGBA_INTEGER, GL_UNSIGNED_BYTE, NULL);
 
-        CUDAAssert(cudaGraphicsGLRegisterImage(&details_->cuda_mapped_texture, details_->texture, GL_TEXTURE_2D, cudaGraphicsMapFlagsWriteDiscard));
+        CUDAAssert(cudaGraphicsGLRegisterImage(&details_->mapped_texture, details_->texture, GL_TEXTURE_2D, cudaGraphicsMapFlagsWriteDiscard));
 
         static const char* vertex_shader = R"vs(
         void main()
@@ -112,10 +112,13 @@ void CUDATrace::Initialize(Handle in_window, int in_width, int in_height, const 
         )vs";
 
         static const char* fragment_shader = R"fs(
+        #version 130
+
         uniform usampler2D in_texture;
         void main()
         {
-            gl_FragColor = texture(in_texture, gl_TexCoord[0].xy);
+            vec4 ucolor = texture(in_texture, gl_TexCoord[0].xy);
+            gl_FragColor = ucolor / 255.0;
         }
         )fs";
 
@@ -163,21 +166,21 @@ void CUDATrace::Initialize(Handle in_window, int in_width, int in_height, const 
 #endif
         }
 
-        CUDAAssert(cudaMalloc((void**)&details_->cuda_output_buffer, win_width_ * win_height_ * 4 * sizeof(GLubyte)));
+        CUDAAssert(cudaMalloc((void**)&details_->output_buffer, win_width_ * win_height_ * sizeof(GLuint)));
     }
 
-    cuda_setup();
+    cuda_setup(in_scene, &details_->scene_);
 }
 
 void CUDATrace::UpdateScene()
 {
-    cuda_trace(details_->cuda_output_buffer, win_width_, win_height_);
+    cuda_trace(&details_->scene_, details_->output_buffer, win_width_, win_height_);
 
     cudaArray* texture_ptr;
-    CUDAAssert(cudaGraphicsMapResources(1, &details_->cuda_mapped_texture, 0));
-    CUDAAssert(cudaGraphicsSubResourceGetMappedArray(&texture_ptr, details_->cuda_mapped_texture, 0, 0));
-    CUDAAssert(cudaMemcpyToArray(texture_ptr, 0, 0, details_->cuda_output_buffer, win_width_ * win_height_ * 4 * sizeof(GLubyte), cudaMemcpyDeviceToDevice));
-    CUDAAssert(cudaGraphicsUnmapResources(1, &details_->cuda_mapped_texture, 0));
+    CUDAAssert(cudaGraphicsMapResources(1, &details_->mapped_texture, 0));
+    CUDAAssert(cudaGraphicsSubResourceGetMappedArray(&texture_ptr, details_->mapped_texture, 0, 0));
+    CUDAAssert(cudaMemcpyToArray(texture_ptr, 0, 0, details_->output_buffer, win_width_ * win_height_ * sizeof(GLuint), cudaMemcpyDeviceToDevice));
+    CUDAAssert(cudaGraphicsUnmapResources(1, &details_->mapped_texture, 0));
 }
 
 void CUDATrace::RenderScene()

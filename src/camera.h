@@ -36,9 +36,9 @@ public:
 		return Ray(eye_, vec3(point_3d.x, point_3d.y, point_3d.z) - eye_);
 	}
 
-	const mat4& GetView() const { return view_; }
+	CUDA_CALL const mat4& GetView() const { return view_; }
 
-	const mat4& GetProjection() const { return projection_; }
+	CUDA_CALL const mat4& GetProjection() const { return projection_; }
 
 	void Translate(const vec3& dir)
 	{
