@@ -12,7 +12,7 @@
 // https://en.wikipedia.org/wiki/Xorshift
 // (Algorithm "xor" from p. 4 of Marsaglia, "Xorshift RNGs")
 //
-inline float fastrand()
+CUDA_CALL inline float fastrand()
 {
     static uint32_t s_RndState = 123456789;
     #pragma omp threadprivate(s_RndState)
@@ -32,7 +32,7 @@ inline float fastrand()
 // PRNG from
 // https://en.wikipedia.org/wiki/Permuted_congruential_generator
 //
-inline float fastrand()
+CUDA_CALL inline float fastrand()
 {
     static uint64_t mcg_state = 0xcafef00dd15ea5e4u;
     #pragma omp threadprivate(mcg_state)
@@ -51,7 +51,7 @@ inline float fastrand()
 // PRNG from
 // https://software.intel.com/en-us/articles/fast-random-number-generator-on-the-intel-pentiumr-4-processor/
 //
-inline float fastrand()
+CUDA_CALL inline float fastrand()
 {
     static uint32_t g_state = 0xdeadbeef;
     #pragma omp threadprivate(g_state)

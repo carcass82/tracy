@@ -2,6 +2,12 @@
 #include <curand.h>
 #include <curand_kernel.h>
 
+#if defined(__CUDACC__)
+ #define CUDA_CALL __host__ __device__
+#else
+ #define CUDA_CALL
+#endif
+
 #include "common.h"
 #include "log.h"
 
