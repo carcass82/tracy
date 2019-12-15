@@ -21,12 +21,12 @@ struct OpenGLRender::Details
 	struct GLMesh
 	{
 		GLMesh(GLuint in_vao, int in_indexcount, const vec3& in_albedo, float in_metalness, float in_roughness, float in_ior)
-			: vao(in_vao)
-			, indexcount(in_indexcount)
-			, albedo(in_albedo)
-			, metalness(in_metalness)
-			, roughness(in_roughness)
-			, ior(in_ior)
+			: vao{ in_vao }
+			, indexcount{ in_indexcount }
+			, albedo{ in_albedo }
+			, metalness{ in_metalness }
+			, roughness{ in_roughness }
+			, ior{ in_ior }
 		{}
 
 		GLuint vao;
@@ -44,10 +44,12 @@ struct OpenGLRender::Details
 		Light(const vec3& in_pos, const vec3& in_color)
 			: position{ in_pos }
 			, color{ in_color }
+			, attenuation{ 1.0f, 0.09f, 0.032f }
 		{}
 
 		vec3 position;
 		vec3 color;
+		vec3 attenuation;
 	};
 	vector<Light> lights;
 
@@ -257,6 +259,13 @@ void OpenGLRender::RenderScene()
 			glUniform1f(glGetUniformLocation(details_->shader, "material.metalness"), details_->meshes[i].metalness);
 			glUniform1f(glGetUniformLocation(details_->shader, "material.roughness"), details_->meshes[i].roughness);
 			glUniform1f(glGetUniformLocation(details_->shader, "material.ior"), details_->meshes[i].ior);
+
+			// TODO: support multiple lights, avoid setting uniform every time
+			glUniform3fv(glGetUniformLocation(details_->shader, "light.position"), 1, value_ptr(details_->lights[0].position));
+			glUniform3fv(glGetUniformLocation(details_->shader, "light.color"), 1, value_ptr(details_->lights[0].color));
+			glUniform1f(glGetUniformLocation(details_->shader, "light.constant"), details_->lights[0].attenuation.x);
+			glUniform1f(glGetUniformLocation(details_->shader, "light.linear"), details_->lights[0].attenuation.y);
+			glUniform1f(glGetUniformLocation(details_->shader, "light.quadratic"), details_->lights[0].attenuation.z);
 
 			glBindVertexArray(details_->meshes[i].vao);
 			glDrawElements(GL_TRIANGLES, details_->meshes[i].indexcount, GL_UNSIGNED_INT, (GLvoid*)0);
