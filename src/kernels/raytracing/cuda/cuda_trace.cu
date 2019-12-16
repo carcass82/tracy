@@ -21,14 +21,46 @@
 constexpr int MAX_GPU = 32;
 constexpr int MAX_DEPTH = 5;
 
+struct Color
+{
+	static_assert(sizeof(uint32_t) == 4 * sizeof(uint8_t), "u32 != 4 * u8 :/");
+
+	__device__ constexpr Color()                 : rgba(0)       {}
+	__device__ constexpr Color(uint32_t in_rgba) : rgba(in_rgba) {}
+
+	union
+	{
+		struct
+		{
+			uint8_t r;
+			uint8_t g;
+			uint8_t b;
+			uint8_t a;
+		};
+		
+		uint32_t rgba;
+	};
+};
+
 __device__ constexpr inline uint32_t ToInt(vec3 color)
 {
-    color.r = clamp(color.r, 0.0f, 255.0f);
-    color.g = clamp(color.g, 0.0f, 255.0f);
-    color.b = clamp(color.b, 0.0f, 255.0f);
+	color *= 255.99f;
 
-    uint32_t packed = (uint8_t(color.b) << 16) | (uint8_t(color.g) << 8) | uint8_t(color.r);
-    return packed;
+	Color c;
+    c.r = static_cast<uint8_t>(clamp(color.r, 0.0f, 255.0f));
+    c.g = static_cast<uint8_t>(clamp(color.g, 0.0f, 255.0f));
+    c.b = static_cast<uint8_t>(clamp(color.b, 0.0f, 255.0f));
+	c.a = 255;
+
+    return c.rgba;
+}
+
+__device__ constexpr inline vec3 ToFloat(uint32_t color)
+{
+	Color c;
+	c.rgba = color;
+	
+	return vec3{ c.r / 255.f, c.g / 255.f, c.b / 255.f };
 }
 
 __device__ inline float fastrand(curandState* curand_ctx)
@@ -185,7 +217,7 @@ __device__ inline vec3 TraceInternal(const Camera& in_camera, const Ray& in_ray,
     return {};
 }
 
-__global__ void Trace(Camera* in_camera, CUDAMesh* in_objects, int in_objectcount, uint32_t* output, int width, int height)
+__global__ void Trace(Camera* in_camera, CUDAMesh* in_objects, int in_objectcount, uint32_t* output, int width, int height, int framecount)
 {
     const int i = (blockIdx.x * blockDim.x) + threadIdx.x;
     const int j = (blockIdx.y * blockDim.y) + threadIdx.y;
@@ -208,7 +240,9 @@ __global__ void Trace(Camera* in_camera, CUDAMesh* in_objects, int in_objectcoun
     }
     //atomicAdd(raycount, raycount_inst);
 
-    output[j * width + i] = ToInt(color * 255.99f);
+	const float blend_factor = framecount / static_cast<float>(framecount + 1);
+	vec3 old_color = ToFloat(output[j * width + i]);
+    output[j * width + i] = ToInt(lerp(color, old_color, blend_factor));
 }
 
 extern "C" void cuda_setup(const Scene& in_scene, CUDAScene* out_scene)
@@ -252,14 +286,14 @@ extern "C" void cuda_setup(const Scene& in_scene, CUDAScene* out_scene)
     cudaMemcpy(out_scene->d_camera_, &in_scene.GetCamera(), sizeof(Camera), cudaMemcpyHostToDevice);
 }
 
-extern "C" void cuda_trace(CUDAScene* scene, unsigned int* output, int w, int h)
+extern "C" void cuda_trace(CUDAScene* scene, unsigned int* output, int w, int h, int framecount)
 {
     CUDAAssert(cudaSetDevice(0));
 
     dim3 block(16, 16, 1);
     dim3 grid(w / block.x, h / block.y, 1);
 
-    Trace<<<grid, block>>>(scene->d_camera_, scene->objects_, scene->objectcount_, output, w, h);
+    Trace<<<grid, block>>>(scene->d_camera_, scene->objects_, scene->objectcount_, output, w, h, framecount);
 
     CUDAAssert(cudaGetLastError());
 }

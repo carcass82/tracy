@@ -18,7 +18,7 @@
 #endif
 
 extern "C" void cuda_setup(const Scene & in_scene, CUDAScene* out_scene);
-extern "C" void cuda_trace(CUDAScene* scene, unsigned* out, int w, int h);
+extern "C" void cuda_trace(CUDAScene* scene, unsigned* out, int w, int h, int framecount);
 
 
 struct CUDATrace::CUDATraceDetails
@@ -174,7 +174,7 @@ void CUDATrace::Initialize(Handle in_window, int in_width, int in_height, const 
 
 void CUDATrace::UpdateScene()
 {
-    cuda_trace(&details_->scene_, details_->output_buffer, win_width_, win_height_);
+    cuda_trace(&details_->scene_, details_->output_buffer, win_width_, win_height_, frame_counter_);
 
     cudaArray* texture_ptr;
     CUDAAssert(cudaGraphicsMapResources(1, &details_->mapped_texture, 0));
@@ -206,4 +206,6 @@ void CUDATrace::RenderScene()
 #else
     glXSwapBuffers(win_handle_->dpy, win_handle_->win);
 #endif
+
+	++frame_counter_;
 }
