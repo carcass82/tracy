@@ -18,7 +18,7 @@
 #endif
 
 extern "C" void cuda_setup(const Scene & in_scene, CUDAScene* out_scene);
-extern "C" void cuda_trace(CUDAScene* scene, unsigned* out, int w, int h, int framecount);
+extern "C" void cuda_trace(CUDAScene* scene, unsigned* out, int framecount);
 
 
 struct CUDATrace::CUDATraceDetails
@@ -47,12 +47,12 @@ int CUDATrace::GetRayCount() const
 {
     int raycount = 0;
 
-    int* raycount_tmp = new int[win_width_ * win_height_];
-    CUDAAssert(cudaMemcpy(raycount_tmp, details_->scene_.d_raycount, win_width_ * win_height_ * sizeof(int), cudaMemcpyDeviceToHost));
+    CUDAAssert(cudaDeviceSynchronize());
+    CUDAAssert(cudaMemcpy(details_->scene_.h_raycount, details_->scene_.d_raycount, win_width_ * win_height_ * sizeof(int), cudaMemcpyDeviceToHost));
 
     for (int i = 0; i < win_width_ * win_height_; ++i)
     {
-        raycount += raycount_tmp[i];
+        raycount += details_->scene_.h_raycount[i];
     }
 
     return raycount;
@@ -187,6 +187,7 @@ void CUDATrace::Initialize(Handle in_window, int in_width, int in_height, const 
         }
 
         CUDAAssert(cudaMalloc((void**)&details_->output_buffer, win_width_ * win_height_ * sizeof(GLuint)));
+        CUDAAssert(cudaMemset(details_->output_buffer, 0, win_width_ * win_height_ * sizeof(GLuint)));
     }
 
     details_->scene_.width = win_width_;
@@ -196,7 +197,7 @@ void CUDATrace::Initialize(Handle in_window, int in_width, int in_height, const 
 
 void CUDATrace::UpdateScene()
 {
-    cuda_trace(&details_->scene_, details_->output_buffer, win_width_, win_height_, frame_counter_);
+    cuda_trace(&details_->scene_, details_->output_buffer, frame_counter_++);
 
     cudaArray* texture_ptr;
     CUDAAssert(cudaGraphicsMapResources(1, &details_->mapped_texture, 0));
@@ -228,6 +229,4 @@ void CUDATrace::RenderScene()
 #else
     glXSwapBuffers(win_handle_->dpy, win_handle_->win);
 #endif
-
-	++frame_counter_;
 }

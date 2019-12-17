@@ -89,8 +89,6 @@ __device__ bool IntersectsWithMesh(const CUDAMesh& mesh, const Ray& in_ray, HitD
 
     if (IntersectsWithBoundingBox(mesh.aabb_, in_ray, inout_intersection.t))
     {
-        int triangle_idx = -1;
-        vec2 triangle_uv{};
         vec3 ray_direction = in_ray.GetDirection();
         vec3 ray_origin = in_ray.GetOrigin();
 
@@ -138,22 +136,10 @@ __device__ bool IntersectsWithMesh(const CUDAMesh& mesh, const Ray& in_ray, HitD
             if (t < inout_intersection.t && t > 1.e-3f)
             {
                 inout_intersection.t = dot(v0v2, qvec) * invDet;
-                triangle_uv = vec2{ u, v };
-                triangle_idx = i * 3;
+                inout_intersection.uv = vec2{ u, v };
+                inout_intersection.triangle_index = i * 3;
                 hit_triangle = true;
             }
-        }
-
-        if (hit_triangle)
-        {
-            const Vertex v0 = mesh.vertices_[mesh.indices_[triangle_idx + 0]];
-            const Vertex v1 = mesh.vertices_[mesh.indices_[triangle_idx + 1]];
-            const Vertex v2 = mesh.vertices_[mesh.indices_[triangle_idx + 2]];
-
-            inout_intersection.point = in_ray.GetPoint(inout_intersection.t);
-            inout_intersection.normal = (1.f - triangle_uv.x - triangle_uv.y) * v0.normal + triangle_uv.x * v1.normal + triangle_uv.y * v2.normal;
-            inout_intersection.uv = (1.f - triangle_uv.x - triangle_uv.y) * v0.uv0 + triangle_uv.x * v1.uv0 + triangle_uv.y * v2.uv0;
-            inout_intersection.material = &mesh.material_;
         }
     }
 
@@ -168,14 +154,28 @@ __device__ bool ComputeIntersection(CUDAMesh* in_objects, int objectcount, const
     {
         if (IntersectsWithMesh(in_objects[i], ray, intersection_data))
         {
+            intersection_data.object_index = i;
             hit_any_mesh = true;
         }
+    }
+
+    if (hit_any_mesh)
+    {
+        const CUDAMesh& m = in_objects[intersection_data.object_index];
+        const Vertex v0 = m.vertices_[m.indices_[intersection_data.triangle_index + 0]];
+        const Vertex v1 = m.vertices_[m.indices_[intersection_data.triangle_index + 1]];
+        const Vertex v2 = m.vertices_[m.indices_[intersection_data.triangle_index + 2]];
+
+        intersection_data.point = ray.GetPoint(intersection_data.t);
+        intersection_data.normal = (1.f - intersection_data.uv.x - intersection_data.uv.y) * v0.normal + intersection_data.uv.x * v1.normal + intersection_data.uv.y * v2.normal;
+        intersection_data.uv = (1.f - intersection_data.uv.x - intersection_data.uv.y) * v0.uv0 + intersection_data.uv.x * v1.uv0 + intersection_data.uv.y * v2.uv0;
+        intersection_data.material = &m.material_;
     }
 
     return hit_any_mesh;
 }
 
-__device__ inline vec3 TraceInternal(const Camera& in_camera, const Ray& in_ray, CUDAMesh* in_objects, int objectcount)
+__device__ inline vec3 TraceInternal(const Camera& in_camera, const Ray& in_ray, CUDAMesh* in_objects, int objectcount, int& inout_raycount)
 {
     vec3 current_color = { 1.f, 1.f, 1.f };
     Ray current_ray = { in_ray };
@@ -185,11 +185,13 @@ __device__ inline vec3 TraceInternal(const Camera& in_camera, const Ray& in_ray,
 
     for (int i = 0; i < MAX_DEPTH; ++i)
     {
+        ++inout_raycount;
+
         if (ComputeIntersection(in_objects, objectcount, current_ray, hit_data))
         {
 
 #if DEBUG_SHOW_NORMALS
-            return .5f * normalize((1.f + mat3(in_camera.GetView()) * hit_data.normal));
+            return .5f * normalize(1.f + (mat3(in_camera.GetView()) * hit_data.normal));
 #else
             Ray scattered;
             vec3 attenuation;
@@ -215,32 +217,61 @@ __device__ inline vec3 TraceInternal(const Camera& in_camera, const Ray& in_ray,
     return {};
 }
 
-__global__ void Trace(Camera* in_camera, CUDAMesh* in_objects, int in_objectcount, uint32_t* output, int width, int height, int framecount)
+__global__ void Trace(Camera* in_camera,
+                      CUDAMesh* in_objects,
+                      int in_objectcount,
+                      uint32_t* output,
+                      int width,
+                      int height,
+                      curandState* rand_state,
+                      int* raycount,
+                      int framecount)
 {
     const int i = (blockIdx.x * blockDim.x) + threadIdx.x;
     const int j = (blockIdx.y * blockDim.y) + threadIdx.y;
 
-    curandState curand_ctx;
-    curand_init(clock64(), i, j, &curand_ctx);
+    if (i >= width || j >= height)
+    {
+        return;
+    }
 
-    //int raycount_inst = 0;
-    float f_width = static_cast<float>(width);
-    float f_height = static_cast<float>(height);
+    const float f_width = static_cast<float>(width);
+    const float f_height = static_cast<float>(height);
 
-    vec3 color{};
-    //for (int sample = 0; sample < 1; ++sample)
+    curandState curand_ctx = rand_state[j * width + i];
+    int old_raycount = raycount[j * width + i];
+
+    int cur_raycount = 0;
+
+    vec3 cur_color{};
+    for (int sample = 0; sample < 1; ++sample)
     {
         float s = ((i + fastrand(&curand_ctx)) / f_width);
         float t = ((j + fastrand(&curand_ctx)) / f_height);
     
         Ray r = in_camera->GetRayFrom(s, t);
-        color += TraceInternal(*in_camera, r, in_objects, in_objectcount);
+        cur_color += TraceInternal(*in_camera, r, in_objects, in_objectcount, cur_raycount);
     }
-    //atomicAdd(raycount, raycount_inst);
+    
+    rand_state[j * width + i] = curand_ctx;
+    raycount[j * width + i] = old_raycount + cur_raycount;
 
 	const float blend_factor = framecount / static_cast<float>(framecount + 1);
-	vec3 old_color = ToFloat(output[j * width + i]);
-    output[j * width + i] = ToInt(lerp(color, old_color, blend_factor));
+    vec3 old_color = ToFloat(output[j * width + i]);
+    output[j * width + i] = ToInt(lerp(cur_color, old_color, blend_factor));
+}
+
+__global__ void InitRandom(curandState* rand_state, int width, int height)
+{
+    const int i = (blockIdx.x * blockDim.x) + threadIdx.x;
+    const int j = (blockIdx.y * blockDim.y) + threadIdx.y;
+
+    if (i >= width || j >= height)
+    {
+        return;
+    }
+
+    curand_init(clock64(), i, j, &rand_state[j * width + i]);
 }
 
 extern "C" void cuda_setup(const Scene& in_scene, CUDAScene* out_scene)
@@ -272,26 +303,37 @@ extern "C" void cuda_setup(const Scene& in_scene, CUDAScene* out_scene)
     // copy data to the device
     //
 
-    cudaMalloc((void**)&out_scene->objects_, in_scene.GetObjectCount() * sizeof(CUDAMesh));
+    CUDAAssert(cudaMalloc(&out_scene->objects_, in_scene.GetObjectCount() * sizeof(CUDAMesh)));
     for (int i = 0; i < in_scene.GetObjectCount(); ++i)
     {
         CUDAMesh cmesh(in_scene.GetObject(i));
-        cudaMemcpy(&out_scene->objects_[i], &cmesh, sizeof(CUDAMesh), cudaMemcpyHostToDevice);
+        CUDAAssert(cudaMemcpy(&out_scene->objects_[i], &cmesh, sizeof(CUDAMesh), cudaMemcpyHostToDevice));
     }
     out_scene->objectcount_ = in_scene.GetObjectCount();
 
-    cudaMalloc(&out_scene->d_camera_, sizeof(Camera));
-    cudaMemcpy(out_scene->d_camera_, &in_scene.GetCamera(), sizeof(Camera), cudaMemcpyHostToDevice);
+    CUDAAssert(cudaMalloc(&out_scene->d_camera_, sizeof(Camera)));
+    CUDAAssert(cudaMemcpy(out_scene->d_camera_, &in_scene.GetCamera(), sizeof(Camera), cudaMemcpyHostToDevice));
+
+    CUDAAssert(cudaMalloc(&out_scene->d_rand_state, out_scene->width * out_scene->height * sizeof(curandState)));
+
+    dim3 block(16, 16, 1);
+    dim3 grid(out_scene->width / block.x + 1, out_scene->height / block.y + 1, 1);
+    InitRandom<<<grid, block>>> (out_scene->d_rand_state, out_scene->width, out_scene->height);
+
+    out_scene->h_raycount = new int[out_scene->width * out_scene->height];
+    CUDAAssert(cudaMalloc(&out_scene->d_raycount, out_scene->width * out_scene->height * sizeof(int)));
+    CUDAAssert(cudaMemset(out_scene->d_raycount, 0, out_scene->width * out_scene->height * sizeof(int)));
 }
 
-extern "C" void cuda_trace(CUDAScene* scene, unsigned int* output, int w, int h, int framecount)
+
+extern "C" void cuda_trace(CUDAScene* scene, unsigned int* output, int framecount)
 {
     CUDAAssert(cudaSetDevice(0));
 
     dim3 block(16, 16, 1);
-    dim3 grid(w / block.x, h / block.y, 1);
+    dim3 grid(scene->width / block.x + 1, scene->height / block.y + 1, 1);
 
-    Trace<<<grid, block>>>(scene->d_camera_, scene->objects_, scene->objectcount_, output, w, h, framecount);
-
+    Trace<<<grid, block>>>(scene->d_camera_, scene->objects_, scene->objectcount_, output, scene->width, scene->height, scene->d_rand_state, scene->d_raycount, framecount);
+    
     CUDAAssert(cudaGetLastError());
 }

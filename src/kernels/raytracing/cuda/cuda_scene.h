@@ -30,5 +30,6 @@ struct CUDAScene
 
     curandState* d_rand_state;
 
+    int* h_raycount;
     int* d_raycount;
 };
