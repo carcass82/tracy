@@ -66,7 +66,10 @@ using cc::math::PI;
 class Material;
 struct HitData
 {
+	int object_index;
+	int triangle_index;
 	float t;
+	
 	vec2 uv;
 	vec3 point;
 	vec3 normal;
@@ -75,12 +78,12 @@ struct HitData
 
 struct BBox
 {
-	BBox()
+	CUDA_CALL BBox()
 		: minbound{}
 		, maxbound{}
 	{}
 
-	BBox(const vec3& in_minbound, const vec3& in_maxbound)
+	CUDA_CALL BBox(const vec3& in_minbound, const vec3& in_maxbound)
 		: minbound(in_minbound)
 		, maxbound(in_maxbound)
 	{}

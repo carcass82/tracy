@@ -242,7 +242,6 @@ int main(int /* argc */, char** /* argv */)
 
 				++frame_count;
 
-				// print some stats every 5 frames
 				if (frame_timer.GetDuration() > 1.f)
 				{
 					bool has_ray_count = g_kernel.GetRayCount() > 0;

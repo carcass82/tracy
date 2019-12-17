@@ -68,81 +68,6 @@ __device__ inline float fastrand(curandState* curand_ctx)
     return curand_uniform(curand_ctx);
 }
 
-__device__ bool IntersectsWithMesh(const CUDAMesh& mesh, const Ray& in_ray, HitData& inout_intersection)
-{
-    bool hit_triangle = false;
-
-    int triangle_idx = -1;
-    vec2 triangle_uv{};
-
-    vec3 ray_direction = in_ray.GetDirection();
-    vec3 ray_origin = in_ray.GetOrigin();
-
-    int tris = mesh.GetTriCount();
-    for (int i = 0; i < tris; ++i)
-    {
-        const Index i0 = mesh.GetIndex(i * 3);
-        const Index i1 = mesh.GetIndex(i * 3 + 1);
-        const Index i2 = mesh.GetIndex(i * 3 + 2);
-
-        const vec3 v0 = mesh.GetVertex(i0).pos;
-        const vec3 v1 = mesh.GetVertex(i1).pos;
-        const vec3 v2 = mesh.GetVertex(i2).pos;
-
-        const vec3 v0v1 = v1 - v0;
-        const vec3 v0v2 = v2 - v0;
-
-        vec3 pvec = cross(ray_direction, v0v2);
-        float det = dot(v0v1, pvec);
-
-        // if the determinant is negative the triangle is backfacing
-        // if the determinant is close to 0, the ray misses the triangle
-        if (det < 1.e-8f)
-        {
-            continue;
-        }
-
-        float invDet = 1.f / det;
-
-        vec3 tvec = ray_origin - v0;
-        float u = dot(tvec, pvec) * invDet;
-        if (u < .0f || u > 1.f)
-        {
-            continue;
-        }
-
-        vec3 qvec = cross(tvec, v0v1);
-        float v = dot(ray_direction, qvec) * invDet;
-        if (v < .0f || u + v > 1.f)
-        {
-            continue;
-        }
-
-        float t = dot(v0v2, qvec) * invDet;
-        if (t < inout_intersection.t && t > 1.e-3f)
-        {
-            inout_intersection.t = dot(v0v2, qvec) * invDet;
-            triangle_uv = vec2{ u, v };
-            triangle_idx = i * 3;
-            hit_triangle = true;
-        }
-    }
-
-    if (hit_triangle)
-    {
-        const Vertex v0 = mesh.GetVertex(mesh.GetIndex(triangle_idx + 0));
-        const Vertex v1 = mesh.GetVertex(mesh.GetIndex(triangle_idx + 1));
-        const Vertex v2 = mesh.GetVertex(mesh.GetIndex(triangle_idx + 2));
-
-        inout_intersection.point = in_ray.GetPoint(inout_intersection.t);
-        inout_intersection.normal = (1.f - triangle_uv.x - triangle_uv.y) * v0.normal + triangle_uv.x * v1.normal + triangle_uv.y * v2.normal;
-        inout_intersection.uv = (1.f - triangle_uv.x - triangle_uv.y) * v0.uv0 + triangle_uv.x * v1.uv0 + triangle_uv.y * v2.uv0;
-        inout_intersection.material = mesh.GetMaterial();
-    }
-
-    return hit_triangle;
-}
-
 __device__ bool IntersectsWithBoundingBox(const BBox& box, const Ray& ray, float nearest_intersection = FLT_MAX)
 {
     const vec3 inv_ray = ray.GetInvDirection();
@@ -158,19 +83,92 @@ __device__ bool IntersectsWithBoundingBox(const BBox& box, const Ray& ray, float
     return (tmax >= max(1.e-8f, tmin) && tmin < nearest_intersection);
 }
 
+__device__ bool IntersectsWithMesh(const CUDAMesh& mesh, const Ray& in_ray, HitData& inout_intersection)
+{
+    bool hit_triangle = false;
+
+    if (IntersectsWithBoundingBox(mesh.aabb_, in_ray, inout_intersection.t))
+    {
+        int triangle_idx = -1;
+        vec2 triangle_uv{};
+        vec3 ray_direction = in_ray.GetDirection();
+        vec3 ray_origin = in_ray.GetOrigin();
+
+        int tris = mesh.indexcount_ / 3;
+        for (int i = 0; i < tris; ++i)
+        {
+            const Index i0 = mesh.indices_[i * 3 + 0];
+            const Index i1 = mesh.indices_[i * 3 + 1];
+            const Index i2 = mesh.indices_[i * 3 + 2];
+
+            const vec3 v0 = mesh.vertices_[i0].pos;
+            const vec3 v1 = mesh.vertices_[i1].pos;
+            const vec3 v2 = mesh.vertices_[i2].pos;
+
+            const vec3 v0v1 = v1 - v0;
+            const vec3 v0v2 = v2 - v0;
+
+            vec3 pvec = cross(ray_direction, v0v2);
+            float det = dot(v0v1, pvec);
+
+            // if the determinant is negative the triangle is backfacing
+            // if the determinant is close to 0, the ray misses the triangle
+            if (det < 1.e-8f)
+            {
+                continue;
+            }
+
+            float invDet = 1.f / det;
+
+            vec3 tvec = ray_origin - v0;
+            float u = dot(tvec, pvec) * invDet;
+            if (u < .0f || u > 1.f)
+            {
+                continue;
+            }
+
+            vec3 qvec = cross(tvec, v0v1);
+            float v = dot(ray_direction, qvec) * invDet;
+            if (v < .0f || u + v > 1.f)
+            {
+                continue;
+            }
+
+            float t = dot(v0v2, qvec) * invDet;
+            if (t < inout_intersection.t && t > 1.e-3f)
+            {
+                inout_intersection.t = dot(v0v2, qvec) * invDet;
+                triangle_uv = vec2{ u, v };
+                triangle_idx = i * 3;
+                hit_triangle = true;
+            }
+        }
+
+        if (hit_triangle)
+        {
+            const Vertex v0 = mesh.vertices_[mesh.indices_[triangle_idx + 0]];
+            const Vertex v1 = mesh.vertices_[mesh.indices_[triangle_idx + 1]];
+            const Vertex v2 = mesh.vertices_[mesh.indices_[triangle_idx + 2]];
+
+            inout_intersection.point = in_ray.GetPoint(inout_intersection.t);
+            inout_intersection.normal = (1.f - triangle_uv.x - triangle_uv.y) * v0.normal + triangle_uv.x * v1.normal + triangle_uv.y * v2.normal;
+            inout_intersection.uv = (1.f - triangle_uv.x - triangle_uv.y) * v0.uv0 + triangle_uv.x * v1.uv0 + triangle_uv.y * v2.uv0;
+            inout_intersection.material = &mesh.material_;
+        }
+    }
+
+    return hit_triangle;
+}
+
 __device__ bool ComputeIntersection(CUDAMesh* in_objects, int objectcount, const Ray& ray, HitData& intersection_data)
 {
     bool hit_any_mesh = false;
     
     for (int i = 0; i < objectcount; ++i)
     {
-        CUDAMesh& mesh = in_objects[i];
-        if (IntersectsWithBoundingBox(mesh.GetAABB(), ray, intersection_data.t))
+        if (IntersectsWithMesh(in_objects[i], ray, intersection_data))
         {
-            if (IntersectsWithMesh(mesh, ray, intersection_data))
-            {
-                hit_any_mesh = true;
-            }    
+            hit_any_mesh = true;
         }
     }
 

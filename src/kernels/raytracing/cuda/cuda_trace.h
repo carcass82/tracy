@@ -29,8 +29,8 @@ public:
 
 	const char* GetName() const          { return "CUDA"; }
 	const int GetSamplesPerPixel() const { return samples_; }
-	int GetRayCount() const              { return raycount_; }
-	void ResetRayCount()                 { raycount_ = 0; }
+	int GetRayCount() const;
+	void ResetRayCount();
 
 private:
 	CUDATrace();
@@ -42,7 +42,6 @@ private:
 	int win_width_{};
 	int win_height_{};
 	int frame_counter_{};
-	int raycount_{};
 
 	struct CUDATraceDetails;
 	CUDATraceDetails* details_{};

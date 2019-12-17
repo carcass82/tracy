@@ -1,7 +1,7 @@
 cmake_minimum_required(VERSION 3.8)
 project(Tracy LANGUAGES CXX)
 
-set(CMAKE_RUNTIME_OUTPUT_DIRECTORY "./bin/")
+set(CMAKE_RUNTIME_OUTPUT_DIRECTORY "${PROJECT_SOURCE_DIR}/bin/")
 
 ###############################################################################
 # Defaults to Release Build                                                   #

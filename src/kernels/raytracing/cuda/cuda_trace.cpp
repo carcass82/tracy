@@ -43,6 +43,26 @@ CUDATrace::~CUDATrace()
     delete details_;
 }
 
+int CUDATrace::GetRayCount() const
+{
+    int raycount = 0;
+
+    int* raycount_tmp = new int[win_width_ * win_height_];
+    CUDAAssert(cudaMemcpy(raycount_tmp, details_->scene_.d_raycount, win_width_ * win_height_ * sizeof(int), cudaMemcpyDeviceToHost));
+
+    for (int i = 0; i < win_width_ * win_height_; ++i)
+    {
+        raycount += raycount_tmp[i];
+    }
+
+    return raycount;
+}
+
+void CUDATrace::ResetRayCount()
+{
+    CUDAAssert(cudaMemset(details_->scene_.d_raycount, 0, win_width_ * win_height_ * sizeof(int)));
+}
+
 void CUDATrace::Initialize(Handle in_window, int in_width, int in_height, const Scene& in_scene)
 {
     win_handle_ = in_window;
@@ -169,6 +189,8 @@ void CUDATrace::Initialize(Handle in_window, int in_width, int in_height, const 
         CUDAAssert(cudaMalloc((void**)&details_->output_buffer, win_width_ * win_height_ * sizeof(GLuint)));
     }
 
+    details_->scene_.width = win_width_;
+    details_->scene_.height = win_height_;
     cuda_setup(in_scene, &details_->scene_);
 }
 
