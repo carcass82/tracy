@@ -12,10 +12,10 @@
 //
 namespace
 {
-    CUDA_CALL vec3 random_on_unit_sphere()
+    CUDA_CALL vec3 random_on_unit_sphere(uint32_t& random_ctx)
     {
-        float z = fastrand() * 2.f - 1.f;
-        float a = fastrand() * 2.f * PI;
+        float z = fastrand(random_ctx) * 2.f - 1.f;
+        float a = fastrand(random_ctx) * 2.f * PI;
         float r = sqrtf(max(.0f, 1.f - z * z));
 
         return vec3{ r * cosf(a), r * sinf(a), z };
@@ -29,13 +29,13 @@ namespace
     }
 }
 
-CUDA_CALL bool Material::Scatter(const Ray& ray, const HitData& hit, vec3& out_attenuation, vec3& out_emission, Ray& out_scattered) const
+CUDA_CALL bool Material::Scatter(const Ray& ray, const HitData& hit, vec3& out_attenuation, vec3& out_emission, Ray& out_scattered, uint32_t& random_ctx) const
 {
     switch (material_type_)
     {
     case MaterialID::eLAMBERTIAN:
     {
-        vec3 target = hit.point + hit.normal + random_on_unit_sphere();
+        vec3 target = hit.point + hit.normal + random_on_unit_sphere(random_ctx);
         out_scattered = Ray(hit.point, normalize(target - hit.point));
         out_attenuation = albedo_;
         out_emission = vec3{};
@@ -46,7 +46,7 @@ CUDA_CALL bool Material::Scatter(const Ray& ray, const HitData& hit, vec3& out_a
     case MaterialID::eMETAL:
     {
         vec3 reflected = reflect(ray.GetDirection(), hit.normal);
-        out_scattered = Ray(hit.point, reflected + roughness_ * random_on_unit_sphere());
+        out_scattered = Ray(hit.point, reflected + roughness_ * random_on_unit_sphere(random_ctx));
         out_attenuation = albedo_;
         out_emission = vec3{};
 
@@ -80,7 +80,7 @@ CUDA_CALL bool Material::Scatter(const Ray& ray, const HitData& hit, vec3& out_a
         vec3 reflected = reflect(ray.GetDirection(), hit.normal);
         float reflect_chance = (refracted != ZERO) ? schlick(cosine, ior_) : 1.0f;
 
-        out_scattered = Ray(hit.point, (fastrand() < reflect_chance) ? reflected : refracted);
+        out_scattered = Ray(hit.point, (fastrand(random_ctx) < reflect_chance) ? reflected : refracted);
         return true;
     }
 

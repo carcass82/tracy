@@ -408,7 +408,7 @@ bool Scene::Init(const char* scene_path, int width, int height)
 									{
 										if (indices_remap.count(index.vertex_index) > 0)
 										{
-											m_Indices.push_back(indices_remap[index.vertex_index]);
+											m_Indices.emplace_back(indices_remap[index.vertex_index]);
 											continue;
 										}
 
@@ -430,9 +430,11 @@ bool Scene::Init(const char* scene_path, int width, int height)
 											uv = vec2{ attrib.texcoords[uvoffset], attrib.vertices[uvoffset + 1] };
 										}
 
-										m_Vertices.push_back({ pos, normal, uv, vec3{}, vec3{} });
-										m_Indices.push_back((int)m_Vertices.size() - 1);
-										indices_remap[index.vertex_index] = (int)m_Vertices.size() - 1;
+										m_Vertices.emplace_back(pos, normal, uv, vec3{}, vec3{});
+
+										int last_inserted = (int)m_Vertices.size() - 1;
+										m_Indices.emplace_back(last_inserted);
+										indices_remap[index.vertex_index] = last_inserted;
 									}
 
 									AddMesh(Mesh{ m_Vertices, m_Indices }, recompute_normals).SetMaterial(&materials_[mat_name]);

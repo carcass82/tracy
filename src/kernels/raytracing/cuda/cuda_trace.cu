@@ -1,3 +1,9 @@
+/*
+ * Tracy, a simple raytracer
+ * inspired by "Ray Tracing in One Weekend" minibooks
+ *
+ * (c) Carlo Casta, 2018
+ */
 #include <cuda_runtime.h>
 #include <curand.h>
 #include <curand_kernel.h>
@@ -162,20 +168,25 @@ __device__ bool ComputeIntersection(CUDAMesh* in_objects, int objectcount, const
     if (hit_any_mesh)
     {
         const CUDAMesh& m = in_objects[intersection_data.object_index];
-        const Vertex v0 = m.vertices_[m.indices_[intersection_data.triangle_index + 0]];
-        const Vertex v1 = m.vertices_[m.indices_[intersection_data.triangle_index + 1]];
-        const Vertex v2 = m.vertices_[m.indices_[intersection_data.triangle_index + 2]];
+
+        const Index i0 = m.indices_[intersection_data.triangle_index + 0];
+        const Index i1 = m.indices_[intersection_data.triangle_index + 1];
+        const Index i2 = m.indices_[intersection_data.triangle_index + 2];
+
+        const CUDAVertex v0 = m.vertices_[i0];
+        const CUDAVertex v1 = m.vertices_[i1];
+        const CUDAVertex v2 = m.vertices_[i2];
 
         intersection_data.point = ray.GetPoint(intersection_data.t);
         intersection_data.normal = (1.f - intersection_data.uv.x - intersection_data.uv.y) * v0.normal + intersection_data.uv.x * v1.normal + intersection_data.uv.y * v2.normal;
         intersection_data.uv = (1.f - intersection_data.uv.x - intersection_data.uv.y) * v0.uv0 + intersection_data.uv.x * v1.uv0 + intersection_data.uv.y * v2.uv0;
-        intersection_data.material = &m.material_;
+        intersection_data.material = m.material_;
     }
 
     return hit_any_mesh;
 }
 
-__device__ inline vec3 TraceInternal(const Camera& in_camera, const Ray& in_ray, CUDAMesh* in_objects, int objectcount, int& inout_raycount)
+__device__ inline vec3 TraceInternal(const Camera& in_camera, const Ray& in_ray, CUDAMesh* in_objects, int objectcount, int& inout_raycount, uint32_t& fastrand_ctx)
 {
     vec3 current_color = { 1.f, 1.f, 1.f };
     Ray current_ray = { in_ray };
@@ -196,7 +207,7 @@ __device__ inline vec3 TraceInternal(const Camera& in_camera, const Ray& in_ray,
             Ray scattered;
             vec3 attenuation;
             vec3 emission;
-            if (hit_data.material->Scatter(current_ray, hit_data, attenuation, emission, scattered))
+            if (hit_data.material->Scatter(current_ray, hit_data, attenuation, emission, scattered, fastrand_ctx))
             {
                 current_color *= attenuation;
                 current_ray = scattered;
@@ -239,6 +250,7 @@ __global__ void Trace(Camera* in_camera,
     const float f_height = static_cast<float>(height);
 
     curandState curand_ctx = rand_state[j * width + i];
+    uint32_t fastrand_ctx = clock64();
     int old_raycount = raycount[j * width + i];
 
     int cur_raycount = 0;
@@ -250,7 +262,7 @@ __global__ void Trace(Camera* in_camera,
         float t = ((j + fastrand(&curand_ctx)) / f_height);
     
         Ray r = in_camera->GetRayFrom(s, t);
-        cur_color += TraceInternal(*in_camera, r, in_objects, in_objectcount, cur_raycount);
+        cur_color += TraceInternal(*in_camera, r, in_objects, in_objectcount, cur_raycount, fastrand_ctx);
     }
     
     rand_state[j * width + i] = curand_ctx;
@@ -319,6 +331,8 @@ extern "C" void cuda_setup(const Scene& in_scene, CUDAScene* out_scene)
     dim3 block(16, 16, 1);
     dim3 grid(out_scene->width / block.x + 1, out_scene->height / block.y + 1, 1);
     InitRandom<<<grid, block>>> (out_scene->d_rand_state, out_scene->width, out_scene->height);
+
+    CUDAAssert(cudaGetLastError());
 
     out_scene->h_raycount = new int[out_scene->width * out_scene->height];
     CUDAAssert(cudaMalloc(&out_scene->d_raycount, out_scene->width * out_scene->height * sizeof(int)));

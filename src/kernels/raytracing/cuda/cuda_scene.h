@@ -14,10 +14,10 @@ struct CUDAScene
 {
     ~CUDAScene()
     {
-        cudaFree(objects_);
-        cudaFree(d_camera_);
-        cudaFree(d_rand_state);
-        cudaFree(d_raycount);
+        CUDAAssert(cudaFree(objects_));
+        CUDAAssert(cudaFree(d_camera_));
+        CUDAAssert(cudaFree(d_rand_state));
+        CUDAAssert(cudaFree(d_raycount));
     }
 
     int width;

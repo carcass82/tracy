@@ -36,7 +36,7 @@ public:
 
 private:
 	CpuTrace();
-	vec3 Trace(const Ray& ray);
+	vec3 Trace(const Ray& ray, uint32_t rand_ctx);
 
 	const int samples_{ 1 };
 	const int bounces_{ 5 };

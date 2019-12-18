@@ -8,7 +8,7 @@
 #include "random.h"
 #include "kdtree.h"
 #include <cfloat>
-
+#include <ctime>
 
 namespace
 {
@@ -235,6 +235,8 @@ struct CpuTrace::CpuTraceDetails
 	}
 #endif
 
+	uint32_t randomctx = 0;
+
 	//
 	// -- platform data for rendering --
 	//
@@ -256,6 +258,8 @@ struct CpuTrace::CpuTraceDetails
 CpuTrace::CpuTrace()
 	: details_(new CpuTraceDetails)
 {
+	details_->randomctx = static_cast<uint32_t>(time(nullptr));
+	fastrand(details_->randomctx);
 }
 
 CpuTrace::~CpuTrace()
@@ -330,7 +334,7 @@ void CpuTrace::UpdateScene()
 #endif
 }
 
-vec3 CpuTrace::Trace(const Ray& ray)
+vec3 CpuTrace::Trace(const Ray& ray, uint32_t random_ctx)
 {
 	Ray current_ray{ ray };
 	vec3 current_color{ 1.f, 1.f, 1.f };
@@ -350,7 +354,7 @@ vec3 CpuTrace::Trace(const Ray& ray)
 			Ray scattered;
 			vec3 attenuation;
 			vec3 emission;
-			if (intersection_data.material->Scatter(current_ray, intersection_data, attenuation, emission, scattered))
+			if (intersection_data.material->Scatter(current_ray, intersection_data, attenuation, emission, scattered, random_ctx))
 			{
 				current_color *= attenuation;
 				current_ray = scattered;
@@ -381,16 +385,19 @@ void CpuTrace::RenderScene()
  #define collapse(x) 
 #endif
 
-	#pragma omp parallel for collapse(3) schedule(dynamic)
+	uint32_t random_ctx = details_->randomctx;
+
+	#pragma omp parallel for collapse(3) schedule(dynamic) private(random_ctx)
 	for (int j = 0; j < win_height_; ++j)
 	{
 		for (int i = 0; i < win_width_; ++i)
 		{
 			for (int s = 0; s < samples_; ++s)
 			{
-				vec2 uv{ (i + fastrand()) / float(win_width_), (j + fastrand()) / float(win_height_) };
-
-				vec3 sampled_col = Trace(camera_->GetRayFrom(uv.x, uv.y));
+				float u = (i + fastrand(random_ctx)) / float(win_width_);
+				float v = (j + fastrand(random_ctx)) / float(win_height_);
+				
+				vec3 sampled_col = Trace(camera_->GetRayFrom(u, v), random_ctx);
 				sampled_col /= (float)samples_;
 
 				#pragma omp critical
@@ -402,6 +409,7 @@ void CpuTrace::RenderScene()
 		}
 	}
 
+	details_->randomctx = random_ctx;
 	++frame_counter_;
 }
 

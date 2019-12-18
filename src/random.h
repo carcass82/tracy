@@ -12,37 +12,15 @@
 // https://en.wikipedia.org/wiki/Xorshift
 // (Algorithm "xor" from p. 4 of Marsaglia, "Xorshift RNGs")
 //
-CUDA_CALL inline float fastrand()
+inline float fastrand(unsigned int& ctx)
 {
-    static uint32_t s_RndState = 123456789;
-    #pragma omp threadprivate(s_RndState)
-
-    uint32_t x = s_RndState;
+    uint32_t x = ctx;
     x ^= x << 13;
     x ^= x >> 17;
     x ^= x << 5;
-    s_RndState = x;
+    ctx = x;
 
     return (x & 0xffffff) / 16777216.0f;
-}
-
-#elif RANDOM_PCG
-
-//
-// PRNG from
-// https://en.wikipedia.org/wiki/Permuted_congruential_generator
-//
-CUDA_CALL inline float fastrand()
-{
-    static uint64_t mcg_state = 0xcafef00dd15ea5e4u;
-    #pragma omp threadprivate(mcg_state)
-    
-    uint64_t x = mcg_state;
-    unsigned count = (unsigned)(x >> 61);
-    mcg_state = x * 6364136223846793005u;
-    x ^= x >> 22;
-    
-    return ((uint32_t)(x >> (22 + count)) & 0xffffff) / 16777216.f;
 }
 
 #elif RANDOM_INTEL
@@ -51,13 +29,25 @@ CUDA_CALL inline float fastrand()
 // PRNG from
 // https://software.intel.com/en-us/articles/fast-random-number-generator-on-the-intel-pentiumr-4-processor/
 //
-CUDA_CALL inline float fastrand()
+inline float fastrand(unsigned int& ctx)
 {
-    static uint32_t g_state = 0xdeadbeef;
-    #pragma omp threadprivate(g_state)
+    ctx = (214013u * ctx + 2531011u);
+    return (ctx & 0xffffff) / 16777216.f;
+}
 
-    g_state = (214013u * g_state + 2531011u);
-    return (g_state & 0xffffff) / 16777216.f;
+#elif RANDOM_CUDA
+
+//
+// PRNG from NVIDIA Optix SDK
+// <OptiX SDK>\SDK\cuda\random.h
+//
+CUDA_CALL inline float fastrand(unsigned int& ctx)
+{
+    const unsigned int LCG_A = 1664525u;
+    const unsigned int LCG_C = 1013904223u;
+    ctx = (LCG_A * ctx + LCG_C);
+
+    return ((float)(ctx & 0x00ffffff) / (float)0x01000000);
 }
 
 #else
@@ -65,15 +55,14 @@ CUDA_CALL inline float fastrand()
 //
 // Default rand() [0...1]
 //
-#include <ctime>
-inline float fastrand()
+inline float fastrand(unsigned int& ctx)
 {
     #pragma omp master
     {
         static bool do_init = true;
         if (do_init)
         {
-            srand(static_cast<unsigned int>(time(nullptr)));
+            srand(ctx);
             do_init = false;
         }
     }

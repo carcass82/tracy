@@ -28,7 +28,7 @@ public:
         , ior_(in_ior)
     {}
 
-    CUDA_CALL bool Scatter(const Ray& ray, const HitData& hit, vec3& out_attenuation, vec3& out_emission, Ray& out_scattered) const;
+    CUDA_CALL bool Scatter(const Ray& ray, const HitData& hit, vec3& out_attenuation, vec3& out_emission, Ray& out_scattered, uint32_t& random_ctx) const;
 
     MaterialID GetType() const { return material_type_; }
 

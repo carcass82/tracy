@@ -111,8 +111,6 @@ if(RENDER_MODULE STREQUAL "CPU (RayTracing)")
 	
 	if(CPU_RAND_ALGORITHM STREQUAL "XorShift")
 		add_definitions(-DRANDOM_XORSHIFT=1)
-	elseif(CPU_RAND_ALGORITHM STREQUAL "PCG")
-		add_definitions(-DRANDOM_PCG=1)
 	elseif(CPU_RAND_ALGORITHM STREQUAL "Intel")
 		add_definitions(-DRANDOM_INTEL=1)
 	endif()
@@ -120,7 +118,7 @@ if(RENDER_MODULE STREQUAL "CPU (RayTracing)")
 elseif(RENDER_MODULE STREQUAL "CUDA (RayTracing)")
 
 	add_definitions(-DCUDA_KERNEL=1)
-	add_definitions(-DRANDOM_XORSHIFT=1) # FIXME
+	add_definitions(-DRANDOM_CUDA=1)
 
 	find_package(OpenGL REQUIRED)
 	list(APPEND tracy_libraries ${OPENGL_LIBRARIES})
@@ -191,7 +189,7 @@ endif()
 if(MSVC)
 
     message(STATUS "Found MSVC: " ${CMAKE_CXX_COMPILER})
-    set(CMAKE_CXX_FLAGS "/nologo /W3 /D_CRT_SECURE_NO_WARNINGS /MP")
+    set(CMAKE_CXX_FLAGS "/nologo /W3 /D_CRT_SECURE_NO_WARNINGS /MP /Gm-")
 	set(CMAKE_CXX_FLAGS_DEBUG "${CMAKE_CXX_FLAGS_DEBUG} /EHsc /Zi /Od /D_DEBUG /DNOVTABLE= ")
 	set(CMAKE_CXX_FLAGS_RELEASE "${CMAKE_CXX_FLAGS_RELEASE} /EHsc /Zi /GR- /GL /Gs- /O2 /fp:fast /DNDEBUG /DNOVTABLE=__declspec(novtable)")
 	
