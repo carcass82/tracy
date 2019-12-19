@@ -49,7 +49,7 @@ public:
 		CUDAAssert(cudaMalloc(&vertices_, vertexcount_ * sizeof(CUDAVertex)));
 		CUDAAssert(cudaMemcpy(vertices_, &vertices_helper[0], vertexcount_ * sizeof(CUDAVertex), cudaMemcpyHostToDevice));
 
-		indexcount_ = cpu_mesh.GetIndicesCount();
+		indexcount_ = cpu_mesh.GetIndexCount();
 		CUDAAssert(cudaMalloc(&indices_, indexcount_ * sizeof(Index)));
 		CUDAAssert(cudaMemcpy(indices_, &cpu_mesh.GetIndices()[0], indexcount_* sizeof(Index), cudaMemcpyHostToDevice));
 
@@ -57,13 +57,6 @@ public:
 		CUDAAssert(cudaMemcpy(material_, cpu_mesh.GetMaterial(), sizeof(Material), cudaMemcpyHostToDevice));
 	}
 
-	__host__ ~CUDAMesh()
-	{
-		CUDAAssert(cudaFree(material_));
-		CUDAAssert(cudaFree(indices_));
-		CUDAAssert(cudaFree(vertices_));
-	}
-	
 	//
 	//
 	//

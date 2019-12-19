@@ -36,7 +36,7 @@ public:
 
 	int GetTriCount() const                       { return static_cast<int>(indices_.size()) / 3; }
 
-	int GetIndicesCount() const                   { return static_cast<int>(indices_.size()); }
+	int GetIndexCount() const                     { return static_cast<int>(indices_.size()); }
 
 	const vector<Vertex>& GetVertices() const     { return vertices_; }
 

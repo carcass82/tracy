@@ -105,6 +105,7 @@ constexpr inline uint32_t make_id(char a, char b, char c = '\0', char d = '\0')
 #define NOMCX
 #include <Windows.h>
 using Handle = HWND;
+#define DEBUG_BREAK() __debugbreak()
 
 #elif defined(__linux__)
 
@@ -122,6 +123,8 @@ using Handle = struct handle_t*;
 #if !defined(MAX_PATH)
  #define MAX_PATH 260
 #endif
+
+#define DEBUG_BREAK() __builtin_trap()
 
 #else
 

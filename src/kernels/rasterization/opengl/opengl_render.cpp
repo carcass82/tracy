@@ -164,7 +164,7 @@ void OpenGLRender::Initialize(Handle in_window, int in_width, int in_height, con
 				glDeleteBuffers(1, &ib);
 
 				details_->meshes.emplace_back(vao,
-					                          mesh.GetIndicesCount(),
+					                          mesh.GetIndexCount(),
 					                          mesh.GetMaterial()->GetAlbedo(),
 					                          mesh.GetMaterial()->GetType() == Material::MaterialID::eMETAL ? 1.f : .0f,
 				                              mesh.GetMaterial()->GetRoughness(),
@@ -195,14 +195,14 @@ void OpenGLRender::Initialize(Handle in_window, int in_width, int in_height, con
 			if (status != GL_TRUE)
 			{
 				glGetShaderInfoLog(details_->vs, array_size(buffer), nullptr, buffer);
-				__debugbreak();
+				DEBUG_BREAK();
 			}
 
 			glGetShaderiv(details_->fs, GL_COMPILE_STATUS, &status);
 			if (status != GL_TRUE)
 			{
 				glGetShaderInfoLog(details_->fs, array_size(buffer), nullptr, buffer);
-				__debugbreak();
+				DEBUG_BREAK();
 			}
 #endif
 
@@ -216,7 +216,7 @@ void OpenGLRender::Initialize(Handle in_window, int in_width, int in_height, con
             if (status != GL_TRUE)
             {
                 glGetProgramInfoLog(details_->shader, array_size(buffer), nullptr, buffer);
-                __debugbreak();
+                DEBUG_BREAK();
             }
 #endif
 		}
