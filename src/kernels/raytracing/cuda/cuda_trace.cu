@@ -4,6 +4,8 @@
  *
  * (c) Carlo Casta, 2018
  */
+#include <cfloat>
+
 #include <cuda_runtime.h>
 #include <curand.h>
 #include <curand_kernel.h>

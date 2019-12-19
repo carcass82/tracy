@@ -11,7 +11,9 @@ if(NOT CMAKE_BUILD_TYPE)
 	set_property(CACHE CMAKE_BUILD_TYPE PROPERTY STRINGS "Debug" "Release")
 endif()
 
-
+if(POLICY CMP0072)
+	cmake_policy(SET CMP0072 NEW)
+endif()
 
 ###############################################################################
 # Debug Options                                                               #
@@ -49,7 +51,8 @@ endif()
 # Common Sources                                                              #
 ###############################################################################
 
-set(CMAKE_CXX_STANDARD 17)
+set(CMAKE_CXX_STANDARD 14)
+set(CMAKE_CXX_EXTENSIONS OFF)
 
 include_directories(. ./src ./ext)
 
@@ -131,9 +134,11 @@ elseif(RENDER_MODULE STREQUAL "CUDA (RayTracing)")
 	list(APPEND tracy_sources ${glew_source})
 
 	enable_language(CUDA)
-	set(CMAKE_CUDA_STANDARD 17)
+	set(CMAKE_CUDA_STANDARD 14)
+	set(CMAKE_CUDA_EXTENSIONS OFF)
 
 	include_directories(./src/kernels/raytracing/cuda/)
+	include_directories(${CMAKE_CUDA_TOOLKIT_INCLUDE_DIRECTORIES}) 
 
 	set(CUDA_COMPUTECAPABILITY "-arch=sm_30" CACHE STRING "Cuda Arch Compile Option")	
 	set(CMAKE_CUDA_FLAGS "-D_FORCE_INLINES ${CUDA_COMPUTECAPABILITY}")

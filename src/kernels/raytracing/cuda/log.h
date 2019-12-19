@@ -5,7 +5,8 @@
  * (c) Carlo Casta, 2018
  */
 #pragma once
-#include <sstream>
+#include <cstdio>
+#include <cstdarg>
 #include <cuda_runtime.h>
 
 #define CUDALog(msg, ...) cuda::log(msg, __VA_ARGS__)
