@@ -11,9 +11,16 @@ if(NOT CMAKE_BUILD_TYPE)
 	set_property(CACHE CMAKE_BUILD_TYPE PROPERTY STRINGS "Debug" "Release")
 endif()
 
+
+
+###############################################################################
+# CMP0072: FindOpenGL prefers GLVND by default when available.                #
+###############################################################################
 if(POLICY CMP0072)
 	cmake_policy(SET CMP0072 NEW)
 endif()
+
+
 
 ###############################################################################
 # Debug Options                                                               #

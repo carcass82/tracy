@@ -10,13 +10,31 @@ install:
 build_script:
 
 - cmd: >-
-    cmake -G "Visual Studio 16 2019" -DCMAKE_BUILD_TYPE=Release
+    mkdir build && cd build
 
-    cmake --build . -- -property:Configuration=Release
+    cmake -G "Visual Studio 16 2019 x64" -DCMAKE_BUILD_TYPE=Release -DRENDER_MODULE="CPU (RayTracing)" ..
+    cmake --build . --config Release
+    
+    #
+    # check for cuda support on appveyor
+    #
+    #cmake -G "Visual Studio 16 2019 x64" -DCMAKE_BUILD_TYPE=Release -DRENDER_MODULE="CUDA (RayTracing)" ..
+    #cmake --build . --config Release
+    
+    cmake -G "Visual Studio 16 2019 x64" -DCMAKE_BUILD_TYPE=Release -DRENDER_MODULE="OpenGL (Raster)" ..
+    cmake --build . --config Release
 
 - sh: >-
-    cmake -G "Unix Makefiles" -DCMAKE_BUILD_TYPE=Release
+    mkdir build && cd build
 
-    cmake --build .
-
-
+    cmake -G "Unix Makefiles" -DCMAKE_BUILD_TYPE=Release -DRENDER_MODULE="CPU (RayTracing)" ..
+    cmake --build . --config Release
+    
+    #
+    # check for cuda support on appveyor
+    #
+    #cmake -G "Unix Makefiles" -DCMAKE_BUILD_TYPE=Release -DRENDER_MODULE="CUDA (RayTracing)" ..
+    #cmake --build . --config Release
+    
+    cmake -G "Unix Makefiles" -DCMAKE_BUILD_TYPE=Release -DRENDER_MODULE="OpenGL (Raster)" ..
+    cmake --build . --config Release
