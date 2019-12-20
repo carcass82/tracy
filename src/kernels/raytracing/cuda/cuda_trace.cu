@@ -10,12 +10,6 @@
 #include <curand.h>
 #include <curand_kernel.h>
 
-#if defined(__CUDACC__)
- #define CUDA_CALL __host__ __device__
-#else
- #define CUDA_CALL
-#endif
-
 #include "common.h"
 #include "log.h"
 
@@ -26,15 +20,33 @@
 #include "scene.h"
 #include "cuda_scene.h"
 
+// static material map initialization
+unordered_map<const Material*, Material*> CUDAMaterial::host_to_device_;
+
+// max gpu supported
 constexpr int MAX_GPU = 32;
+
+// max depth for ray bounces
 constexpr int MAX_DEPTH = 5;
 
 struct Color
 {
 	static_assert(sizeof(uint32_t) == 4 * sizeof(uint8_t), "u32 != 4 * u8 :/");
 
-	__device__ constexpr Color()                 : rgba(0)       {}
-	__device__ constexpr Color(uint32_t in_rgba) : rgba(in_rgba) {}
+	__device__ constexpr inline Color() noexcept
+        : rgba(0)
+    {}
+
+	__device__ constexpr inline Color(const uint32_t in_rgba) noexcept
+        : rgba(in_rgba)
+    {}
+    
+    __device__ constexpr inline Color(const uint8_t in_rgba[4]) noexcept
+        : r(in_rgba[0])
+        , g(in_rgba[1])
+        , b(in_rgba[2])
+        , a(in_rgba[3])
+    {}
 
 	union
 	{
@@ -69,11 +81,6 @@ __device__ constexpr inline vec3 ToFloat(uint32_t color)
 	c.rgba = color;
 	
 	return vec3{ c.r / 255.f, c.g / 255.f, c.b / 255.f };
-}
-
-__device__ inline float fastrand(curandState* curand_ctx)
-{
-    return curand_uniform(curand_ctx);
 }
 
 __device__ bool IntersectsWithBoundingBox(const BBox& box, const Ray& ray, float nearest_intersection = FLT_MAX)
@@ -188,16 +195,16 @@ __device__ bool ComputeIntersection(CUDAMesh* in_objects, int objectcount, const
     return hit_any_mesh;
 }
 
-__device__ inline vec3 TraceInternal(const Camera& in_camera, const Ray& in_ray, CUDAMesh* in_objects, int objectcount, int& inout_raycount, uint32_t& fastrand_ctx)
+__device__ inline vec3 TraceInternal(const Camera& in_camera, const Ray& in_ray, CUDAMesh* in_objects, int objectcount, int& inout_raycount, RandomCtx fastrand_ctx)
 {
     vec3 current_color = { 1.f, 1.f, 1.f };
     Ray current_ray = { in_ray };
 
-    HitData hit_data;
-    hit_data.t = FLT_MAX;
-
     for (int i = 0; i < MAX_DEPTH; ++i)
     {
+        HitData hit_data;
+        hit_data.t = FLT_MAX;
+
         ++inout_raycount;
 
         if (ComputeIntersection(in_objects, objectcount, current_ray, hit_data))
@@ -252,7 +259,6 @@ __global__ void Trace(Camera* in_camera,
     const float f_height = static_cast<float>(height);
 
     curandState curand_ctx = rand_state[j * width + i];
-    uint32_t fastrand_ctx = clock64();
     int old_raycount = raycount[j * width + i];
 
     int cur_raycount = 0;
@@ -264,7 +270,7 @@ __global__ void Trace(Camera* in_camera,
         float t = ((j + fastrand(&curand_ctx)) / f_height);
     
         Ray r = in_camera->GetRayFrom(s, t);
-        cur_color += TraceInternal(*in_camera, r, in_objects, in_objectcount, cur_raycount, fastrand_ctx);
+        cur_color += TraceInternal(*in_camera, r, in_objects, in_objectcount, cur_raycount, &curand_ctx);
     }
     
     rand_state[j * width + i] = curand_ctx;
@@ -320,7 +326,7 @@ extern "C" void cuda_setup(const Scene& in_scene, CUDAScene* out_scene)
     CUDAAssert(cudaMalloc(&out_scene->objects_, in_scene.GetObjectCount() * sizeof(CUDAMesh)));
     for (int i = 0; i < in_scene.GetObjectCount(); ++i)
     {
-        CUDAMesh cmesh(in_scene.GetObject(i));
+        CUDAMesh cmesh(in_scene.GetObject(i), CUDAMaterial::Convert(in_scene.GetObject(i).GetMaterial()));
         CUDAAssert(cudaMemcpy(&out_scene->objects_[i], &cmesh, sizeof(CUDAMesh), cudaMemcpyHostToDevice));
     }
     out_scene->objectcount_ = in_scene.GetObjectCount();

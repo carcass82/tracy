@@ -12,7 +12,7 @@
 //
 namespace
 {
-    CUDA_CALL vec3 random_on_unit_sphere(uint32_t& random_ctx)
+    CUDA_DEVICE_CALL vec3 random_on_unit_sphere(RandomCtx random_ctx)
     {
         float z = fastrand(random_ctx) * 2.f - 1.f;
         float a = fastrand(random_ctx) * 2.f * PI;
@@ -21,7 +21,7 @@ namespace
         return vec3{ r * cosf(a), r * sinf(a), z };
     }
 
-    CUDA_CALL float schlick(float cos, float ref_idx)
+    CUDA_DEVICE_CALL float schlick(float cos, float ref_idx)
     {
         float r0 = (1.0f - ref_idx) / (1.0f + ref_idx);
         r0 *= r0;
@@ -29,7 +29,7 @@ namespace
     }
 }
 
-CUDA_CALL bool Material::Scatter(const Ray& ray, const HitData& hit, vec3& out_attenuation, vec3& out_emission, Ray& out_scattered, uint32_t& random_ctx) const
+CUDA_DEVICE_CALL bool Material::Scatter(const Ray& ray, const HitData& hit, vec3& out_attenuation, vec3& out_emission, Ray& out_scattered, RandomCtx random_ctx) const
 {
     switch (material_type_)
     {

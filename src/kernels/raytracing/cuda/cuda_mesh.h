@@ -5,6 +5,9 @@
  * (c) Carlo Casta, 2018
  */
 #pragma once
+#include <unordered_map>
+using std::unordered_map;
+
 #include <cuda_runtime.h>
 #include "log.h"
 #include "common.h"
@@ -27,16 +30,36 @@ struct CUDAVertex
 	vec2 uv0;
 };
 
+struct CUDAMaterial
+{
+	static Material* Convert(const Material* cpu_material)
+	{
+		if (host_to_device_.count(cpu_material) == 0)
+		{
+			Material* d_material;
+			CUDAAssert(cudaMalloc(&d_material, sizeof(Material)));
+			CUDAAssert(cudaMemcpy(d_material, cpu_material, sizeof(Material), cudaMemcpyHostToDevice));
+
+			host_to_device_[cpu_material] = d_material;
+		}
+
+		return host_to_device_[cpu_material];
+	}
+
+	static unordered_map<const Material*, Material*> host_to_device_;
+};
+
 struct CUDAMesh
 {
 public:
 	__host__ CUDAMesh()
 	{}
 
-	__host__ CUDAMesh(const Mesh& cpu_mesh)
+	__host__ CUDAMesh(const Mesh& cpu_mesh, const Material* d_material)
 		: center_(cpu_mesh.GetCenter())
 		, size_(cpu_mesh.GetSize())
 		, aabb_(cpu_mesh.GetAABB())
+		, material_(d_material)
 	{
 		vertexcount_ = cpu_mesh.GetVertexCount();
 
@@ -52,9 +75,6 @@ public:
 		indexcount_ = cpu_mesh.GetIndexCount();
 		CUDAAssert(cudaMalloc(&indices_, indexcount_ * sizeof(Index)));
 		CUDAAssert(cudaMemcpy(indices_, &cpu_mesh.GetIndices()[0], indexcount_* sizeof(Index), cudaMemcpyHostToDevice));
-
-		CUDAAssert(cudaMalloc(&material_, sizeof(Material)));
-		CUDAAssert(cudaMemcpy(material_, cpu_mesh.GetMaterial(), sizeof(Material), cudaMemcpyHostToDevice));
 	}
 
 	//
@@ -66,7 +86,7 @@ public:
 	Index* indices_;
 	int indexcount_;
 
-	Material* material_;
+	const Material* material_;
 	
 	vec3 center_;
 	vec3 size_;

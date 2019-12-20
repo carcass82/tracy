@@ -97,6 +97,22 @@ constexpr inline uint32_t make_id(char a, char b, char c = '\0', char d = '\0')
 	return a | b << 8 | c << 16 | d << 24;
 }
 
+#if !defined(CUDA_CALL) 
+ #define CUDA_CALL
+#endif
+
+#if !defined(CUDA_DEVICE_CALL)
+ #define CUDA_DEVICE_CALL
+#endif
+
+#if defined(__CUDACC__)
+ #include <curand_kernel.h>
+ using RandomCtx = curandState*;
+ #define fastrand(x) curand_uniform(x)
+#else
+ using RandomCtx = uint32_t&;
+#endif
+
 #if defined(_WIN32)
 
 #define WIN32_LEAN_AND_MEAN

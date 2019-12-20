@@ -6,13 +6,15 @@
  */
 #pragma once
 
+#if !defined(fastrand)
+
 #if RANDOM_XORSHIFT
 //
 // PRNG from
 // https://en.wikipedia.org/wiki/Xorshift
 // (Algorithm "xor" from p. 4 of Marsaglia, "Xorshift RNGs")
 //
-inline float fastrand(unsigned int& ctx)
+inline float fastrand(RandomCtx ctx)
 {
     uint32_t x = ctx;
     x ^= x << 13;
@@ -29,25 +31,10 @@ inline float fastrand(unsigned int& ctx)
 // PRNG from
 // https://software.intel.com/en-us/articles/fast-random-number-generator-on-the-intel-pentiumr-4-processor/
 //
-inline float fastrand(unsigned int& ctx)
+inline float fastrand(RandomCtx ctx)
 {
     ctx = (214013u * ctx + 2531011u);
     return (ctx & 0xffffff) / 16777216.f;
-}
-
-#elif RANDOM_CUDA
-
-//
-// PRNG from NVIDIA Optix SDK
-// <OptiX SDK>\SDK\cuda\random.h
-//
-CUDA_CALL inline float fastrand(unsigned int& ctx)
-{
-    const unsigned int LCG_A = 1664525u;
-    const unsigned int LCG_C = 1013904223u;
-    ctx = (LCG_A * ctx + LCG_C);
-
-    return ((float)(ctx & 0x00ffffff) / (float)0x01000000);
 }
 
 #else
@@ -55,7 +42,7 @@ CUDA_CALL inline float fastrand(unsigned int& ctx)
 //
 // Default rand() [0...1]
 //
-inline float fastrand(unsigned int& ctx)
+inline float fastrand(RandomCtx ctx)
 {
     #pragma omp master
     {
@@ -69,5 +56,6 @@ inline float fastrand(unsigned int& ctx)
 
     return static_cast<float>(rand()) / RAND_MAX;
 }
+#endif
 
 #endif

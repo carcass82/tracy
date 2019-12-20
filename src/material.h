@@ -12,7 +12,7 @@
 class Material
 {
 public:
-	enum class MaterialID { eINVALID, eLAMBERTIAN, eMETAL, eDIELECTRIC, eEMISSIVE };
+	enum MaterialID { eINVALID, eLAMBERTIAN, eMETAL, eDIELECTRIC, eEMISSIVE };
 
     Material()
         : material_type_(MaterialID::eINVALID)
@@ -28,7 +28,7 @@ public:
         , ior_(in_ior)
     {}
 
-    CUDA_CALL bool Scatter(const Ray& ray, const HitData& hit, vec3& out_attenuation, vec3& out_emission, Ray& out_scattered, uint32_t& random_ctx) const;
+    CUDA_DEVICE_CALL bool Scatter(const Ray& ray, const HitData& hit, vec3& out_attenuation, vec3& out_emission, Ray& out_scattered, RandomCtx random_ctx) const;
 
     MaterialID GetType() const { return material_type_; }
 
