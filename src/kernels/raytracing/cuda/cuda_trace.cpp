@@ -121,7 +121,10 @@ void CUDATrace::Initialize(Handle in_window, int in_width, int in_height, const 
         glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_NEAREST);
         glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA8UI, win_width_, win_height_, 0, GL_RGBA_INTEGER, GL_UNSIGNED_BYTE, NULL);
 
+        CUDAAssert(cudaSetDevice(CUDA_PREFERRED_DEVICE));
         CUDAAssert(cudaGraphicsGLRegisterImage(&details_->mapped_texture, details_->texture, GL_TEXTURE_2D, cudaGraphicsMapFlagsWriteDiscard));
+        CUDAAssert(cudaMalloc((void**)&details_->output_buffer, win_width_ * win_height_ * sizeof(GLuint)));
+        CUDAAssert(cudaMemset(details_->output_buffer, 0, win_width_ * win_height_ * sizeof(GLuint)));
 
         static const char* vertex_shader = R"vs(
         void main()
@@ -185,9 +188,6 @@ void CUDATrace::Initialize(Handle in_window, int in_width, int in_height, const 
             }
 #endif
         }
-
-        CUDAAssert(cudaMalloc((void**)&details_->output_buffer, win_width_ * win_height_ * sizeof(GLuint)));
-        CUDAAssert(cudaMemset(details_->output_buffer, 0, win_width_ * win_height_ * sizeof(GLuint)));
     }
 
     details_->scene_.width = win_width_;
@@ -198,6 +198,8 @@ void CUDATrace::Initialize(Handle in_window, int in_width, int in_height, const 
 void CUDATrace::UpdateScene()
 {
     cuda_trace(&details_->scene_, details_->output_buffer, frame_counter_++);
+
+    CUDAAssert(cudaSetDevice(CUDA_PREFERRED_DEVICE));
 
     cudaArray* texture_ptr;
     CUDAAssert(cudaGraphicsMapResources(1, &details_->mapped_texture, 0));

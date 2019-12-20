@@ -14,14 +14,14 @@ class Material
 public:
 	enum MaterialID { eINVALID, eLAMBERTIAN, eMETAL, eDIELECTRIC, eEMISSIVE };
 
-    Material()
+    CUDA_DEVICE_CALL Material()
         : material_type_(MaterialID::eINVALID)
         , albedo_(vec3{})
         , roughness_(.0f)
         , ior_(1.f)
     {}
 
-    Material(MaterialID in_type, const vec3& in_albedo, float in_roughness = .0f, float in_ior = 1.f)
+    CUDA_DEVICE_CALL Material(MaterialID in_type, const vec3& in_albedo, float in_roughness = .0f, float in_ior = 1.f)
         : material_type_(in_type)
         , albedo_(in_albedo)
         , roughness_(in_roughness)

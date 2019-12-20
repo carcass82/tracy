@@ -50,16 +50,18 @@ using cc::math::vec4;
 using cc::math::vec3;
 using cc::math::vec2;
 using cc::math::radians;
-using cc::util::max;
-using cc::util::min;
-using cc::util::clamp;
-using cc::util::array_size;
+using cc::math::max;
+using cc::math::min;
+using cc::math::clamp;
 using cc::math::lerp;
 using cc::math::perspective;
 using cc::math::inverse;
-#define cosf(x) cc::math::fast::cosf(x)
-#define sinf(x) cc::math::fast::sinf(x)
+#define cosf(x) cc::math::cosf(x)
+#define sinf(x) cc::math::sinf(x)
+#define powf(x, y) cc::math::powf(x, y)
+#define sqrtf(x) cc::math::sqrtf(x)
 using cc::math::PI;
+using cc::array_size;
 #define CC_CONSTEXPR constexpr
 #endif
 
@@ -78,12 +80,12 @@ struct HitData
 
 struct BBox
 {
-	CUDA_CALL BBox()
+	CUDA_DEVICE_CALL BBox()
 		: minbound{}
 		, maxbound{}
 	{}
 
-	CUDA_CALL BBox(const vec3& in_minbound, const vec3& in_maxbound)
+	CUDA_DEVICE_CALL BBox(const vec3& in_minbound, const vec3& in_maxbound)
 		: minbound(in_minbound)
 		, maxbound(in_maxbound)
 	{}

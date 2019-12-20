@@ -10,6 +10,10 @@
 #include "camera.h"
 #include "cuda_mesh.h"
 
+#if !defined(CUDA_PREFERRED_DEVICE)
+ #define CUDA_PREFERRED_DEVICE 1
+#endif
+
 struct CUDAScene
 {
     ~CUDAScene()

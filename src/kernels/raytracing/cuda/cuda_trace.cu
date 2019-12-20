@@ -29,6 +29,9 @@ constexpr int MAX_GPU = 32;
 // max depth for ray bounces
 constexpr int MAX_DEPTH = 5;
 
+// max sample per kernel launch
+constexpr int MAX_SAMPLES = 1;
+
 struct Color
 {
 	static_assert(sizeof(uint32_t) == 4 * sizeof(uint8_t), "u32 != 4 * u8 :/");
@@ -48,6 +51,20 @@ struct Color
         , a(in_rgba[3])
     {}
 
+    __device__ constexpr inline Color(const vec3& in_rgba) noexcept
+        : r((uint8_t)in_rgba.r)
+        , g((uint8_t)in_rgba.g)
+        , b((uint8_t)in_rgba.b)
+        , a((uint8_t)1.f)
+    {}
+
+    __device__ constexpr inline Color(const vec4& in_rgba) noexcept
+        : r((uint8_t)in_rgba.r)
+        , g((uint8_t)in_rgba.g)
+        , b((uint8_t)in_rgba.b)
+        , a((uint8_t)in_rgba.a)
+    {}
+
 	union
 	{
 		struct
@@ -64,23 +81,20 @@ struct Color
 
 __device__ constexpr inline uint32_t ToInt(vec3 color)
 {
-	color *= 255.99f;
-
-	Color c;
-    c.r = static_cast<uint8_t>(clamp(color.r, 0.0f, 255.0f));
-    c.g = static_cast<uint8_t>(clamp(color.g, 0.0f, 255.0f));
-    c.b = static_cast<uint8_t>(clamp(color.b, 0.0f, 255.0f));
-	c.a = 255;
+    Color c;
+    c.r = (uint8_t)clamp(color.r * 255.99f, .0f, 255.f);
+    c.g = (uint8_t)clamp(color.g * 255.99f, .0f, 255.f);
+    c.b = (uint8_t)clamp(color.b * 255.99f, .0f, 255.f);
+	c.a = (uint8_t)255;
 
     return c.rgba;
 }
 
 __device__ constexpr inline vec3 ToFloat(uint32_t color)
 {
-	Color c;
-	c.rgba = color;
-	
-	return vec3{ c.r / 255.f, c.g / 255.f, c.b / 255.f };
+    Color c(color);
+
+	return vec3{ c.r / 255.99f, c.g / 255.99f, c.b / 255.99f };
 }
 
 __device__ bool IntersectsWithBoundingBox(const BBox& box, const Ray& ray, float nearest_intersection = FLT_MAX)
@@ -264,7 +278,7 @@ __global__ void Trace(Camera* in_camera,
     int cur_raycount = 0;
 
     vec3 cur_color{};
-    for (int sample = 0; sample < 1; ++sample)
+    for (int sample = 0; sample < MAX_SAMPLES; ++sample)
     {
         float s = ((i + fastrand(&curand_ctx)) / f_width);
         float t = ((j + fastrand(&curand_ctx)) / f_height);
@@ -272,6 +286,7 @@ __global__ void Trace(Camera* in_camera,
         Ray r = in_camera->GetRayFrom(s, t);
         cur_color += TraceInternal(*in_camera, r, in_objects, in_objectcount, cur_raycount, &curand_ctx);
     }
+    cur_color /= MAX_SAMPLES;
     
     rand_state[j * width + i] = curand_ctx;
     raycount[j * width + i] = old_raycount + cur_raycount;
@@ -317,7 +332,7 @@ extern "C" void cuda_setup(const Scene& in_scene, CUDAScene* out_scene)
                 gpu_properties[i].maxGridSize[0], gpu_properties[i].maxGridSize[1], gpu_properties[i].maxGridSize[2]);
     }
 
-    CUDAAssert(cudaSetDevice(0));
+    CUDAAssert(cudaSetDevice(CUDA_PREFERRED_DEVICE));
 
     //
     // copy data to the device
@@ -350,7 +365,7 @@ extern "C" void cuda_setup(const Scene& in_scene, CUDAScene* out_scene)
 
 extern "C" void cuda_trace(CUDAScene* scene, unsigned int* output, int framecount)
 {
-    CUDAAssert(cudaSetDevice(0));
+    CUDAAssert(cudaSetDevice(CUDA_PREFERRED_DEVICE));
 
     dim3 block(16, 16, 1);
     dim3 grid(scene->width / block.x + 1, scene->height / block.y + 1, 1);

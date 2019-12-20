@@ -144,6 +144,9 @@ elseif(RENDER_MODULE STREQUAL "CUDA (RayTracing)")
 	set(CMAKE_CUDA_STANDARD 14)
 	set(CMAKE_CUDA_EXTENSIONS OFF)
 
+	set(target_properties "CUDA_SEPARABLE_COMPILATION ON")
+	list(APPEND target_properties "CUDA_RESOLVE_DEVICE_SYMBOLS ON")
+
 	include_directories(./src/kernels/raytracing/cuda/)
 	include_directories(${CMAKE_CUDA_TOOLKIT_INCLUDE_DIRECTORIES}) 
 
@@ -243,10 +246,12 @@ endif()
 add_executable(${PROJECT_NAME} ${WIN32_MAIN} ${tracy_sources} ${tracy_includes})
 target_link_libraries(${PROJECT_NAME} ${tracy_libraries})
 
-# TODO: should be something like this
-#set_target_properties(${PROJECT_NAME} PROPERTIES ${tracy_target_properties})
-
-if(RENDER_MODULE STREQUAL "CUDA (RayTracing)")
-	set_target_properties(${PROJECT_NAME} PROPERTIES CUDA_SEPARABLE_COMPILATION ON
-		                                             CUDA_RESOLVE_DEVICE_SYMBOLS ON)
-endif()
+foreach(target_property IN LISTS target_properties)
+    
+	string(REPLACE " " ";" property_pair ${target_property})
+	list(GET property_pair 0 property)
+	list(GET property_pair 1 value)
+	
+	message(STATUS "set_target_properties: ${property} = ${value}")
+	set_target_properties(${PROJECT_NAME} PROPERTIES ${property} ${value})
+endforeach()

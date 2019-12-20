@@ -8,7 +8,7 @@
 
 struct Vertex
 {
-	Vertex()
+	CUDA_DEVICE_CALL Vertex()
 		: pos{}
 		, normal{}
 		, uv0{}
@@ -16,7 +16,7 @@ struct Vertex
 		, bitangent{}
 	{}
 
-	Vertex(const vec3& in_pos, const vec3& in_normal, const vec2& in_uv0, const vec3& in_tangent, const vec3& in_bitangent)
+	CUDA_DEVICE_CALL Vertex(const vec3& in_pos, const vec3& in_normal, const vec2& in_uv0, const vec3& in_tangent, const vec3& in_bitangent)
 		: pos(in_pos)
 		, normal(in_normal)
 		, uv0(in_uv0)
