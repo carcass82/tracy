@@ -244,7 +244,8 @@ int main(int /* argc */, char** /* argv */)
 
 				if (frame_timer.GetDuration() > 1.f)
 				{
-					bool has_ray_count = g_kernel.GetRayCount() > 0;
+					int raycount = g_kernel.GetRayCount();
+					bool has_ray_count = raycount > 0;
 
 					static char window_title[MAX_PATH];
 					snprintf(window_title,
@@ -257,7 +258,7 @@ int main(int /* argc */, char** /* argv */)
 					         g_kernel.GetSamplesPerPixel(),
 						     world.GetObjectCount(),
 						     world.GetTriCount(),
-					         (has_ray_count? (g_kernel.GetRayCount() * 1e-6f) / frame_timer.GetDuration() : frame_count / frame_timer.GetDuration()),
+					         (has_ray_count? (raycount * 1e-6f) / frame_timer.GetDuration() : frame_count / frame_timer.GetDuration()),
 					         (has_ray_count? "MRays/s" : "fps"));
 
 					UpdateWindowText(win_handle, window_title);
