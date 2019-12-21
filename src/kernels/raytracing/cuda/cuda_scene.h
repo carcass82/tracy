@@ -11,29 +11,23 @@
 #include "cuda_mesh.h"
 
 #if !defined(CUDA_PREFERRED_DEVICE)
- #define CUDA_PREFERRED_DEVICE 1
+ #define CUDA_PREFERRED_DEVICE 0
 #endif
 
 struct CUDAScene
 {
-    ~CUDAScene()
-    {
-        CUDAAssert(cudaFree(objects_));
-        CUDAAssert(cudaFree(d_camera_));
-        CUDAAssert(cudaFree(d_rand_state));
-        CUDAAssert(cudaFree(d_raycount));
-    }
-
     int width;
     int height;
 
-	CUDAMesh* objects_;
+    vec4* d_output_;
+
+	CUDAMesh* d_objects_;
 	int objectcount_;
 
 	Camera* d_camera_;
 
     curandState* d_rand_state;
 
-    int* h_raycount;
+    int h_raycount;
     int* d_raycount;
 };

@@ -16,7 +16,7 @@ build_script:
     
     cmake --build . --config Release
     
-    cmake -G "Visual Studio 16 2019" -DCMAKE_TOOLCHAIN_FILE=c:/tools/vcpkg/scripts/buildsystems/vcpkg.cmake -DCMAKE_BUILD_TYPE=Release -DRENDER_MODULE="OpenGL (Raster)" ..
+    cmake -G "Visual Studio 16 2019" -DCMAKE_BUILD_TYPE=Release -DRENDER_MODULE="OpenGL (Raster)" ..
     
     cmake --build . --config Release
 
@@ -26,3 +26,16 @@ build_script:
     cmake -G "Unix Makefiles" -DCMAKE_BUILD_TYPE=Release -DRENDER_MODULE="CPU (RayTracing)" ..
     
     cmake --build . --config Release
+
+
+#
+# Disabled Configurations
+#
+
+# CUDA support for both vs2019 and g++ is missing
+#cmake -G "Visual Studio 16 2019" -DCMAKE_BUILD_TYPE=Release -DRENDER_MODULE="CUDA (RayTracing)" ..    
+#cmake --build . --config Release
+
+# CMake won't find OpenGL on linux
+#cmake -G "Unix Makefiles" -DCMAKE_BUILD_TYPE=Release -DRENDER_MODULE="OpenGL (Raster)" ..
+#cmake --build . --config Release

@@ -32,71 +32,6 @@ constexpr int MAX_DEPTH = 5;
 // max sample per kernel launch
 constexpr int MAX_SAMPLES = 1;
 
-struct Color
-{
-	static_assert(sizeof(uint32_t) == 4 * sizeof(uint8_t), "u32 != 4 * u8 :/");
-
-	__device__ constexpr inline Color() noexcept
-        : rgba(0)
-    {}
-
-	__device__ constexpr inline Color(const uint32_t in_rgba) noexcept
-        : rgba(in_rgba)
-    {}
-    
-    __device__ constexpr inline Color(const uint8_t in_rgba[4]) noexcept
-        : r(in_rgba[0])
-        , g(in_rgba[1])
-        , b(in_rgba[2])
-        , a(in_rgba[3])
-    {}
-
-    __device__ constexpr inline Color(const vec3& in_rgba) noexcept
-        : r((uint8_t)in_rgba.r)
-        , g((uint8_t)in_rgba.g)
-        , b((uint8_t)in_rgba.b)
-        , a((uint8_t)1.f)
-    {}
-
-    __device__ constexpr inline Color(const vec4& in_rgba) noexcept
-        : r((uint8_t)in_rgba.r)
-        , g((uint8_t)in_rgba.g)
-        , b((uint8_t)in_rgba.b)
-        , a((uint8_t)in_rgba.a)
-    {}
-
-	union
-	{
-		struct
-		{
-			uint8_t r;
-			uint8_t g;
-			uint8_t b;
-			uint8_t a;
-		};
-		
-		uint32_t rgba;
-	};
-};
-
-__device__ constexpr inline uint32_t ToInt(vec3 color)
-{
-    Color c;
-    c.r = (uint8_t)clamp(color.r * 255.99f, .0f, 255.f);
-    c.g = (uint8_t)clamp(color.g * 255.99f, .0f, 255.f);
-    c.b = (uint8_t)clamp(color.b * 255.99f, .0f, 255.f);
-	c.a = (uint8_t)255;
-
-    return c.rgba;
-}
-
-__device__ constexpr inline vec3 ToFloat(uint32_t color)
-{
-    Color c(color);
-
-	return vec3{ c.r / 255.99f, c.g / 255.99f, c.b / 255.99f };
-}
-
 __device__ bool IntersectsWithBoundingBox(const BBox& box, const Ray& ray, float nearest_intersection = FLT_MAX)
 {
     const vec3 inv_ray = ray.GetInvDirection();
@@ -254,7 +189,7 @@ __device__ inline vec3 TraceInternal(const Camera& in_camera, const Ray& in_ray,
 __global__ void Trace(Camera* in_camera,
                       CUDAMesh* in_objects,
                       int in_objectcount,
-                      uint32_t* output,
+                      vec4* output_float,
                       int width,
                       int height,
                       curandState* rand_state,
@@ -273,8 +208,7 @@ __global__ void Trace(Camera* in_camera,
     const float f_height = static_cast<float>(height);
 
     curandState curand_ctx = rand_state[j * width + i];
-    int old_raycount = raycount[j * width + i];
-
+    
     int cur_raycount = 0;
 
     vec3 cur_color{};
@@ -288,12 +222,19 @@ __global__ void Trace(Camera* in_camera,
     }
     cur_color /= MAX_SAMPLES;
     
-    rand_state[j * width + i] = curand_ctx;
-    raycount[j * width + i] = old_raycount + cur_raycount;
+    rand_state[j * width + i] = curand_ctx;    
+    atomicAdd(raycount, cur_raycount);
 
-	const float blend_factor = framecount / static_cast<float>(framecount + 1);
-    vec3 old_color = ToFloat(output[j * width + i]);
-    output[j * width + i] = ToInt(lerp(cur_color, old_color, blend_factor));
+
+	float blend_factor = framecount / float(framecount + 1);
+    
+    vec3 old_color = output_float[j * width + i].rgb;
+    
+    // "unroll" to use lerp version with cuda intrinsics
+    output_float[j * width + i] = vec4(lerp(cur_color.r, old_color.r, blend_factor),
+                                       lerp(cur_color.g, old_color.g, blend_factor),
+                                       lerp(cur_color.b, old_color.b, blend_factor),
+                                       1.f);
 }
 
 __global__ void InitRandom(curandState* rand_state, int width, int height)
@@ -338,11 +279,11 @@ extern "C" void cuda_setup(const Scene& in_scene, CUDAScene* out_scene)
     // copy data to the device
     //
 
-    CUDAAssert(cudaMalloc(&out_scene->objects_, in_scene.GetObjectCount() * sizeof(CUDAMesh)));
+    CUDAAssert(cudaMalloc(&out_scene->d_objects_, in_scene.GetObjectCount() * sizeof(CUDAMesh)));
     for (int i = 0; i < in_scene.GetObjectCount(); ++i)
     {
         CUDAMesh cmesh(in_scene.GetObject(i), CUDAMaterial::Convert(in_scene.GetObject(i).GetMaterial()));
-        CUDAAssert(cudaMemcpy(&out_scene->objects_[i], &cmesh, sizeof(CUDAMesh), cudaMemcpyHostToDevice));
+        CUDAAssert(cudaMemcpy(&out_scene->d_objects_[i], &cmesh, sizeof(CUDAMesh), cudaMemcpyHostToDevice));
     }
     out_scene->objectcount_ = in_scene.GetObjectCount();
 
@@ -357,20 +298,29 @@ extern "C" void cuda_setup(const Scene& in_scene, CUDAScene* out_scene)
 
     CUDAAssert(cudaGetLastError());
 
-    out_scene->h_raycount = new int[out_scene->width * out_scene->height];
-    CUDAAssert(cudaMalloc(&out_scene->d_raycount, out_scene->width * out_scene->height * sizeof(int)));
-    CUDAAssert(cudaMemset(out_scene->d_raycount, 0, out_scene->width * out_scene->height * sizeof(int)));
+    CUDAAssert(cudaMalloc(&out_scene->d_raycount, sizeof(int)));
+    CUDAAssert(cudaMemset(out_scene->d_raycount, 0, sizeof(int)));
 }
 
 
-extern "C" void cuda_trace(CUDAScene* scene, unsigned int* output, int framecount)
+extern "C" void cuda_trace(CUDAScene* scene, int framecount)
 {
     CUDAAssert(cudaSetDevice(CUDA_PREFERRED_DEVICE));
 
     dim3 block(16, 16, 1);
     dim3 grid(scene->width / block.x + 1, scene->height / block.y + 1, 1);
 
-    Trace<<<grid, block>>>(scene->d_camera_, scene->objects_, scene->objectcount_, output, scene->width, scene->height, scene->d_rand_state, scene->d_raycount, framecount);
+    Trace<<<grid, block>>>(scene->d_camera_,
+                           scene->d_objects_,
+                           scene->objectcount_,
+                           scene->d_output_,
+                           scene->width,
+                           scene->height,
+                           scene->d_rand_state,
+                           scene->d_raycount,
+                           framecount);
     
     CUDAAssert(cudaGetLastError());
+
+    cudaMemcpy(&scene->h_raycount, scene->d_raycount, sizeof(int), cudaMemcpyDeviceToHost);
 }
