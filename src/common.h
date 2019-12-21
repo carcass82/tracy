@@ -5,16 +5,27 @@
  * (c) Carlo Casta, 2018
  */
 #pragma once
-
 #include <cstdint>
+
+#if !defined(CUDA_DEVICE_CALL)
+#define CUDA_DEVICE_CALL
+#endif
+
+#if !defined(CUDA_DEVICE_CALL)
+#define CUDA_DEVICE_CALL
+#endif
 
 #if USE_GLM
  #if defined(__CUDACC__)
+  #include <cuda.h>
   #define GLM_FORCE_CUDA
+ #else
+  #define GLM_FORCE_DEFAULT_ALIGNED_GENTYPES
  #endif
+
 #define GLM_ENABLE_EXPERIMENTAL
 #define GLM_FORCE_PRECISION_MEDIUMP_FLOAT
-#define GLM_FORCE_DEFAULT_ALIGNED_GENTYPES
+
 #include <glm/vec2.hpp>
 #include <glm/vec3.hpp>
 #include <glm/vec4.hpp>
@@ -37,9 +48,9 @@ using glm::perspective;
 using glm::lookAt;
 #define cosf(x) glm::fastCos(x)
 #define sinf(x) glm::fastSin(x)
-constexpr inline vec3 pmin(const vec3& a, const vec3& b) { return { min(a.x, b.x), min(a.y, b.y), min(a.z, b.z) }; }
-constexpr inline vec3 pmax(const vec3& a, const vec3& b) { return { max(a.x, b.x), max(a.y, b.y), max(a.z, b.z) }; }
-constexpr float PI = glm::pi<float>();
+CUDA_DEVICE_CALL inline vec3 pmin(const vec3& a, const vec3& b) { return { min(a.x, b.x), min(a.y, b.y), min(a.z, b.z) }; }
+CUDA_DEVICE_CALL inline vec3 pmax(const vec3& a, const vec3& b) { return { max(a.x, b.x), max(a.y, b.y), max(a.z, b.z) }; }
+constexpr float PI = 3.1415926535897932f;
 template<typename T, size_t N> constexpr inline uint32_t array_size(const T(&)[N]) { return N; }
 #define CC_CONSTEXPR
 #else

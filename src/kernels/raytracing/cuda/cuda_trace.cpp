@@ -44,6 +44,7 @@ CUDATrace::~CUDATrace()
 
 int CUDATrace::GetRayCount() const
 {
+    CUDAAssert(cudaMemcpy(&details_->scene_.h_raycount, details_->scene_.d_raycount, sizeof(int), cudaMemcpyDeviceToHost));
     return details_->scene_.h_raycount;
 }
 

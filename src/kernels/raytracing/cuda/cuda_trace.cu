@@ -321,6 +321,4 @@ extern "C" void cuda_trace(CUDAScene* scene, int framecount)
                            framecount);
     
     CUDAAssert(cudaGetLastError());
-
-    cudaMemcpy(&scene->h_raycount, scene->d_raycount, sizeof(int), cudaMemcpyDeviceToHost);
 }
