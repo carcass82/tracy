@@ -72,6 +72,7 @@ using cc::math::perspective;
 using cc::math::inverse;
 #define cosf(x) cc::math::cosf(x)
 #define sinf(x) cc::math::sinf(x)
+#define sincosf(x, s, c) cc::math::sincosf(x, s, c)
 #define powf(x, y) cc::math::powf(x, y)
 #define sqrtf(x) cc::math::sqrtf(x)
 using cc::math::PI;

@@ -18,7 +18,10 @@ namespace
         float a = fastrand(random_ctx) * 2.f * PI;
         float r = sqrtf(max(.0f, 1.f - z * z));
 
-        return vec3{ r * cosf(a), r * sinf(a), z };
+        float sa, ca;
+        sincosf(a, &sa, &ca);
+
+        return vec3{ r * ca, r * sa, z };
     }
 
     CUDA_DEVICE_CALL constexpr inline float pow2(float x)
