@@ -15,6 +15,7 @@ using std::string;
 #include <unordered_map>
 using std::unordered_map;
 
+#include "log.h"
 #include "material.h"
 #include "mesh.h"
 #include "camera.h"

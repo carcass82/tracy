@@ -5,6 +5,7 @@
  * (c) Carlo Casta, 2018
  */
 #include "common.h"
+#include "log.h"
 #include "timer.h"
 #include "ray.h"
 #include "camera.h"
@@ -281,6 +282,14 @@ int main(int argc, char** argv)
 			g_kernel.Shutdown();
 			TracyDestroyWindow(win_handle);
 		}
+		else
+		{
+			TracyLog("Unable to create window");
+		}
+	}
+	else
+	{
+		TracyLog("Unable to load scene '%s'", SCENE_PATH);
 	}
 
 	return 0;

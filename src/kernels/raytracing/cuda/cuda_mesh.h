@@ -9,7 +9,7 @@
 using std::unordered_map;
 
 #include <cuda_runtime.h>
-#include "log.h"
+#include "cuda_log.h"
 #include "common.h"
 #include "vertex.h"
 #include "mesh.h"

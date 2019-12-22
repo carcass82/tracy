@@ -11,7 +11,7 @@
 #include <curand_kernel.h>
 
 #include "common.h"
-#include "log.h"
+#include "cuda_log.h"
 
 #include "ray.h"
 #include "camera.h"

@@ -5,33 +5,15 @@
  * (c) Carlo Casta, 2018
  */
 #pragma once
-#include <cstdio>
-#include <cstdarg>
 #include <cuda_runtime.h>
+#include "log.h"
 
-#define CUDALog(msg, ...) cuda::log(msg, __VA_ARGS__)
+#define CUDALog(msg, ...) TracyLog(msg, __VA_ARGS__)
 #define CUDAAssert(val)   cuda::ensure((val), __FILE__, __LINE__)
 #define CUDACheck(val)    cuda::check((val), #val, __FILE__, __LINE__)
 
 namespace cuda
 {
-
-inline void log(const char* msg, ...)
-{
-    static char buffer[1024] = { 0 };
-    
-    va_list args;
-    va_start(args, msg);
-    vsnprintf(buffer, 1024, msg, args);
-    va_end(args);
-
-#if defined(WIN32)
-    OutputDebugStringA(buffer);
-#else
-    fputs(buffer, stderr);
-#endif
-}
-
 //
 // from helper_cuda.h
 // NVidia CUDA samples
@@ -59,5 +41,4 @@ inline void ensure(cudaError_t val, const char* const file, int const line)
         exit(EXIT_FAILURE);
     }
 }
-
 }

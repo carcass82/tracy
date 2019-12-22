@@ -87,7 +87,8 @@ set(main_includes "./src/mesh.h"
                   "./src/timer.h"
                   "./src/random.h"
                   "./src/vertex.h"
-				  "./src/aabb.h")
+				  "./src/aabb.h"
+				  "./src/log.h")
 
 source_group("include\\" FILES ${main_includes})
 
@@ -164,7 +165,7 @@ elseif(RENDER_MODULE STREQUAL "CUDA (RayTracing)")
 	set(cuda_includes "./src/kernels/raytracing/cuda/cuda_trace.h"
 	                  "./src/kernels/raytracing/cuda/cuda_mesh.h"
 					  "./src/kernels/raytracing/cuda/cuda_scene.h"
-	                  "./src/kernels/raytracing/cuda/log.h")
+	                  "./src/kernels/raytracing/cuda/cuda_log.h")
 	source_group("kernel\\cuda\\include" FILES ${cuda_includes})
 	list(APPEND tracy_includes ${cuda_includes})
 

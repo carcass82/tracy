@@ -252,6 +252,7 @@ bool Scene::Init(const char* scene_path, int& inout_width, int& inout_height)
 
 	if (FILE* fp = fopen(scene_path, "r"))
 	{
+		TracyLog("reading from scene file '%s'\n", scene_path);
 		static char line[512];
 
 		while (fgets(line, 512, fp))
@@ -270,12 +271,12 @@ bool Scene::Init(const char* scene_path, int& inout_width, int& inout_height)
 				switch (uid)
 				{
 				case ID_SCN:
-					fputs("found SCN marker, good!\n", stderr);
+					TracyLog("found SCN marker, good!\n");
 					scene_name_ = params;
 					break;
 
 				case ID_OUT:
-					fprintf(stderr, "found out: %s\n", params);
+					TracyLog("found OUT params: %s\n", params);
 					{
 						int w, h;
 						if (sscanf(params, "%d %d", &w, &h) == 2)
@@ -287,7 +288,7 @@ bool Scene::Init(const char* scene_path, int& inout_width, int& inout_height)
 					break;
 
 				case ID_CAM:
-					fprintf(stderr, "found cam: %s\n", params);
+					TracyLog("found CAM: %s\n", params);
 					{
 						vec3 eye, center, up;
 						float fov;
@@ -304,7 +305,7 @@ bool Scene::Init(const char* scene_path, int& inout_width, int& inout_height)
 					break;
 
 				case ID_MTL:
-					fprintf(stderr, "found mtl: %s\n", params);
+					TracyLog("found MTL: %s\n", params);
 					{
 						char mat_name[16];
 						char mat_type;
@@ -346,7 +347,7 @@ bool Scene::Init(const char* scene_path, int& inout_width, int& inout_height)
 					break;
 
 				case ID_SKY:
-					fprintf(stderr, "found sky: %s\n", params);
+					TracyLog("found SKY: %s\n", params);
 					{
 						vec3 albedo;
 						if (sscanf(params, "(%f,%f,%f)", &albedo.x, &albedo.y, &albedo.z) == 3)
@@ -358,7 +359,7 @@ bool Scene::Init(const char* scene_path, int& inout_width, int& inout_height)
 
 
 				case ID_OBJ:
-					fprintf(stderr, "found obj: %s\n", params);
+					TracyLog("found OBJ: %s\n", params);
 					{
 						char obj_type;
 						char subparams[64];
@@ -414,7 +415,7 @@ bool Scene::Init(const char* scene_path, int& inout_width, int& inout_height)
 					break;
 
 				case ID_TRI:
-					fprintf(stderr, "found tri: %s\n", params);
+					TracyLog("found TRI: %s\n", params);
 					{
 						char file_name[256];
 						char mat_name[16];
@@ -475,7 +476,7 @@ bool Scene::Init(const char* scene_path, int& inout_width, int& inout_height)
 					break;
 
 				default:
-					fprintf(stderr, "unsupported: %s\n", line);
+					TracyLog("unsupported: %s\n", line);
 					break;
 
 				}
