@@ -31,7 +31,7 @@ public:
 
 	Mesh& AddMesh(const Mesh& mesh, bool compute_normals = false);
 
-	bool Init(const char* scene_path, int width, int height);
+	bool Init(const char* scene_path, int& width, int& height);
 
 	Camera& GetCamera()                    { return camera_; }
 
@@ -47,12 +47,15 @@ public:
 
 	int GetTriCount() const;
 	
+	const Material* GetSkyMaterial() const { return &materials_.at(SKY_MATERIAL_NAME); }
 
 private:
 	Camera camera_;
 	vector<Mesh> objects_;
 	unordered_map<string, Material> materials_;
 	string scene_name_;
+
+	const char* SKY_MATERIAL_NAME = "__sky__";
 };
 
 //

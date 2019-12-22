@@ -202,22 +202,31 @@ bool ShouldQuit(Handle window_handle)
 
 #if defined(WIN32)
 int WINAPI WinMain(HINSTANCE /* hInstance */, HINSTANCE /* hPrevInstance */, LPSTR /* lpCmdLine */, int /* nCmdShow */)
-#else
-int main(int /* argc */, char** /* argv */)
-#endif
 {
-	const int WIDTH = 640;
-	const int HEIGHT = 480;
-	const char* SCENE_PATH = "data/default.scn";
-	
-	Handle win_handle = TracyCreateWindow(WIDTH, HEIGHT);
-	if (IsValidHandle(win_handle))
+	int argc = __argc;
+	char** argv = __argv;
+#else
+int main(int argc, char** argv)
+{
+#endif
+
+	int WIDTH = 640;
+	int HEIGHT = 480;
+	char SCENE_PATH[MAX_PATH] = "data/default.scn";
+	if (argc == 2)
 	{
-		TracyDisplayWindow(win_handle);
-		
-		Scene world;
-		if (world.Init(SCENE_PATH, WIDTH, HEIGHT))
+		memset(SCENE_PATH, 0, MAX_PATH);
+		strncpy(SCENE_PATH, argv[1], MAX_PATH);
+	}
+
+	Scene world;
+	if (world.Init(SCENE_PATH, WIDTH, HEIGHT))
+	{
+		Handle win_handle = TracyCreateWindow(WIDTH, HEIGHT);
+		if (IsValidHandle(win_handle))
 		{
+			TracyDisplayWindow(win_handle);
+
 			g_kernel.Initialize(win_handle, WIDTH, HEIGHT, world);
 
 			int frame_count = 0;
@@ -237,7 +246,7 @@ int main(int /* argc */, char** /* argv */)
 				g_kernel.UpdateScene();
 
 				g_kernel.RenderScene();
-				
+
 				frame_timer.End();
 
 				++frame_count;
@@ -249,17 +258,17 @@ int main(int /* argc */, char** /* argv */)
 
 					static char window_title[MAX_PATH];
 					snprintf(window_title,
-						     MAX_PATH,
-						     ".:: Tracy 2.0 (%s) ::. '%s' :: %dx%d@%dspp :: [%d objs] [%d tris] [%.2f %s]",
+					         MAX_PATH,
+					         ".:: Tracy 2.0 (%s) ::. '%s' :: %dx%d@%dspp :: [%d objs] [%d tris] [%.2f %s]",
 					         g_kernel.GetName(),
-						     world.GetName().c_str(),
+					         world.GetName().c_str(),
 					         WIDTH,
 					         HEIGHT,
 					         g_kernel.GetSamplesPerPixel(),
-						     world.GetObjectCount(),
-						     world.GetTriCount(),
-					         (has_ray_count? (raycount * 1e-6f) / frame_timer.GetDuration() : frame_count / frame_timer.GetDuration()),
-					         (has_ray_count? "MRays/s" : "fps"));
+					         world.GetObjectCount(),
+					         world.GetTriCount(),
+					         (has_ray_count ? (raycount * 1e-6f) / frame_timer.GetDuration() : frame_count / frame_timer.GetDuration()),
+					         (has_ray_count ? "MRays/s" : "fps"));
 
 					UpdateWindowText(win_handle, window_title);
 
@@ -269,12 +278,9 @@ int main(int /* argc */, char** /* argv */)
 					frame_count = 0;
 				}
 			}
-
+			g_kernel.Shutdown();
+			TracyDestroyWindow(win_handle);
 		}
-
-		g_kernel.Shutdown();
-
-		TracyDestroyWindow(win_handle);
 	}
 
 	return 0;

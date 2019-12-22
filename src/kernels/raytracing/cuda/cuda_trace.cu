@@ -32,21 +32,6 @@ constexpr int MAX_DEPTH = 5;
 // max sample per kernel launch
 constexpr int MAX_SAMPLES = 1;
 
-__device__ bool IntersectsWithBoundingBox(const BBox& box, const Ray& ray, float nearest_intersection = FLT_MAX)
-{
-    const vec3 inv_ray = ray.GetInvDirection();
-    const vec3 minbound = (box.minbound - ray.GetOrigin()) * inv_ray;
-    const vec3 maxbound = (box.maxbound - ray.GetOrigin()) * inv_ray;
-
-    vec3 tmin1 = pmin(minbound, maxbound);
-    vec3 tmax1 = pmax(minbound, maxbound);
-
-    float tmin = max(tmin1.x, max(tmin1.y, tmin1.z));
-    float tmax = min(tmax1.x, min(tmax1.y, tmax1.z));
-
-    return (tmax >= max(1.e-8f, tmin) && tmin < nearest_intersection);
-}
-
 __device__ bool IntersectsWithMesh(const CUDAMesh& mesh, const Ray& in_ray, HitData& inout_intersection)
 {
     bool hit_triangle = false;
@@ -136,7 +121,7 @@ __device__ bool ComputeIntersection(CUDAMesh* in_objects, int objectcount, const
         const CUDAVertex v2 = m.vertices_[i2];
 
         intersection_data.point = ray.GetPoint(intersection_data.t);
-        intersection_data.normal = (1.f - intersection_data.uv.x - intersection_data.uv.y) * v0.normal + intersection_data.uv.x * v1.normal + intersection_data.uv.y * v2.normal;
+        intersection_data.normal = normalize((1.f - intersection_data.uv.x - intersection_data.uv.y) * v0.normal + intersection_data.uv.x * v1.normal + intersection_data.uv.y * v2.normal);
         intersection_data.uv = (1.f - intersection_data.uv.x - intersection_data.uv.y) * v0.uv0 + intersection_data.uv.x * v1.uv0 + intersection_data.uv.y * v2.uv0;
         intersection_data.material = m.material_;
     }
@@ -144,7 +129,13 @@ __device__ bool ComputeIntersection(CUDAMesh* in_objects, int objectcount, const
     return hit_any_mesh;
 }
 
-__device__ inline vec3 TraceInternal(const Camera& in_camera, const Ray& in_ray, CUDAMesh* in_objects, int objectcount, int& inout_raycount, RandomCtx fastrand_ctx)
+__device__ inline vec3 TraceInternal(const Camera& in_camera,
+                                     const Ray& in_ray,
+                                     CUDAMesh* in_objects,
+                                     int objectcount,
+                                     const Material* in_skymaterial,
+                                     int& inout_raycount,
+                                     RandomCtx fastrand_ctx)
 {
     vec3 current_color = { 1.f, 1.f, 1.f };
     Ray current_ray = { in_ray };
@@ -160,7 +151,8 @@ __device__ inline vec3 TraceInternal(const Camera& in_camera, const Ray& in_ray,
         {
 
 #if DEBUG_SHOW_NORMALS
-            return .5f * normalize(1.f + (mat3(in_camera.GetView()) * hit_data.normal));
+            current_color = .5f * normalize(1.f + (mat3(in_camera.GetView()) * hit_data.normal));
+            return current_color;
 #else
             Ray scattered;
             vec3 attenuation;
@@ -179,16 +171,24 @@ __device__ inline vec3 TraceInternal(const Camera& in_camera, const Ray& in_ray,
         }
         else
         {
-            return {};
+            Ray dummy_ray;
+            vec3 dummy_vec;
+            vec3 sky_color;
+            in_skymaterial->Scatter(current_ray, hit_data, dummy_vec, sky_color, dummy_ray, fastrand_ctx);
+
+            current_color *= sky_color;
+            return current_color;
         }
     }
 
-    return {};
+    current_color = {};
+    return current_color;
 }
 
 __global__ void Trace(Camera* in_camera,
                       CUDAMesh* in_objects,
                       int in_objectcount,
+                      Material* in_skymaterial,
                       vec4* output_float,
                       int width,
                       int height,
@@ -218,7 +218,7 @@ __global__ void Trace(Camera* in_camera,
         float t = ((j + fastrand(&curand_ctx)) / f_height);
     
         Ray r = in_camera->GetRayFrom(s, t);
-        cur_color += TraceInternal(*in_camera, r, in_objects, in_objectcount, cur_raycount, &curand_ctx);
+        cur_color += TraceInternal(*in_camera, r, in_objects, in_objectcount, in_skymaterial, cur_raycount, &curand_ctx);
     }
     cur_color /= MAX_SAMPLES;
     
@@ -278,6 +278,7 @@ extern "C" void cuda_setup(const Scene& in_scene, CUDAScene* out_scene)
     //
     // copy data to the device
     //
+    out_scene->d_sky_ = CUDAMaterial::Convert(in_scene.GetSkyMaterial());
 
     CUDAAssert(cudaMalloc(&out_scene->d_objects_, in_scene.GetObjectCount() * sizeof(CUDAMesh)));
     for (int i = 0; i < in_scene.GetObjectCount(); ++i)
@@ -313,6 +314,7 @@ extern "C" void cuda_trace(CUDAScene* scene, int framecount)
     Trace<<<grid, block>>>(scene->d_camera_,
                            scene->d_objects_,
                            scene->objectcount_,
+                           scene->d_sky_,
                            scene->d_output_,
                            scene->width,
                            scene->height,

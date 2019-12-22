@@ -55,32 +55,29 @@ CUDA_DEVICE_CALL bool Material::Scatter(const Ray& ray, const HitData& hit, vec3
 
     case MaterialID::eDIELECTRIC:
     {
-        out_attenuation = vec3{ 1.f, 1.f, 1.f };
-        out_emission = vec3{};
-
-        vec3 outward_normal;
+        vec3 outward_normal = hit.normal;
         float ni_nt;
-        float cosine;
-        if (dot(ray.GetDirection(), hit.normal) > .0f)
+        float cosine = dot(ray.GetDirection(), hit.normal);
+        if (cosine > 1.e-8f)
         {
-            outward_normal = -1.f * hit.normal;
+            outward_normal *= -1.f;
             ni_nt = ior_;
-            cosine = dot(ray.GetDirection(), hit.normal);
             cosine = sqrtf(1.f - ior_ * ior_ * (1.f - cosine - cosine));
         }
         else
         {
-            outward_normal = hit.normal;
-            ni_nt = 1.f / ior_;
-            cosine = -dot(ray.GetDirection(), hit.normal);
+            ni_nt = rcp(ior_);
+            cosine *= -1;
         }
 
-        const vec3 ZERO{};
         vec3 refracted = refract(ray.GetDirection(), outward_normal, ni_nt);
         vec3 reflected = reflect(ray.GetDirection(), hit.normal);
-        float reflect_chance = (refracted != ZERO) ? schlick(cosine, ior_) : 1.0f;
+        float reflect_chance = (refracted != vec3{}) ? schlick(cosine, ior_) : 1.0f;
 
         out_scattered = Ray(hit.point, (fastrand(random_ctx) < reflect_chance) ? reflected : refracted);
+        out_attenuation = vec3{ 1.f, 1.f, 1.f };
+        out_emission = vec3{};
+
         return true;
     }
 

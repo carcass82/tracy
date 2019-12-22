@@ -17,7 +17,7 @@
 #include <GL/glx.h>
 #endif
 
-extern "C" void cuda_setup(const Scene & in_scene, CUDAScene* out_scene);
+extern "C" void cuda_setup(const Scene& in_scene, CUDAScene* out_scene);
 extern "C" void cuda_trace(CUDAScene* scene, int framecount);
 
 
@@ -25,9 +25,6 @@ struct CUDATrace::CUDATraceDetails
 {
     CUDAScene scene_;
 
-    GLuint vs;
-    GLuint fs;
-    GLuint shader;
     GLuint texture;
     cudaGraphicsResource* mapped_texture;
 };

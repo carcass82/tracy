@@ -9,6 +9,11 @@
 #define TINYOBJLOADER_IMPLEMENTATION
 #include "ext/tiny_obj_loader.h"
 
+constexpr inline uint32_t make_id(char a, char b, char c = '\0', char d = '\0')
+{
+	return a | b << 8 | c << 16 | d << 24;
+}
+
 Mesh& Scene::AddSphere(const vec3& in_center, float in_radius, int steps /* = 32 */)
 {
 	Mesh m;
@@ -235,11 +240,13 @@ Mesh& Scene::AddMesh(const Mesh& mesh, bool compute_normals /* = false */)
 	return objects_.back();
 }
 
-bool Scene::Init(const char* scene_path, int width, int height)
+bool Scene::Init(const char* scene_path, int& inout_width, int& inout_height)
 {
 	constexpr uint32_t ID_SCN = make_id('S', 'C', 'N', '\0');
+	constexpr uint32_t ID_OUT = make_id('O', 'U', 'T', '\0');
 	constexpr uint32_t ID_CAM = make_id('C', 'A', 'M', '\0');
 	constexpr uint32_t ID_MTL = make_id('M', 'T', 'L', '\0');
+	constexpr uint32_t ID_SKY = make_id('S', 'K', 'Y', '\0');
 	constexpr uint32_t ID_OBJ = make_id('O', 'B', 'J', '\0');
 	constexpr uint32_t ID_TRI = make_id('T', 'R', 'I', '\0');
 
@@ -267,12 +274,24 @@ bool Scene::Init(const char* scene_path, int width, int height)
 					scene_name_ = params;
 					break;
 
+				case ID_OUT:
+					fprintf(stderr, "found out: %s\n", params);
+					{
+						int w, h;
+						if (sscanf(params, "%d %d", &w, &h) == 2)
+						{
+							inout_width = w;
+							inout_height = h;
+						}
+					}
+					break;
+
 				case ID_CAM:
 					fprintf(stderr, "found cam: %s\n", params);
 					{
 						vec3 eye, center, up;
 						float fov;
-						float ratio = float(width) / float(max(height, 1));
+						float ratio = float(inout_width) / float(max(inout_height, 1));
 
 						if (sscanf(params, "(%f,%f,%f) (%f,%f,%f) (%f,%f,%f) %f", &eye.x, &eye.y, &eye.z,
 						                                                          &center.x, &center.y, &center.z,
@@ -302,19 +321,19 @@ bool Scene::Init(const char* scene_path, int width, int height)
 							switch (mat_type)
 							{
 							case 'E':
-								material_type = Material::MaterialID::eEMISSIVE;
+								material_type = Material::eEMISSIVE;
 								break;
 							case 'L':
-								material_type = Material::MaterialID::eLAMBERTIAN;
+								material_type = Material::eLAMBERTIAN;
 								break;
 							case 'M':
-								material_type = Material::MaterialID::eMETAL;
+								material_type = Material::eMETAL;
 								break;
 							case 'D':
-								material_type = Material::MaterialID::eDIELECTRIC;
+								material_type = Material::eDIELECTRIC;
 								break;
 							default:
-								material_type = Material::MaterialID::eINVALID;
+								material_type = Material::eINVALID;
 								break;
 							}
 
@@ -322,6 +341,17 @@ bool Scene::Init(const char* scene_path, int width, int height)
 							float ior = (num == 6) ? param : 1.f;
 
 							materials_[mat_name] = Material(material_type, albedo, roughness, ior);
+						}
+					}
+					break;
+
+				case ID_SKY:
+					fprintf(stderr, "found sky: %s\n", params);
+					{
+						vec3 albedo;
+						if (sscanf(params, "(%f,%f,%f)", &albedo.x, &albedo.y, &albedo.z) == 3)
+						{
+							materials_[SKY_MATERIAL_NAME] = Material(Material::eEMISSIVE, albedo);
 						}
 					}
 					break;
@@ -452,6 +482,13 @@ bool Scene::Init(const char* scene_path, int width, int height)
 			}
 		}
 		fclose(fp);
+
+		// create default black sky material
+		if (materials_.count(SKY_MATERIAL_NAME) == 0)
+		{
+			materials_[SKY_MATERIAL_NAME] = Material(Material::eEMISSIVE, {});
+		}
+
 		return true;
 	}
 

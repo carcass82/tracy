@@ -11,6 +11,7 @@ using std::vector;
 
 #include "common.h"
 #include "vertex.h"
+#include "aabb.h"
 #include "material.h"
 
 

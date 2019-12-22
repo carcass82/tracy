@@ -86,7 +86,8 @@ set(main_includes "./src/mesh.h"
                   "./src/camera.h"
                   "./src/timer.h"
                   "./src/random.h"
-                  "./src/vertex.h")
+                  "./src/vertex.h"
+				  "./src/aabb.h")
 
 source_group("include\\" FILES ${main_includes})
 

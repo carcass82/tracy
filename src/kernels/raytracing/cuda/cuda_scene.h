@@ -24,6 +24,8 @@ struct CUDAScene
 	CUDAMesh* d_objects_;
 	int objectcount_;
 
+    Material* d_sky_;
+
 	Camera* d_camera_;
 
     curandState* d_rand_state;

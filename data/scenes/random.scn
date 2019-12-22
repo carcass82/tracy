@@ -1,7 +1,8 @@
 #
-# Scene to test triangular mesh mixed with builtin shapes
+# Scene to test some materials with builtin shapes
 #
 SCN Random
+OUT 640 480
 
 #
 # CAM Eye Center Up fov
@@ -30,6 +31,14 @@ MTL Glass D (1, 1, 1) 1.5
 MTL Alluminium M (0.91, 0.92, 0.92) 0
 MTL Copper M (0.95, 0.64, 0.54) 0.2
 MTL Gold M (1.0, 0.71, 0.29) 0.05
+
+#
+# SKY [ALBEDO]
+#
+# sky is just an emissive material used when rays miss
+# all objects in the scene. It defaults to (0,0,0)
+#
+SKY (0, 0, 0)
 
 #
 # OBJ TYPE COORD1 [COORD2] [COORD3] MTL

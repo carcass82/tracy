@@ -21,53 +21,6 @@ namespace
 	{
 		return vec3{ clamp(a.x, min, max), clamp(a.y, min, max), clamp(a.z, min, max) };
 	}
-
-	//
-	// https://tavianator.com/fast-branchless-raybounding-box-intersections/
-	//
-	bool IntersectsWithBoundingBox(const BBox& box, const Ray& ray, float nearest_intersection = FLT_MAX)
-	{
-		const vec3 inv_ray = ray.GetInvDirection();
-		const vec3 minbound = (box.minbound - ray.GetOrigin()) * inv_ray;
-		const vec3 maxbound = (box.maxbound - ray.GetOrigin()) * inv_ray;
-
-		vec3 tmin1 = pmin(minbound, maxbound);
-		vec3 tmax1 = pmax(minbound, maxbound);
-
-		float tmin = max(tmin1.x, max(tmin1.y, tmin1.z));
-		float tmax = min(tmax1.x, min(tmax1.y, tmax1.z));
-
-		return (tmax >= max(1.e-8f, tmin) && tmin < nearest_intersection);
-	}
-
-	struct Triangle
-	{
-		Triangle(int in_mesh_idx, int in_tri_idx, const vec3& in_v0, const vec3& in_v1, const vec3& in_v2)
-			: mesh_idx(in_mesh_idx)
-			, tri_idx(in_tri_idx)
-			, v0(in_v0)
-			, v1(in_v1)
-			, v2(in_v2)
-		{
-			ComputeAABB();
-			v0v1 = v1 - v0;
-			v0v2 = v2 - v0;
-		}
-
-		void ComputeAABB()
-		{
-			aabb.minbound = pmin(v0, pmin(v1, v2));
-			aabb.maxbound = pmax(v0, pmax(v1, v2));
-		}
-
-		const BBox& GetAABB() const { return aabb; }
-
-		int mesh_idx;
-		int tri_idx;
-		vec3 v0, v1, v2;
-		vec3 v0v1, v0v2;
-		BBox aabb;
-	};
 }
 
 //
@@ -94,12 +47,9 @@ struct CpuTrace::CpuTraceDetails
 		
 		for (auto&& tri : mesh)
 		{
-			const vec3 v0 = tri.v0;
-			const vec3 v1 = tri.v1;
-			const vec3 v2 = tri.v2;
-
-			const vec3 v0v1 = tri.v0v1;
-			const vec3 v0v2 = tri.v0v2;
+			const vec3 v0 = tri.GetVertex(scene, 0).pos;
+			const vec3 v1 = tri.GetVertex(scene, 1).pos;
+			const vec3 v2 = tri.GetVertex(scene, 2).pos;
 #else
 		int tris = mesh.GetTriCount();
 		for (int i = 0; i < tris; ++i)
@@ -111,17 +61,16 @@ struct CpuTrace::CpuTraceDetails
 			const vec3 v0 = mesh.GetVertex(i0).pos;
 			const vec3 v1 = mesh.GetVertex(i1).pos;
 			const vec3 v2 = mesh.GetVertex(i2).pos;
-
+#endif
 			const vec3 v0v1 = v1 - v0;
 			const vec3 v0v2 = v2 - v0;
-#endif
 
 			vec3 pvec = cross(ray_direction, v0v2);
 			float det = dot(v0v1, pvec);
 
 			// if the determinant is negative the triangle is backfacing
 			// if the determinant is close to 0, the ray misses the triangle
-			if (det < 1.e-6f)
+			if (det < 1.e-8f)
 			{
 				continue;
 			}
@@ -205,7 +154,7 @@ struct CpuTrace::CpuTraceDetails
 	void BuildInternalScene(const Scene& scene)
 	{
 #if USE_KDTREE
-		BBox root;
+		BBox root{ FLT_MAX, -FLT_MAX };
 		vector<const Triangle*> trimesh;
 		for (int i = 0; i < scene.GetObjects().size(); ++i)
 		{
@@ -222,7 +171,7 @@ struct CpuTrace::CpuTraceDetails
 				root.minbound = pmin(mesh.GetAABB().minbound, root.minbound);
 				root.maxbound = pmax(mesh.GetAABB().maxbound, root.maxbound);
 
-				trimesh.emplace_back(new Triangle{ i, tri_idx, v0, v1, v2 });
+				trimesh.emplace_back(new Triangle{ i, tri_idx });
 			}
 		}
 
@@ -368,7 +317,13 @@ vec3 CpuTrace::Trace(const Ray& ray, uint32_t random_ctx)
 		}
 		else
 		{
-			return {};
+			Ray dummy_ray;
+			vec3 dummy_vec;
+			vec3 sky_color;
+			scene_->GetSkyMaterial()->Scatter(current_ray, intersection_data, dummy_vec, sky_color, dummy_ray, random_ctx);
+
+			current_color *= sky_color;
+			return current_color;
 		}
 	}
 

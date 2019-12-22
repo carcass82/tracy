@@ -8,14 +8,34 @@
 #include "common.h"
 #include "ray.h"
 
+#define USE_KDTREE 0
+
 namespace accel
 {
+
 bool IntersectsWithAABB(const BBox& a, const BBox& b)
 {
 	return (!((a.maxbound.x < b.minbound.x || a.minbound.x > b.maxbound.x) ||
 	          (a.maxbound.y < b.minbound.y || a.minbound.y > b.maxbound.y) ||
 	          (a.maxbound.z < b.minbound.z || a.minbound.z > b.maxbound.z)));
 }
+
+struct Triangle
+{
+	Triangle(int in_mesh_idx, int in_tri_idx)
+		: mesh_idx(in_mesh_idx)
+		, tri_idx(in_tri_idx)
+	{}
+
+	Vertex GetVertex(const Scene& scene, int i) const
+	{
+		const Mesh& mesh = scene.GetObject(mesh_idx);
+		return mesh.GetVertex(mesh.GetIndex(tri_idx + i));
+	}
+
+	int mesh_idx;
+	int tri_idx;
+};
 
 template <typename T>
 struct Tree

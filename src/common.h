@@ -6,6 +6,7 @@
  */
 #pragma once
 #include <cstdint>
+#include <cfloat>
 
 #if !defined(CUDA_DEVICE_CALL)
 #define CUDA_DEVICE_CALL
@@ -52,6 +53,7 @@ CUDA_DEVICE_CALL inline vec3 pmin(const vec3& a, const vec3& b) { return { min(a
 CUDA_DEVICE_CALL inline vec3 pmax(const vec3& a, const vec3& b) { return { max(a.x, b.x), max(a.y, b.y), max(a.z, b.z) }; }
 constexpr float PI = 3.1415926535897932f;
 template<typename T, size_t N> constexpr inline uint32_t array_size(const T(&)[N]) { return N; }
+constexpr inline float rcp(float x) { return 1.f / x; }
 #define CC_CONSTEXPR
 #else
 #include "cclib/cclib.h"
@@ -63,6 +65,7 @@ using cc::math::vec2;
 using cc::math::radians;
 using cc::math::max;
 using cc::math::min;
+using cc::math::rcp;
 using cc::math::clamp;
 using cc::math::lerp;
 using cc::math::perspective;
@@ -76,6 +79,17 @@ using cc::array_size;
 #define CC_CONSTEXPR constexpr
 #endif
 
+#if !defined(CUDA_CALL) 
+ #define CUDA_CALL
+#endif
+
+#if !defined(CUDA_DEVICE_CALL)
+ #define CUDA_DEVICE_CALL
+#endif
+
+//
+// HitData
+//
 class Material;
 struct HitData
 {
@@ -88,35 +102,6 @@ struct HitData
 	vec3 normal;
 	const Material* material;
 };
-
-struct BBox
-{
-	CUDA_DEVICE_CALL BBox()
-		: minbound{}
-		, maxbound{}
-	{}
-
-	CUDA_DEVICE_CALL BBox(const vec3& in_minbound, const vec3& in_maxbound)
-		: minbound(in_minbound)
-		, maxbound(in_maxbound)
-	{}
-
-	vec3 minbound;
-	vec3 maxbound;
-};
-
-constexpr inline uint32_t make_id(char a, char b, char c = '\0', char d = '\0')
-{
-	return a | b << 8 | c << 16 | d << 24;
-}
-
-#if !defined(CUDA_CALL) 
- #define CUDA_CALL
-#endif
-
-#if !defined(CUDA_DEVICE_CALL)
- #define CUDA_DEVICE_CALL
-#endif
 
 #if defined(__CUDACC__)
  #include <curand_kernel.h>
