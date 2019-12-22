@@ -122,7 +122,7 @@ using Handle = HWND;
 #define DEBUG_BREAK() __debugbreak()
 
 #elif defined(__linux__)
-
+#include <cstring>
 #include <X11/Xlib.h>
 #include <X11/Xutil.h>
 #include <X11/keysym.h>
