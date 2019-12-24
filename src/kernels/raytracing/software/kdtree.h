@@ -13,25 +13,29 @@
 namespace accel
 {
 
-bool IntersectsWithAABB(const BBox& a, const BBox& b)
-{
-	return (!((a.maxbound.x < b.minbound.x || a.minbound.x > b.maxbound.x) ||
-	          (a.maxbound.y < b.minbound.y || a.minbound.y > b.maxbound.y) ||
-	          (a.maxbound.z < b.minbound.z || a.minbound.z > b.maxbound.z)));
-}
-
 struct Triangle
 {
-	Triangle(int in_mesh_idx, int in_tri_idx)
-		: mesh_idx(in_mesh_idx)
+	Triangle(const vec3& v0, const vec3& v1, const vec3& v2, int in_mesh_idx, int in_tri_idx)
+		: vertices{ v0, v1, v2 }
+		, v0v1{ v1 - v0 }
+		, v0v2{ v2 - v0 }
+		, mesh_idx(in_mesh_idx)
 		, tri_idx(in_tri_idx)
 	{}
 
-	Vertex GetVertex(const Scene& scene, int i) const
+	vec3 GetCenter() const
 	{
-		const Mesh& mesh = scene.GetObject(mesh_idx);
-		return mesh.GetVertex(mesh.GetIndex(tri_idx + i));
+		return (vertices[0] + vertices[1] + vertices[2]) / 3.f;
 	}
+
+	vec3 GetNormal() const
+	{
+		return normalize(cross(v0v1, v0v2));
+	}
+
+	vec3 vertices[3];
+	vec3 v0v1;
+	vec3 v0v2;
 
 	int mesh_idx;
 	int tri_idx;
@@ -41,13 +45,28 @@ template <typename T>
 struct Tree
 {
 	Tree()
-		: children{}
+		: children{ nullptr, nullptr }
 	{}
 
 	BBox aabb;
 	Tree<T>* children[2];
 	vector<T> elems;
 };
+
+bool IsInsideAABB(const Triangle& triangle, const BBox& aabb)
+{
+	for (int i = 0; i < 3; ++i)
+	{
+		if (!(triangle.vertices[i].x <= aabb.maxbound.x && triangle.vertices[i].x >= aabb.minbound.x) &&
+			 (triangle.vertices[i].y <= aabb.maxbound.y && triangle.vertices[i].y >= aabb.minbound.y) &&
+			 (triangle.vertices[i].z <= aabb.maxbound.z && triangle.vertices[i].z >= aabb.minbound.z))
+		{
+			return false;
+		}
+	}
+
+	return true;
+}
 
 template<typename T, int MIN_OBJECTS, int MAX_DEPTH>
 Tree<T>* BuildTree(const vector<const T*>& objects, BBox box, int depth = 0)
@@ -85,11 +104,11 @@ Tree<T>* BuildTree(const vector<const T*>& objects, BBox box, int depth = 0)
 
 	for (auto&& object : objects)
 	{
-		if (IntersectsWithAABB(object->GetAABB(), forward_bbox))
+		if (IsInsideAABB(*object, forward_bbox))
 		{
 			forward.push_back(object);
 		}
-		else if (IntersectsWithAABB(object->GetAABB(), backward_bbox))
+		if (IsInsideAABB(*object, backward_bbox))
 		{
 			backward.push_back(object);
 		}
@@ -101,27 +120,27 @@ Tree<T>* BuildTree(const vector<const T*>& objects, BBox box, int depth = 0)
 	return tree;
 }
 
-template <typename T>
-vector<T> IntersectsWithTree(const Tree<T>& tree, const Ray& ray)
+template <typename T, class Predicate>
+vector<T> IntersectsWithTree(const Tree<T>& tree, const Ray& ray, Predicate BoxTester)
 {
 	vector<T> EMPTY;
 
 	const Tree<T>* root = &tree;
-	if (IntersectsWithBoundingBox(root->aabb, ray))
+	if (BoxTester(root->aabb, ray))
 	{
 		while (root->children[0] || root->children[1])
 		{
-			if (root->children[0] && IntersectsWithBoundingBox(root->children[0]->aabb, ray))
+			if (root->children[0] && BoxTester(root->children[0]->aabb, ray))
 			{
 				root = root->children[0];
 			}
-			else if (root->children[1] /* && IntersectsWithBoundingBox(root->children[1]->aabb, ray) */)
+			else if (root->children[1] /* && BoxTester(root->children[1]->aabb, ray) */)
 			{
 				root = root->children[1];
 			}
 			else
 			{
-				break;
+				DEBUG_BREAK();
 			}
 		}
 		return root->elems;

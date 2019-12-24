@@ -29,7 +29,7 @@ namespace
 struct CpuTrace::CpuTraceDetails
 {
 #if USE_KDTREE
-	bool IntersectsWithMesh(const Scene& scene, const vector<Triangle>& mesh, const Ray& in_ray, HitData& inout_intersection) const
+	bool IntersectsWithMesh(const Scene& scene, const vector<accel::Triangle>& mesh, const Ray& in_ray, HitData& inout_intersection) const
 #else
 	bool IntersectsWithMesh(const Mesh& mesh, const Ray& in_ray, HitData& inout_intersection) const
 #endif
@@ -47,9 +47,12 @@ struct CpuTrace::CpuTraceDetails
 		
 		for (auto&& tri : mesh)
 		{
-			const vec3 v0 = tri.GetVertex(scene, 0).pos;
-			const vec3 v1 = tri.GetVertex(scene, 1).pos;
-			const vec3 v2 = tri.GetVertex(scene, 2).pos;
+			const vec3 v0 = tri.vertices[0];
+			const vec3 v1 = tri.vertices[1];
+			const vec3 v2 = tri.vertices[2];
+
+			const vec3 v0v1 = tri.v0v1;
+			const vec3 v0v2 = tri.v0v2;
 #else
 		int tris = mesh.GetTriCount();
 		for (int i = 0; i < tris; ++i)
@@ -61,9 +64,10 @@ struct CpuTrace::CpuTraceDetails
 			const vec3 v0 = mesh.GetVertex(i0).pos;
 			const vec3 v1 = mesh.GetVertex(i1).pos;
 			const vec3 v2 = mesh.GetVertex(i2).pos;
-#endif
+
 			const vec3 v0v1 = v1 - v0;
 			const vec3 v0v2 = v2 - v0;
+#endif
 
 			vec3 pvec = cross(ray_direction, v0v2);
 			float det = dot(v0v1, pvec);
@@ -133,7 +137,12 @@ struct CpuTrace::CpuTraceDetails
 	bool ComputeIntersection(const Scene& scene, const Ray& ray, HitData& intersection_data) const
 	{
 #if USE_KDTREE
-		return IntersectsWithMesh(scene, accel::IntersectsWithTree<Triangle>(SceneTree, ray), ray, intersection_data);
+		struct BBoxTester
+		{
+			inline bool operator()(const BBox& box, const Ray& ray) const { return IntersectsWithBoundingBox(box, ray); }
+		};
+
+		return IntersectsWithMesh(scene, accel::IntersectsWithTree<accel::Triangle>(SceneTree, ray, BBoxTester()), ray, intersection_data);
 #else
 		bool hit_any_mesh = false;
 		for (const Mesh& mesh : scene.GetObjects())
@@ -155,7 +164,7 @@ struct CpuTrace::CpuTraceDetails
 	{
 #if USE_KDTREE
 		BBox root{ FLT_MAX, -FLT_MAX };
-		vector<const Triangle*> trimesh;
+		vector<const accel::Triangle*> trimesh;
 		for (int i = 0; i < scene.GetObjects().size(); ++i)
 		{
 			const Mesh& mesh = scene.GetObject(i);
@@ -171,15 +180,15 @@ struct CpuTrace::CpuTraceDetails
 				root.minbound = pmin(mesh.GetAABB().minbound, root.minbound);
 				root.maxbound = pmax(mesh.GetAABB().maxbound, root.maxbound);
 
-				trimesh.emplace_back(new Triangle{ i, tri_idx });
+				trimesh.emplace_back(new accel::Triangle{ v0, v1, v2, i, tri_idx });
 			}
 		}
 
-		SceneTree = *accel::BuildTree<Triangle, 200, 2>(trimesh, root);
+		SceneTree = *accel::BuildTree<accel::Triangle, 2000, 10>(trimesh, root);
 
 	}
 
-	accel::Tree<Triangle> SceneTree;
+	accel::Tree<accel::Triangle> SceneTree;
 #else
 	}
 #endif
