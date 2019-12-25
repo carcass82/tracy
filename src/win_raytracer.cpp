@@ -166,7 +166,7 @@ bool TracyProcessMessages(Handle window_handle)
 
 #else
 
-	if (XPending(window_handle->dpy))
+	if (XEventsQueued(window_handle->dpy, QueuedAlready) > 0)
 	{
 		XEvent e;
 		XNextEvent(window_handle->dpy, &e);

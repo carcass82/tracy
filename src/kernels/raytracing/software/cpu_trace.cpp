@@ -48,8 +48,8 @@ struct CpuTrace::CpuTraceDetails
 		for (auto&& tri : mesh)
 		{
 			const vec3 v0 = tri.vertices[0];
-			const vec3 v1 = tri.vertices[1];
-			const vec3 v2 = tri.vertices[2];
+			//const vec3 v1 = tri.vertices[1];
+			//const vec3 v2 = tri.vertices[2];
 
 			const vec3 v0v1 = tri.v0v1;
 			const vec3 v0v2 = tri.v0v2;
@@ -165,7 +165,7 @@ struct CpuTrace::CpuTraceDetails
 #if USE_KDTREE
 		BBox root{ FLT_MAX, -FLT_MAX };
 		vector<const accel::Triangle*> trimesh;
-		for (int i = 0; i < scene.GetObjects().size(); ++i)
+		for (int i = 0; i < scene.GetObjectCount(); ++i)
 		{
 			const Mesh& mesh = scene.GetObject(i);
 
