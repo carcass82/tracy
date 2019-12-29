@@ -121,6 +121,14 @@ Handle TracyCreateWindow(int width, int height)
     Atom close_win_msg = XInternAtom(dpy, "WM_DELETE_WINDOW", false);
     XSetWMProtocols(dpy, win, &close_win_msg, 1);
 
+	XSizeHints size_hint;
+	size_hint.flags = PMinSize | PMaxSize;
+    size_hint.max_width = 0;
+    size_hint.min_width = width;
+    size_hint.max_height = 0;
+    size_hint.min_height = height;
+    XSetWMNormalHints(dpy, win, &size_hint);
+
     XMapWindow(dpy, win);
 	XStoreName(dpy, win, ".:: Tracy 2.0 ::. (collecting data...)");
 
@@ -166,16 +174,18 @@ bool TracyProcessMessages(Handle window_handle)
 
 #else
 
-	if (XPending(window_handle->dpy))
+	if (XEventsQueued(window_handle->dpy, QueuedAlready) > 0)
 	{
 		XEvent e;
 		XNextEvent(window_handle->dpy, &e);
 		switch (e.type)
 		{
 		case Expose:
+			TracyLog("[X11] Expose Event\n");
 			g_kernel.OnPaint();
 			break;
 		default:
+			TracyLog("[X11] %d Event\n", e.type);
 			break;
 		}
 	}
@@ -191,13 +201,17 @@ bool ShouldQuit(Handle window_handle)
 	MSG msg;
 	return (PeekMessage(&msg, NULL, NULL, NULL, PM_NOREMOVE) && msg.message == WM_QUIT);
 #else
-	const Atom WM_PROTOCOL = XInternAtom(window_handle->dpy, "WM_PROTOCOLS", false);
-    const Atom close_win_msg = XInternAtom(window_handle->dpy, "WM_DELETE_WINDOW", false);
+	static const Atom WM_PROTOCOL = XInternAtom(window_handle->dpy, "WM_PROTOCOLS", false);
+    static const Atom close_win_msg = XInternAtom(window_handle->dpy, "WM_DELETE_WINDOW", false);
 
-	XEvent e;
-	XPeekEvent(window_handle->dpy, &e);
-	return (e.type == KeyPress && (XLookupKeysym(&e.xkey, 0) == XK_Escape)) ||
-	       (e.type == ClientMessage && ((Atom)e.xclient.message_type == WM_PROTOCOL && (Atom)e.xclient.data.l[0] == close_win_msg));
+	if (XEventsQueued(window_handle->dpy, QueuedAlready) > 0)
+	{
+		XEvent e;
+		XPeekEvent(window_handle->dpy, &e);
+		return (e.type == KeyPress && (XLookupKeysym(&e.xkey, 0) == XK_Escape)) ||
+		       (e.type == ClientMessage && ((Atom)e.xclient.message_type == WM_PROTOCOL && (Atom)e.xclient.data.l[0] == close_win_msg));
+	}
+	return false;
 #endif
 }
 
@@ -284,12 +298,12 @@ int main(int argc, char** argv)
 		}
 		else
 		{
-			TracyLog("Unable to create window");
+			TracyLog("Unable to create window\n");
 		}
 	}
 	else
 	{
-		TracyLog("Unable to load scene '%s'", SCENE_PATH);
+		TracyLog("Unable to load scene '%s'\n", SCENE_PATH);
 	}
 
 	return 0;
