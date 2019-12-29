@@ -36,9 +36,6 @@ struct CpuTrace::CpuTraceDetails
 	{
 		bool hit_triangle = false;
 
-		int triangle_idx = -1;
-		vec2 triangle_uv{};
-
 		vec3 ray_direction = in_ray.GetDirection();
 		vec3 ray_origin = in_ray.GetOrigin();
 
@@ -46,8 +43,6 @@ struct CpuTrace::CpuTraceDetails
 		for (auto&& tri : mesh)
 		{
 			const vec3 v0 = tri.vertices[0];
-			//const vec3 v1 = tri.vertices[1];
-			//const vec3 v2 = tri.vertices[2];
 
 			const vec3 v0v1 = tri.v0v1;
 			const vec3 v0v2 = tri.v0v2;
@@ -188,9 +183,9 @@ struct CpuTrace::CpuTraceDetails
 			// triangle - box test using separating axis theorem (https://fileadmin.cs.lth.se/cs/Personal/Tomas_Akenine-Moller/pubs/tribox.pdf)
 			// code adapted from http://fileadmin.cs.lth.se/cs/Personal/Tomas_Akenine-Moller/code/tribox3.txt
 
-			vec3 v0{ triangle.v0 - aabb.GetCenter() };
-			vec3 v1{ triangle.v1 - aabb.GetCenter() };
-			vec3 v2{ triangle.v2 - aabb.GetCenter() };
+			vec3 v0{ triangle.vertices[0] - aabb.GetCenter() };
+			vec3 v1{ triangle.vertices[1] - aabb.GetCenter() };
+			vec3 v2{ triangle.vertices[2] - aabb.GetCenter() };
 
 			vec3 e0{ v1 - v0 };
 			vec3 e1{ v2 - v1 };

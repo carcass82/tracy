@@ -30,11 +30,7 @@ struct Triangle
 		, tri_idx{ in_tri_idx }
 	{}
 
-	union {
-		vec3 vertices[3];
-		struct { vec3 v0; vec3 v1; vec3 v2; };
-	};
-	
+	vec3 vertices[3];
 	vec3 v0v1;
 	vec3 v0v2;
 
