@@ -20,6 +20,16 @@ struct BBox
 		, maxbound(in_maxbound)
 	{}
 
+    CUDA_DEVICE_CALL vec3 GetCenter() const
+    {
+        return (minbound + maxbound) / 2.f;
+    }
+
+    CUDA_DEVICE_CALL vec3 GetSize() const
+    {
+        return maxbound - minbound;
+    }
+
 	vec3 minbound;
 	vec3 maxbound;
 };

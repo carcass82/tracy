@@ -58,7 +58,7 @@ endif()
 # Common Sources                                                              #
 ###############################################################################
 
-set(CMAKE_CXX_STANDARD 14)
+set(CMAKE_CXX_STANDARD 17)
 set(CMAKE_CXX_EXTENSIONS OFF)
 
 include_directories(. ./src ./ext)
@@ -143,7 +143,7 @@ elseif(RENDER_MODULE STREQUAL "CUDA (RayTracing)")
 	list(APPEND tracy_sources ${glew_source})
 
 	enable_language(CUDA)
-	set(CMAKE_CUDA_STANDARD 14)
+	set(CMAKE_CUDA_STANDARD 17)
 	set(CMAKE_CUDA_EXTENSIONS OFF)
 
 	set(target_properties "CUDA_SEPARABLE_COMPILATION ON")
@@ -206,9 +206,9 @@ endif()
 if(MSVC)
 
     message(STATUS "Found MSVC: " ${CMAKE_CXX_COMPILER})
-    set(CMAKE_CXX_FLAGS "/nologo /W3 /D_CRT_SECURE_NO_WARNINGS /MP /Gm-")
-	set(CMAKE_CXX_FLAGS_DEBUG "${CMAKE_CXX_FLAGS_DEBUG} /EHsc /Zi /Od /D_DEBUG /DNOVTABLE= ")
-	set(CMAKE_CXX_FLAGS_RELEASE "${CMAKE_CXX_FLAGS_RELEASE} /EHsc /Zi /GR- /GL /Gs- /O2 /fp:fast /DNDEBUG /DNOVTABLE=__declspec(novtable)")
+    set(CMAKE_CXX_FLAGS "/nologo /W3 /D_CRT_SECURE_NO_WARNINGS /MP /Gm- /EHsc /Zi")
+	set(CMAKE_CXX_FLAGS_DEBUG "${CMAKE_CXX_FLAGS_DEBUG} /Od /D_DEBUG /DNOVTABLE= ")
+	set(CMAKE_CXX_FLAGS_RELEASE "${CMAKE_CXX_FLAGS_RELEASE} /GR- /Gw /GL /O2 /fp:fast /DNDEBUG /DNOVTABLE=__declspec(novtable)")
 	
 	# choose "experimental" openmp implementation if available
 	# (and suppress warning C4849 about 'collapse' clause ignored)
@@ -219,7 +219,7 @@ if(MSVC)
 		set(CMAKE_CXX_FLAGS_RELEASE "${CMAKE_CXX_FLAGS_RELEASE} /openmp /wd4849")
 	endif()
     
-	set(CMAKE_EXE_LINKER_FLAGS_RELEASE "${CMAKE_EXE_LINKER_FLAGS_RELEASE} /DEBUG /LTCG /INCREMENTAL:NO /OPT:REF")
+	set(CMAKE_EXE_LINKER_FLAGS_RELEASE "${CMAKE_EXE_LINKER_FLAGS_RELEASE} /DEBUG /LTCG /INCREMENTAL:NO")
 
 else()
 

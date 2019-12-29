@@ -29,7 +29,7 @@ namespace
 struct CpuTrace::CpuTraceDetails
 {
 #if USE_KDTREE
-	bool IntersectsWithMesh(const Scene& scene, const vector<accel::Triangle>& mesh, const Ray& in_ray, HitData& inout_intersection) const
+	bool IntersectsWithMesh(const vector<accel::Triangle>& mesh, const Ray& in_ray, HitData& inout_intersection) const
 #else
 	bool IntersectsWithMesh(const Mesh& mesh, const Ray& in_ray, HitData& inout_intersection) const
 #endif
@@ -43,8 +43,6 @@ struct CpuTrace::CpuTraceDetails
 		vec3 ray_origin = in_ray.GetOrigin();
 
 #if USE_KDTREE
-		int mesh_idx = -1;
-		
 		for (auto&& tri : mesh)
 		{
 			const vec3 v0 = tri.vertices[0];
@@ -70,81 +68,79 @@ struct CpuTrace::CpuTraceDetails
 #endif
 
 			vec3 pvec = cross(ray_direction, v0v2);
+			vec3 tvec = ray_origin - v0;
+
 			float det = dot(v0v1, pvec);
+			float inv_det = rcp(det);
 
 			// if the determinant is negative the triangle is backfacing
 			// if the determinant is close to 0, the ray misses the triangle
-			if (det < 1.e-8f)
+			if (det > 1.e-8f)
 			{
-				continue;
-			}
+				float u = dot(tvec, pvec);
+				if (u < .0f || u > det)
+				{
+					continue;
+				}
 
-			float invDet = 1.f / det;
+				vec3 qvec = cross(tvec, v0v1);
 
-			vec3 tvec = ray_origin - v0;
-			float u = dot(tvec, pvec) * invDet;
-			if (u < .0f || u > 1.f)
-			{
-				continue;
-			}
+				float v = dot(ray_direction, qvec);
+				if (v < .0f || u + v > det)
+				{
+					continue;
+				}
 
-			vec3 qvec = cross(tvec, v0v1);
-			float v = dot(ray_direction, qvec) * invDet;
-			if (v < .0f || u + v > 1.f)
-			{
-				continue;
-			}
-
-			float t = dot(v0v2, qvec) * invDet;
-			if (t < inout_intersection.t && t > 1.e-3f)
-			{
-				inout_intersection.t = dot(v0v2, qvec) * invDet;
-				triangle_uv = vec2{ u, v };
+				float t = dot(v0v2, qvec) * inv_det;
+				if (t < inout_intersection.t && t > 1.e-3f)
+				{
+					inout_intersection.t = t;
+					inout_intersection.uv = vec2{ u, v } * inv_det;
 #if USE_KDTREE
-				triangle_idx = tri.tri_idx;
-				mesh_idx = tri.mesh_idx;
+					inout_intersection.triangle_index = tri.tri_idx;
+					inout_intersection.object_index = tri.mesh_idx;
 #else
-				triangle_idx = i * 3;
+					inout_intersection.triangle_index = i * 3;
 #endif
-				hit_triangle = true;
+					hit_triangle = true;
+				}
 			}
-		}
-
-		if (hit_triangle)
-		{
-#if USE_KDTREE
-			FillTriangleIntersectionData(scene.GetObject(mesh_idx), in_ray, triangle_idx, triangle_uv, inout_intersection);
-#else
-			FillTriangleIntersectionData(mesh, in_ray, triangle_idx, triangle_uv, inout_intersection);
-#endif
 		}
 
 		return hit_triangle;
 	}
 
-	void FillTriangleIntersectionData(const Mesh& mesh, const Ray& in_ray, int triangle_idx, const vec2& triangle_uv, HitData& inout_intersection) const
+	void FillTriangleIntersectionData(const Mesh& mesh, const Ray& in_ray, HitData& inout_intersection) const
 	{
-		const Vertex v0 = mesh.GetVertex(mesh.GetIndex(triangle_idx + 0));
-		const Vertex v1 = mesh.GetVertex(mesh.GetIndex(triangle_idx + 1));
-		const Vertex v2 = mesh.GetVertex(mesh.GetIndex(triangle_idx + 2));
+		const Vertex v0 = mesh.GetVertex(mesh.GetIndex(inout_intersection.triangle_index + 0));
+		const Vertex v1 = mesh.GetVertex(mesh.GetIndex(inout_intersection.triangle_index + 1));
+		const Vertex v2 = mesh.GetVertex(mesh.GetIndex(inout_intersection.triangle_index + 2));
 
 		inout_intersection.point = in_ray.GetPoint(inout_intersection.t);
-		inout_intersection.normal = (1.f - triangle_uv.x - triangle_uv.y) * v0.normal + triangle_uv.x * v1.normal + triangle_uv.y * v2.normal;
-		inout_intersection.uv = (1.f - triangle_uv.x - triangle_uv.y) * v0.uv0 + triangle_uv.x * v1.uv0 + triangle_uv.y * v2.uv0;
+		inout_intersection.normal = (1.f - inout_intersection.uv.x - inout_intersection.uv.y) * v0.normal + inout_intersection.uv.x * v1.normal + inout_intersection.uv.y * v2.normal;
+		inout_intersection.uv = (1.f - inout_intersection.uv.x - inout_intersection.uv.y) * v0.uv0 + inout_intersection.uv.x * v1.uv0 + inout_intersection.uv.y * v2.uv0;
 		inout_intersection.material = mesh.GetMaterial();
 	}
 
 	bool ComputeIntersection(const Scene& scene, const Ray& ray, HitData& intersection_data) const
 	{
-#if USE_KDTREE
-		struct BBoxTester
-		{
-			inline bool operator()(const BBox& box, const Ray& ray) const { return IntersectsWithBoundingBox(box, ray); }
-		};
-
-		return IntersectsWithMesh(scene, accel::IntersectsWithTree<accel::Triangle>(SceneTree, ray, BBoxTester()), ray, intersection_data);
-#else
 		bool hit_any_mesh = false;
+
+#if USE_KDTREE
+
+		if (accel::IntersectsWithTree<accel::Triangle>(SceneTree,
+		                                               ray,
+		                                               intersection_data,
+		                                               [=](const vector<accel::Triangle> t, const Ray& r, HitData& h) { return IntersectsWithMesh(t, r, h); }))
+		{
+			hit_any_mesh = true;
+			FillTriangleIntersectionData(scene.GetObject(intersection_data.object_index),
+			                             ray,
+			                             intersection_data);
+		}
+
+#else
+		
 		for (const Mesh& mesh : scene.GetObjects())
 		{
 			if (IntersectsWithBoundingBox(mesh.GetAABB(), ray, intersection_data.t))
@@ -152,12 +148,14 @@ struct CpuTrace::CpuTraceDetails
 				if (IntersectsWithMesh(mesh, ray, intersection_data))
 				{
 					hit_any_mesh = true;
+					FillTriangleIntersectionData(mesh, ray, intersection_data);
 				}
 			}
 		}
 
-		return hit_any_mesh;
 #endif
+
+		return hit_any_mesh;
 	}
 
 	void BuildInternalScene(const Scene& scene)
@@ -184,8 +182,83 @@ struct CpuTrace::CpuTraceDetails
 			}
 		}
 
-		SceneTree = *accel::BuildTree<accel::Triangle, 2000, 10>(trimesh, root);
+		// Triangle-AABB intersection
+		auto TriangleAABBTester = [](const accel::Triangle& triangle, const BBox& aabb)
+		{
+			// triangle - box test using separating axis theorem (https://fileadmin.cs.lth.se/cs/Personal/Tomas_Akenine-Moller/pubs/tribox.pdf)
+			// code adapted from http://fileadmin.cs.lth.se/cs/Personal/Tomas_Akenine-Moller/code/tribox3.txt
 
+			vec3 v0{ triangle.v0 - aabb.GetCenter() };
+			vec3 v1{ triangle.v1 - aabb.GetCenter() };
+			vec3 v2{ triangle.v2 - aabb.GetCenter() };
+
+			vec3 e0{ v1 - v0 };
+			vec3 e1{ v2 - v1 };
+			vec3 e2{ v0 - v2 };
+
+			vec3 fe0{ abs(e0.x), abs(e0.y), abs(e0.z) };
+			vec3 fe1{ abs(e1.x), abs(e1.y), abs(e1.z) };
+			vec3 fe2{ abs(e2.x), abs(e2.y), abs(e2.z) };
+
+			vec3 aabb_hsize = aabb.GetSize() / 2.f;
+
+			auto AxisTester = [](float a, float b, float fa, float fb, float v0_0, float v0_1, float v1_0, float v1_1, float hsize_0, float hsize_1)
+			{
+				float p0 = a * v0_0 + b * v0_1;
+				float p1 = a * v1_0 + b * v1_1;
+				
+				float rad = fa * hsize_0 + fb * hsize_1;
+				return (min(p0, p1) > rad || max(p0, p1) < -rad);
+			};
+
+			if (AxisTester( e0.z, -e0.y, fe0.z, fe0.y, v0.y, v0.z, v2.y, v2.z, aabb_hsize.y, aabb_hsize.z) ||
+			    AxisTester(-e0.z,  e0.x, fe0.z, fe0.x, v0.x, v0.z, v2.x, v2.z, aabb_hsize.x, aabb_hsize.z) ||
+			    AxisTester( e0.y, -e0.x, fe0.y, fe0.x, v1.x, v1.y, v2.x, v2.y, aabb_hsize.x, aabb_hsize.y) ||
+			
+			    AxisTester( e1.z, -e1.y, fe1.z, fe1.y, v0.y, v0.z, v2.y, v2.z, aabb_hsize.y, aabb_hsize.z) ||
+			    AxisTester(-e1.z,  e1.x, fe1.z, fe1.x, v0.x, v0.z, v2.x, v2.z, aabb_hsize.x, aabb_hsize.z) ||
+			    AxisTester( e1.y, -e1.x, fe1.y, fe1.x, v0.x, v0.y, v1.x, v1.y, aabb_hsize.x, aabb_hsize.y) ||
+			
+			    AxisTester( e2.z, -e2.y, fe2.z, fe2.y, v0.y, v0.z, v1.y, v1.z, aabb_hsize.y, aabb_hsize.z) ||
+			    AxisTester(-e2.z,  e2.x, fe2.z, fe2.x, v0.x, v0.z, v1.x, v1.z, aabb_hsize.x, aabb_hsize.z) ||
+			    AxisTester( e2.y, -e2.x, fe2.y, fe2.x, v1.x, v1.y, v2.x, v2.y, aabb_hsize.x, aabb_hsize.y))
+			{
+				return false;
+			}
+
+			vec3 trimin = pmin(v0, pmin(v1, v2));
+			vec3 trimax = pmax(v0, pmax(v1, v2));
+			if ((trimin.x > aabb_hsize.x || trimax.x < -aabb_hsize.x) ||
+			    (trimin.y > aabb_hsize.y || trimax.y < -aabb_hsize.y) ||
+			    (trimin.z > aabb_hsize.z || trimax.z < -aabb_hsize.z))
+			{
+				return false;
+			}
+						
+			{
+				vec3 trinormal = cross(e0, e1);
+			
+				vec3 vmin, vmax;
+				
+				if (trinormal.x > .0f) { vmin.x = -aabb_hsize.x - v0.x; vmax.x =  aabb_hsize.x - v0.x; }
+				else                   { vmin.x =  aabb_hsize.x - v0.x; vmax.x = -aabb_hsize.x - v0.x; }
+			
+				if (trinormal.y > .0f) { vmin.y = -aabb_hsize.y - v0.y; vmax.y =  aabb_hsize.y - v0.y; }
+				else                   { vmin.y =  aabb_hsize.y - v0.y; vmax.y = -aabb_hsize.y - v0.y; }
+			
+				if (trinormal.z > .0f) { vmin.z = -aabb_hsize.z - v0.z; vmax.z =  aabb_hsize.z - v0.z; }
+				else                   { vmin.z =  aabb_hsize.z - v0.z; vmax.z = -aabb_hsize.z - v0.z; }
+			
+				if (dot(trinormal, vmin) > .0f || dot(trinormal, vmax) < .0f)
+				{
+					return false;
+				}
+			}
+			
+			return true;
+		};
+
+		SceneTree = *accel::BuildTree<accel::Triangle, 200, 15>(trimesh, root, TriangleAABBTester);
 	}
 
 	accel::Tree<accel::Triangle> SceneTree;
