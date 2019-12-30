@@ -30,8 +30,9 @@ struct Tree
 	{}
 
 	Tree(const BBox& in_aabb)
-		: children{ nullptr, nullptr }
-		, aabb{ in_aabb }
+		: aabb{ in_aabb }
+		, children{ nullptr, nullptr }
+		
 	{}
 
 	BBox aabb;
