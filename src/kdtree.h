@@ -5,6 +5,9 @@
  * (c) Carlo Casta, 2018
  */
 #pragma once
+#include <vector>
+using std::vector;
+
 #include <functional>
 using std::function;
 
@@ -14,29 +17,10 @@ using std::nullopt;
 
 #include "common.h"
 #include "ray.h"
-
-#define USE_KDTREE 0
+#include "aabb.h"
 
 namespace accel
 {
-
-struct Triangle
-{
-	Triangle(const vec3& v0, const vec3& v1, const vec3& v2, int in_mesh_idx, int in_tri_idx)
-		: vertices{ v0, v1, v2 }
-		, v0v1{ v1 - v0 }
-		, v0v2{ v2 - v0 }
-		, mesh_idx{ in_mesh_idx }
-		, tri_idx{ in_tri_idx }
-	{}
-
-	vec3 vertices[3];
-	vec3 v0v1;
-	vec3 v0v2;
-
-	int mesh_idx;
-	int tri_idx;
-};
 
 template <typename T>
 struct Tree
@@ -59,7 +43,7 @@ template<typename T>
 using ObjectAABBTesterFunction = std::function<bool(const T&, const BBox&)>;
 
 template<typename T>
-using ObjectRayTesterFunction = std::function<bool(const vector<T>, const Ray&, HitData&)>;
+using ObjectRayTesterFunction = std::function<bool(const vector<T>&, const Ray&, HitData&)>;
 
 template<typename T, int MIN_OBJECTS, int MAX_DEPTH>
 Tree<T>* BuildTree(const vector<const T*>& objects, const BBox& box, ObjectAABBTesterFunction<T> ObjectBoxTester, int depth = 0)
@@ -112,18 +96,44 @@ Tree<T>* BuildTree(const vector<const T*>& objects, const BBox& box, ObjectAABBT
 }
 
 template <typename T>
-bool IntersectsWithTree(const Tree<T>& tree, const Ray& ray, HitData& inout_intersection, ObjectRayTesterFunction<T> ObjectTester)
+bool IntersectsWithTree(const Tree<T>* tree, const Ray& ray, HitData& inout_intersection, ObjectRayTesterFunction<T> ObjectTester)
 {
 	bool hit_something = false;
 	
-	const Tree<T>* root = &tree;
-	if (root && IntersectsWithBoundingBox(root->aabb, ray))
+	vector<const Tree<T>*> to_be_tested;
+
+	const Tree<T>* root = tree;
+
+	while (root || !to_be_tested.empty())
 	{
-		hit_something = (root->children[0] && IntersectsWithTree(*root->children[0], ray, inout_intersection, ObjectTester)) ||
-	                    (root->children[1] && IntersectsWithTree(*root->children[1], ray, inout_intersection, ObjectTester)) ||
-	                    ObjectTester(root->elems, ray, inout_intersection);
+		while (root)
+		{
+			if (IntersectsWithBoundingBox(root->aabb, ray))
+			{
+				to_be_tested.emplace_back(root);
+				root = root->children[0];
+			}
+			else
+			{
+				break;
+			}
+		}
+
+		if (!to_be_tested.empty())
+		{
+			root = to_be_tested.back();
+			
+			if (root->elems.size() > 0 && ObjectTester(root->elems, ray, inout_intersection))
+			{
+				hit_something = true;
+			}
+
+			to_be_tested.pop_back();
+		}
+
+		root = root->children[1];
 	}
-	
+
 	return hit_something;
 }
 

@@ -35,6 +35,11 @@ if(DEBUG_SHOW_NORMALS)
 	add_definitions(-DDEBUG_SHOW_NORMALS)
 endif()
 
+option(USE_ACCEL_STRUCTURE "Use KDTree to speed up tracing" ON)
+if(USE_ACCEL_STRUCTURE)
+	add_definitions(-DUSE_KDTREE)
+endif()
+
 
 
 ###############################################################################
@@ -88,6 +93,7 @@ set(main_includes "./src/mesh.h"
                   "./src/random.h"
                   "./src/vertex.h"
 				  "./src/aabb.h"
+				  "./src/kdtree.h"
 				  "./src/log.h")
 
 source_group("include\\" FILES ${main_includes})
@@ -108,9 +114,7 @@ if(RENDER_MODULE STREQUAL "CPU (RayTracing)")
 
 	include_directories(./src/kernels/raytracing/software/)
 
-	set(cpu_includes "./src/kernels/raytracing/software/cpu_trace.h"
-	                 "./src/kernels/raytracing/software/kdtree.h")
-
+	set(cpu_includes "./src/kernels/raytracing/software/cpu_trace.h")
 	source_group("kernel\\cpu\\include" FILES ${cpu_includes})
 	list(APPEND tracy_includes ${cpu_includes})
 

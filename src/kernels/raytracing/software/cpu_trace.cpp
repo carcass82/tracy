@@ -6,9 +6,14 @@
  */
 #include "cpu_trace.h"
 #include "random.h"
-#include "kdtree.h"
 #include <cfloat>
 #include <ctime>
+
+#if USE_KDTREE
+ #include "kdtree.h"
+ constexpr int TREE_DEPTH = 90;
+ constexpr int TREE_LEAF_ELEMS = 50;
+#endif
 
 namespace
 {
@@ -21,6 +26,26 @@ namespace
 	{
 		return vec3{ clamp(a.x, min, max), clamp(a.y, min, max), clamp(a.z, min, max) };
 	}
+
+#if USE_KDTREE
+	struct Triangle
+	{
+		Triangle(const vec3& v0, const vec3& v1, const vec3& v2, int in_mesh_idx, int in_tri_idx)
+			: vertices{ v0, v1, v2 }
+			, v0v1{ v1 - v0 }
+			, v0v2{ v2 - v0 }
+			, mesh_idx{ in_mesh_idx }
+			, tri_idx{ in_tri_idx }
+		{}
+
+		vec3 vertices[3];
+		vec3 v0v1;
+		vec3 v0v2;
+
+		int mesh_idx;
+		int tri_idx;
+	};
+#endif
 }
 
 //
@@ -28,25 +53,13 @@ namespace
 //
 struct CpuTrace::CpuTraceDetails
 {
-#if USE_KDTREE
-	bool IntersectsWithMesh(const vector<accel::Triangle>& mesh, const Ray& in_ray, HitData& inout_intersection) const
-#else
 	bool IntersectsWithMesh(const Mesh& mesh, const Ray& in_ray, HitData& inout_intersection) const
-#endif
 	{
 		bool hit_triangle = false;
 
 		vec3 ray_direction = in_ray.GetDirection();
 		vec3 ray_origin = in_ray.GetOrigin();
 
-#if USE_KDTREE
-		for (auto&& tri : mesh)
-		{
-			const vec3 v0 = tri.vertices[0];
-
-			const vec3 v0v1 = tri.v0v1;
-			const vec3 v0v2 = tri.v0v2;
-#else
 		int tris = mesh.GetTriCount();
 		for (int i = 0; i < tris; ++i)
 		{
@@ -60,7 +73,6 @@ struct CpuTrace::CpuTraceDetails
 
 			const vec3 v0v1 = v1 - v0;
 			const vec3 v0v2 = v2 - v0;
-#endif
 
 			vec3 pvec = cross(ray_direction, v0v2);
 			vec3 tvec = ray_origin - v0;
@@ -91,12 +103,7 @@ struct CpuTrace::CpuTraceDetails
 				{
 					inout_intersection.t = t;
 					inout_intersection.uv = vec2{ u, v } * inv_det;
-#if USE_KDTREE
-					inout_intersection.triangle_index = tri.tri_idx;
-					inout_intersection.object_index = tri.mesh_idx;
-#else
 					inout_intersection.triangle_index = i * 3;
-#endif
 					hit_triangle = true;
 				}
 			}
@@ -123,15 +130,62 @@ struct CpuTrace::CpuTraceDetails
 
 #if USE_KDTREE
 
-		if (accel::IntersectsWithTree<accel::Triangle>(SceneTree,
-		                                               ray,
-		                                               intersection_data,
-		                                               [=](const vector<accel::Triangle> t, const Ray& r, HitData& h) { return IntersectsWithMesh(t, r, h); }))
+		auto TriangleRayTester = [](const vector<Triangle>& triangles, const Ray& in_ray, HitData& intersection_data)
+		{
+			bool hit_triangle = false;
+
+			vec3 ray_direction = in_ray.GetDirection();
+			vec3 ray_origin = in_ray.GetOrigin();
+
+			for (const Triangle& triangle : triangles)
+			{
+				const vec3 v0 = triangle.vertices[0];
+				const vec3 v0v1 = triangle.v0v1;
+				const vec3 v0v2 = triangle.v0v2;
+
+				vec3 pvec = cross(ray_direction, v0v2);
+				vec3 tvec = ray_origin - v0;
+
+				float det = dot(v0v1, pvec);
+				float inv_det = rcp(det);
+
+				// if the determinant is negative the triangle is backfacing
+				// if the determinant is close to 0, the ray misses the triangle
+				if (det > 1.e-8f)
+				{
+					float u = dot(tvec, pvec);
+					if (u < .0f || u > det)
+					{
+						continue;
+					}
+
+					vec3 qvec = cross(tvec, v0v1);
+
+					float v = dot(ray_direction, qvec);
+					if (v < .0f || u + v > det)
+					{
+						continue;
+					}
+
+					float t = dot(v0v2, qvec) * inv_det;
+					if (t < intersection_data.t && t > 1.e-3f)
+					{
+						intersection_data.t = t;
+						intersection_data.uv = vec2{ u, v } * inv_det;
+						intersection_data.triangle_index = triangle.tri_idx;
+						intersection_data.object_index = triangle.mesh_idx;
+						hit_triangle = true;
+					}
+				}
+			}
+
+			return hit_triangle;
+		};
+
+		if (accel::IntersectsWithTree<Triangle>(&SceneTree, ray, intersection_data, TriangleRayTester))
 		{
 			hit_any_mesh = true;
-			FillTriangleIntersectionData(scene.GetObject(intersection_data.object_index),
-			                             ray,
-			                             intersection_data);
+			FillTriangleIntersectionData(scene.GetObject(intersection_data.object_index), ray, intersection_data);
 		}
 
 #else
@@ -157,7 +211,7 @@ struct CpuTrace::CpuTraceDetails
 	{
 #if USE_KDTREE
 		BBox root{ FLT_MAX, -FLT_MAX };
-		vector<const accel::Triangle*> trimesh;
+		vector<const Triangle*> trimesh;
 		for (int i = 0; i < scene.GetObjectCount(); ++i)
 		{
 			const Mesh& mesh = scene.GetObject(i);
@@ -173,12 +227,12 @@ struct CpuTrace::CpuTraceDetails
 				root.minbound = pmin(mesh.GetAABB().minbound, root.minbound);
 				root.maxbound = pmax(mesh.GetAABB().maxbound, root.maxbound);
 
-				trimesh.emplace_back(new accel::Triangle{ v0, v1, v2, i, tri_idx });
+				trimesh.emplace_back(new Triangle{ v0, v1, v2, i, tri_idx });
 			}
 		}
 
 		// Triangle-AABB intersection
-		auto TriangleAABBTester = [](const accel::Triangle& triangle, const BBox& aabb)
+		auto TriangleAABBTester = [](const Triangle& triangle, const BBox& aabb)
 		{
 			// triangle - box test using separating axis theorem (https://fileadmin.cs.lth.se/cs/Personal/Tomas_Akenine-Moller/pubs/tribox.pdf)
 			// code adapted from http://fileadmin.cs.lth.se/cs/Personal/Tomas_Akenine-Moller/code/tribox3.txt
@@ -253,10 +307,10 @@ struct CpuTrace::CpuTraceDetails
 			return true;
 		};
 
-		SceneTree = *accel::BuildTree<accel::Triangle, 200, 15>(trimesh, root, TriangleAABBTester);
+		SceneTree = *accel::BuildTree<Triangle, TREE_LEAF_ELEMS, TREE_DEPTH>(trimesh, root, TriangleAABBTester);
 	}
 
-	accel::Tree<accel::Triangle> SceneTree;
+	accel::Tree<Triangle> SceneTree;
 #else
 	}
 #endif
