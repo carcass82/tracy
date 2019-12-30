@@ -122,8 +122,8 @@ if(RENDER_MODULE STREQUAL "CPU (RayTracing)")
 	source_group("kernel\\cpu\\src" FILES ${cpu_sources})
 	list(APPEND tracy_sources ${cpu_sources})
 	
-	set(CPU_RAND_ALGORITHM "Default" CACHE STRING "Random Algorithm to use")
-	set_property(CACHE CPU_RAND_ALGORITHM PROPERTY STRINGS "Default" "XorShift" "PCG" "Intel")
+	set(CPU_RAND_ALGORITHM "XorShift" CACHE STRING "Random Algorithm to use")
+	set_property(CACHE CPU_RAND_ALGORITHM PROPERTY STRINGS "Default" "XorShift" "Intel")
 	
 	if(CPU_RAND_ALGORITHM STREQUAL "XorShift")
 		add_definitions(-DRANDOM_XORSHIFT=1)

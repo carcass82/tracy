@@ -9,6 +9,7 @@
 #if !defined(fastrand)
 
 #if RANDOM_XORSHIFT
+
 //
 // PRNG from
 // https://en.wikipedia.org/wiki/Xorshift
@@ -53,9 +54,10 @@ inline float fastrand(RandomCtx ctx)
             do_init = false;
         }
     }
-
+    
     return static_cast<float>(rand()) / RAND_MAX;
 }
+
 #endif
 
 #endif

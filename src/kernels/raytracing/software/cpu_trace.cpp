@@ -315,8 +315,6 @@ struct CpuTrace::CpuTraceDetails
 	}
 #endif
 
-	uint32_t randomctx = 0;
-
 	//
 	// -- platform data for rendering --
 	//
@@ -338,8 +336,6 @@ struct CpuTrace::CpuTraceDetails
 CpuTrace::CpuTrace()
 	: details_(new CpuTraceDetails)
 {
-	details_->randomctx = static_cast<uint32_t>(time(nullptr));
-	fastrand(details_->randomctx);
 }
 
 CpuTrace::~CpuTrace()
@@ -471,15 +467,15 @@ void CpuTrace::RenderScene()
  #define collapse(x) 
 #endif
 
-	uint32_t random_ctx = details_->randomctx;
-
-	#pragma omp parallel for collapse(3) schedule(dynamic) private(random_ctx)
+	#pragma omp parallel for collapse(3) schedule(dynamic)
 	for (int j = 0; j < win_height_; ++j)
 	{
 		for (int i = 0; i < win_width_; ++i)
 		{
 			for (int s = 0; s < samples_; ++s)
 			{
+				static uint32_t random_ctx = 0x12345678;
+
 				float u = (i + fastrand(random_ctx)) / float(win_width_);
 				float v = (j + fastrand(random_ctx)) / float(win_height_);
 				
@@ -495,7 +491,6 @@ void CpuTrace::RenderScene()
 		}
 	}
 
-	details_->randomctx = random_ctx;
 	++frame_counter_;
 }
 
