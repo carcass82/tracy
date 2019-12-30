@@ -182,7 +182,7 @@ struct CpuTrace::CpuTraceDetails
 			return hit_triangle;
 		};
 
-		if (accel::IntersectsWithTree<Triangle>(&SceneTree, ray, intersection_data, TriangleRayTester))
+		if (accel::IntersectsWithTree<Triangle, TREE_DEPTH>(&SceneTree, ray, intersection_data, TriangleRayTester))
 		{
 			hit_any_mesh = true;
 			FillTriangleIntersectionData(scene.GetObject(intersection_data.object_index), ray, intersection_data);

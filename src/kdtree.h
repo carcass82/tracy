@@ -95,12 +95,13 @@ Tree<T>* BuildTree(const vector<const T*>& objects, const BBox& box, ObjectAABBT
 	return tree;
 }
 
-template <typename T>
+template <typename T, int STACK_SIZE>
 bool IntersectsWithTree(const Tree<T>* tree, const Ray& ray, HitData& inout_intersection, ObjectRayTesterFunction<T> ObjectTester)
 {
 	bool hit_something = false;
 	
 	vector<const Tree<T>*> to_be_tested;
+	to_be_tested.reserve(STACK_SIZE);
 
 	const Tree<T>* root = tree;
 
