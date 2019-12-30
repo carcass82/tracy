@@ -40,6 +40,20 @@ struct Tree
 	vector<T> elems;
 };
 
+template <typename T, int FIXED_SIZE>
+class StaticStack
+{
+public:
+	void push(const T* item) { array_[++head_] = item; }
+	const T* pop()           { return array_[head_--]; }
+	bool empty() const       { return head_ == -1; }
+	bool full() const        { return head_ + 1 == FIXED_SIZE; }
+
+private:
+	int head_ = -1;
+	const T* array_[FIXED_SIZE];
+};
+
 template<typename T>
 using ObjectAABBTesterFunction = std::function<bool(const T&, const BBox&)>;
 
@@ -99,20 +113,17 @@ Tree<T>* BuildTree(const vector<const T*>& objects, const BBox& box, ObjectAABBT
 template <typename T, int STACK_SIZE>
 bool IntersectsWithTree(const Tree<T>* tree, const Ray& ray, HitData& inout_intersection, ObjectRayTesterFunction<T> ObjectTester)
 {
+	StaticStack<Tree<T>, STACK_SIZE> to_be_tested;
+
 	bool hit_something = false;
-	
-	vector<const Tree<T>*> to_be_tested;
-	to_be_tested.reserve(STACK_SIZE);
-
 	const Tree<T>* root = tree;
-
 	while (root || !to_be_tested.empty())
 	{
 		while (root)
 		{
 			if (IntersectsWithBoundingBox(root->aabb, ray))
 			{
-				to_be_tested.emplace_back(root);
+				to_be_tested.push(root);
 				root = root->children[0];
 			}
 			else
@@ -123,14 +134,12 @@ bool IntersectsWithTree(const Tree<T>* tree, const Ray& ray, HitData& inout_inte
 
 		if (!to_be_tested.empty())
 		{
-			root = to_be_tested.back();
+			root = to_be_tested.pop();
 			
 			if (root->elems.size() > 0 && ObjectTester(root->elems, ray, inout_intersection))
 			{
 				hit_something = true;
 			}
-
-			to_be_tested.pop_back();
 		}
 
 		root = root->children[1];
