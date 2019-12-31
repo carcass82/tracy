@@ -120,7 +120,11 @@ struct HitData
 #define NOMCX
 #include <Windows.h>
 using Handle = HWND;
-#define DEBUG_BREAK() __debugbreak()
+#if defined(_DEBUG)
+ #define DEBUG_BREAK() __debugbreak()
+#else
+ #define DEBUG_BREAK() {}
+#endif
 
 #elif defined(__linux__)
 #include <cstring>
@@ -139,7 +143,11 @@ using Handle = struct handle_t*;
  #define MAX_PATH 260
 #endif
 
-#define DEBUG_BREAK() __builtin_trap()
+#if defined(_DEBUG)
+ #define DEBUG_BREAK() __builtin_trap()
+#else
+ #define DEBUG_BREAK() {}
+#endif
 
 #else
 

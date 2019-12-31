@@ -22,62 +22,61 @@ using std::nullopt;
 namespace accel
 {
 
+struct Node
+{
+	Node() {}
+	Node(const BBox& in_aabb) : aabb{ in_aabb } {}
+
+	bool empty() const { return elem_start == elem_end; }
+
+	size_t elem_start{ 0 };
+	size_t elem_end{ 0 };
+	Node* children[2]{ nullptr, nullptr };
+	BBox aabb{ FLT_MAX, -FLT_MAX };
+};
+
 template <typename T>
 struct Tree
 {
-	Tree()
-		: children{ nullptr, nullptr }
-	{}
-
-	Tree(const BBox& in_aabb)
-		: aabb{ in_aabb }
-		, children{ nullptr, nullptr }
-		
-	{}
-
-	BBox aabb;
-	Tree<T>* children[2];
+	Node* root;
 	vector<T> elems;
 };
 
 template <typename T, int FIXED_SIZE>
-class StaticStack
+class FixedSizeStack
 {
 public:
-	void push(const T* item) { array_[++head_] = item; }
-	const T* pop()           { return array_[head_--]; }
-	bool empty() const       { return head_ == -1; }
-	bool full() const        { return head_ + 1 == FIXED_SIZE; }
+	void push(T item)   { array_[++head_] = item; if (head_ >= FIXED_SIZE) DEBUG_BREAK(); }
+	T pop()             { return array_[head_--]; if (head_ < -1) DEBUG_BREAK(); }
+	bool empty() const  { return head_ == -1; }
+	bool full() const   { return head_ + 1 == FIXED_SIZE; }
 
 private:
 	int head_ = -1;
-	const T* array_[FIXED_SIZE];
+	T array_[FIXED_SIZE];
 };
 
 template<typename T>
 using ObjectAABBTesterFunction = std::function<bool(const T&, const BBox&)>;
 
 template<typename T>
-using ObjectRayTesterFunction = std::function<bool(const vector<T>&, const Ray&, HitData&)>;
+using ObjectRayTesterFunction = std::function<bool(const T* start, const T* end, const Ray&, HitData&)>;
 
-template<typename T, int MIN_OBJECTS, int MAX_DEPTH>
-Tree<T>* BuildTree(const vector<const T*>& objects, const BBox& box, ObjectAABBTesterFunction<T> ObjectBoxTester, int depth = 0)
+template<typename T, size_t MIN_OBJECTS, size_t MAX_DEPTH>
+Node* BuildTree(Tree<T>* tree, const vector<const T*>& objects, const BBox& box, ObjectAABBTesterFunction<T> ObjectBoxTester, int depth = 0)
 {
-	Tree<T>* tree = new Tree<T>(box);
-
-	if (objects.empty())
-	{
-		return tree;
-	}
+	Node* node = new Node(box);
 
 	if (objects.size() <= MIN_OBJECTS || depth >= MAX_DEPTH)
 	{
+		node->elem_start = tree->elems.size();
 		for (const T* object : objects)
 		{
 			tree->elems.push_back(*object);
 		}
+		node->elem_end = tree->elems.size();
 
-		return tree;
+		return node;
 	}
 
 	vector<const T*> forward;
@@ -104,19 +103,22 @@ Tree<T>* BuildTree(const vector<const T*>& objects, const BBox& box, ObjectAABBT
 		}
 	}
 
-	tree->children[0] = BuildTree<T, MIN_OBJECTS, MAX_DEPTH>(forward, forward_bbox, ObjectBoxTester, depth + 1);
-	tree->children[1] = BuildTree<T, MIN_OBJECTS, MAX_DEPTH>(backward, backward_bbox, ObjectBoxTester, depth + 1);
+	node->children[0] = BuildTree<T, MIN_OBJECTS, MAX_DEPTH>(tree, forward, forward_bbox, ObjectBoxTester, depth + 1);
 
-	return tree;
+	node->children[1] = BuildTree<T, MIN_OBJECTS, MAX_DEPTH>(tree, backward, backward_bbox, ObjectBoxTester, depth + 1);
+	
+	return node;
 }
 
-template <typename T, int STACK_SIZE>
+template <typename T, size_t STACK_SIZE>
 bool IntersectsWithTree(const Tree<T>* tree, const Ray& ray, HitData& inout_intersection, ObjectRayTesterFunction<T> ObjectTester)
 {
-	StaticStack<Tree<T>, STACK_SIZE> to_be_tested;
+	FixedSizeStack<const Node*, STACK_SIZE> to_be_tested;
 
 	bool hit_something = false;
-	const Tree<T>* root = tree;
+	
+	const Node* root = tree->root;
+
 	while (root || !to_be_tested.empty())
 	{
 		while (root)
@@ -136,7 +138,7 @@ bool IntersectsWithTree(const Tree<T>* tree, const Ray& ray, HitData& inout_inte
 		{
 			root = to_be_tested.pop();
 			
-			if (root->elems.size() > 0 && ObjectTester(root->elems, ray, inout_intersection))
+			if (!root->empty() && ObjectTester(&tree->elems[root->elem_start], &tree->elems[root->elem_end] + 1, ray, inout_intersection))
 			{
 				hit_something = true;
 			}

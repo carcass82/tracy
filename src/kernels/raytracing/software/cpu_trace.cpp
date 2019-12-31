@@ -130,18 +130,18 @@ struct CpuTrace::CpuTraceDetails
 
 #if USE_KDTREE
 
-		auto TriangleRayTester = [](const vector<Triangle>& triangles, const Ray& in_ray, HitData& intersection_data)
+		auto TriangleRayTester = [](const Triangle* first, const Triangle* last, const Ray& in_ray, HitData& intersection_data)
 		{
 			bool hit_triangle = false;
 
 			vec3 ray_direction = in_ray.GetDirection();
 			vec3 ray_origin = in_ray.GetOrigin();
 
-			for (const Triangle& triangle : triangles)
+			for (const Triangle* it = first; it != last; ++it)
 			{
-				const vec3 v0 = triangle.vertices[0];
-				const vec3 v0v1 = triangle.v0v1;
-				const vec3 v0v2 = triangle.v0v2;
+				const vec3 v0 =   it->vertices[0];
+				const vec3 v0v1 = it->v0v1;
+				const vec3 v0v2 = it->v0v2;
 
 				vec3 pvec = cross(ray_direction, v0v2);
 				vec3 tvec = ray_origin - v0;
@@ -172,8 +172,8 @@ struct CpuTrace::CpuTraceDetails
 					{
 						intersection_data.t = t;
 						intersection_data.uv = vec2{ u, v } * inv_det;
-						intersection_data.triangle_index = triangle.tri_idx;
-						intersection_data.object_index = triangle.mesh_idx;
+						intersection_data.triangle_index = it->tri_idx;
+						intersection_data.object_index = it->mesh_idx;
 						hit_triangle = true;
 					}
 				}
@@ -182,7 +182,7 @@ struct CpuTrace::CpuTraceDetails
 			return hit_triangle;
 		};
 
-		if (accel::IntersectsWithTree<Triangle, TREE_DEPTH>(&SceneTree, ray, intersection_data, TriangleRayTester))
+		if (accel::IntersectsWithTree<Triangle, TREE_DEPTH + 1>(&SceneTree, ray, intersection_data, TriangleRayTester))
 		{
 			hit_any_mesh = true;
 			FillTriangleIntersectionData(scene.GetObject(intersection_data.object_index), ray, intersection_data);
@@ -307,7 +307,8 @@ struct CpuTrace::CpuTraceDetails
 			return true;
 		};
 
-		SceneTree = *accel::BuildTree<Triangle, TREE_LEAF_ELEMS, TREE_DEPTH>(trimesh, root, TriangleAABBTester);
+		SceneTree.elems.reserve(trimesh.size());
+		SceneTree.root = accel::BuildTree<Triangle, TREE_LEAF_ELEMS, TREE_DEPTH>(&SceneTree, trimesh, root, TriangleAABBTester);
 	}
 
 	accel::Tree<Triangle> SceneTree;
