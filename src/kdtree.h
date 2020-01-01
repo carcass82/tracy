@@ -11,10 +11,6 @@ using std::vector;
 #include <functional>
 using std::function;
 
-#include <optional>
-using std::optional;
-using std::nullopt;
-
 #include "common.h"
 #include "ray.h"
 #include "aabb.h"
@@ -31,7 +27,8 @@ struct Node
 
 	size_t elem_start{ 0 };
 	size_t elem_end{ 0 };
-	Node* children[2]{ nullptr, nullptr };
+	Node* left = nullptr;
+	Node* right = nullptr;
 	BBox aabb{ FLT_MAX, -FLT_MAX };
 };
 
@@ -46,8 +43,8 @@ template <typename T, int FIXED_SIZE>
 class FixedSizeStack
 {
 public:
-	void push(T item)   { array_[++head_] = item; if (head_ >= FIXED_SIZE) DEBUG_BREAK(); }
-	T pop()             { return array_[head_--]; if (head_ < -1) DEBUG_BREAK(); }
+	void push(T item)   { array_[++head_] = item; }
+	T pop()             { return array_[head_--]; }
 	bool empty() const  { return head_ == -1; }
 	bool full() const   { return head_ + 1 == FIXED_SIZE; }
 
@@ -62,22 +59,10 @@ using ObjectAABBTesterFunction = std::function<bool(const T&, const BBox&)>;
 template<typename T>
 using ObjectRayTesterFunction = std::function<bool(const T* start, const T* end, const Ray&, HitData&)>;
 
-template<typename T, size_t MIN_OBJECTS, size_t MAX_DEPTH>
-Node* BuildTree(Tree<T>* tree, const vector<const T*>& objects, const BBox& box, ObjectAABBTesterFunction<T> ObjectBoxTester, int depth = 0)
+template<typename T, size_t MIN_OBJECTS = 32, size_t MAX_DEPTH = 64>
+Node* BuildTree(Tree<T>* tree, const vector<const T*>& objects, const BBox& box, ObjectAABBTesterFunction<T> ObjectBoxTester, size_t depth = 0)
 {
 	Node* node = new Node(box);
-
-	if (objects.size() <= MIN_OBJECTS || depth >= MAX_DEPTH)
-	{
-		node->elem_start = tree->elems.size();
-		for (const T* object : objects)
-		{
-			tree->elems.push_back(*object);
-		}
-		node->elem_end = tree->elems.size();
-
-		return node;
-	}
 
 	vector<const T*> forward;
 	vector<const T*> backward;
@@ -103,9 +88,23 @@ Node* BuildTree(Tree<T>* tree, const vector<const T*>& objects, const BBox& box,
 		}
 	}
 
-	node->children[0] = BuildTree<T, MIN_OBJECTS, MAX_DEPTH>(tree, forward, forward_bbox, ObjectBoxTester, depth + 1);
+	if (objects.size() <= MIN_OBJECTS || depth >= MAX_DEPTH || forward.size() + backward.size() > objects.size() * 1.5f)
+	{
+		node->elem_start = tree->elems.size();
+		for (const T* object : objects)
+		{
+			tree->elems.push_back(*object);
+		}
+		node->elem_end = tree->elems.size();
 
-	node->children[1] = BuildTree<T, MIN_OBJECTS, MAX_DEPTH>(tree, backward, backward_bbox, ObjectBoxTester, depth + 1);
+		return node;
+	}
+	else
+	{
+		node->left = BuildTree<T, MIN_OBJECTS, MAX_DEPTH>(tree, forward, forward_bbox, ObjectBoxTester, depth + 1);
+
+		node->right = BuildTree<T, MIN_OBJECTS, MAX_DEPTH>(tree, backward, backward_bbox, ObjectBoxTester, depth + 1);
+	}
 	
 	return node;
 }
@@ -117,34 +116,27 @@ bool IntersectsWithTree(const Tree<T>* tree, const Ray& ray, HitData& inout_inte
 
 	bool hit_something = false;
 	
-	const Node* root = tree->root;
+	const Node* current = tree->root;
 
-	while (root || !to_be_tested.empty())
+	while (current || !to_be_tested.empty())
 	{
-		while (root)
+		while (current && IntersectsWithBoundingBox(current->aabb, ray))
 		{
-			if (IntersectsWithBoundingBox(root->aabb, ray))
-			{
-				to_be_tested.push(root);
-				root = root->children[0];
-			}
-			else
-			{
-				break;
-			}
+			to_be_tested.push(current);
+			current = current->left;
 		}
 
 		if (!to_be_tested.empty())
 		{
-			root = to_be_tested.pop();
+			current = to_be_tested.pop();
 			
-			if (!root->empty() && ObjectTester(&tree->elems[root->elem_start], &tree->elems[root->elem_end] + 1, ray, inout_intersection))
+			if (!current->empty() && ObjectTester(&tree->elems[current->elem_start], &tree->elems[current->elem_end], ray, inout_intersection))
 			{
 				hit_something = true;
 			}
 		}
 
-		root = root->children[1];
+		current = current->right;
 	}
 
 	return hit_something;

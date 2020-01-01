@@ -11,8 +11,8 @@
 
 #if USE_KDTREE
  #include "kdtree.h"
- constexpr int TREE_DEPTH = 90;
- constexpr int TREE_LEAF_ELEMS = 50;
+ constexpr int TREE_DEPTH = 64;
+ constexpr int TREE_LEAF_ELEMS = 32;
 #endif
 
 namespace
@@ -389,10 +389,11 @@ void CpuTrace::UpdateScene()
 	{
 		for (int i = 0; i < win_width_; ++i)
 		{
-			const vec3 bitmap_col = clamp3(255.99f * sqrtf3(details_->output[j * win_width_ + i]), .0f, 255.f);
-			const uint32_t dst = (uint8_t)bitmap_col.b |
-				((uint8_t)bitmap_col.g << 8) |
-				((uint8_t)bitmap_col.r << 16);
+			const vec3 float_col = details_->output[j * win_width_ + i];
+			const vec3 bitmap_col = clamp3(255.99f * sqrtf3(float_col), .0f, 255.f);
+			const uint32_t dst =  (uint8_t)bitmap_col.b       |
+			                     ((uint8_t)bitmap_col.g << 8) |
+			                     ((uint8_t)bitmap_col.r << 16);
 
 #if defined(WIN32)
 			details_->bitmap_bytes[j * win_width_ + i] = dst;
