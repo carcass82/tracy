@@ -67,7 +67,7 @@ Node* BuildTree(Tree<T>* tree, const vector<const T*>& objects, const BBox& box,
 	vector<const T*> forward;
 	vector<const T*> backward;
 
-	vec3 half_axis_size = ((box.maxbound - box.minbound) / 2.f) + 1.e-8f;
+	vec3 half_axis_size = ((box.maxbound - box.minbound) / 2.f) + EPS;
 	int axis_selector = depth % 3;
 
 	BBox backward_bbox{ box };

@@ -71,7 +71,7 @@ CUDA_DEVICE_CALL bool Material::Scatter(const Ray& ray, const HitData& hit, vec3
         vec3 outward_normal = hit.normal;
         float ni_nt;
         float cosine = dot(ray.GetDirection(), hit.normal);
-        if (cosine > 1.e-8f)
+        if (cosine > EPS)
         {
             outward_normal *= -1.f;
             ni_nt = ior_;

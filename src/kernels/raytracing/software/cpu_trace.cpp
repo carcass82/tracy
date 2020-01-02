@@ -82,7 +82,7 @@ struct CpuTrace::CpuTraceDetails
 
 			// if the determinant is negative the triangle is backfacing
 			// if the determinant is close to 0, the ray misses the triangle
-			if (det > 1.e-8f)
+			if (det > EPS)
 			{
 				float u = dot(tvec, pvec);
 				if (u < .0f || u > det)
@@ -151,7 +151,7 @@ struct CpuTrace::CpuTraceDetails
 
 				// if the determinant is negative the triangle is backfacing
 				// if the determinant is close to 0, the ray misses the triangle
-				if (det > 1.e-8f)
+				if (det > EPS)
 				{
 					float u = dot(tvec, pvec);
 					if (u < .0f || u > det)
@@ -474,6 +474,11 @@ vec3 CpuTrace::Trace(const Ray& ray, uint32_t random_ctx)
 void CpuTrace::RenderScene()
 {
 	float blend_factor = frame_counter_ / float(frame_counter_ + 1);
+
+#if defined(_MSC_VER) && _MSC_VER < 1920
+ // pre-vs2019 ms compiler does not support openmp "collapse" clause
+ #define collapse(x) 
+#endif
 
 	#pragma omp parallel for collapse(3) schedule(dynamic)
 	for (int j = 0; j < win_height_; ++j)

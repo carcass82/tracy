@@ -49,9 +49,11 @@ using glm::perspective;
 using glm::lookAt;
 #define cosf(x) glm::fastCos(x)
 #define sinf(x) glm::fastSin(x)
-CUDA_DEVICE_CALL inline vec3 pmin(const vec3& a, const vec3& b) { return { min(a.x, b.x), min(a.y, b.y), min(a.z, b.z) }; }
-CUDA_DEVICE_CALL inline vec3 pmax(const vec3& a, const vec3& b) { return { max(a.x, b.x), max(a.y, b.y), max(a.z, b.z) }; }
+CUDA_DEVICE_CALL inline void sincosf(float x, float* s, float* c) { *s = sinf(x); *c = cosf(x); }
+CUDA_DEVICE_CALL constexpr inline vec3 pmin(const vec3& a, const vec3& b) { return { min(a.x, b.x), min(a.y, b.y), min(a.z, b.z) }; }
+CUDA_DEVICE_CALL constexpr inline vec3 pmax(const vec3& a, const vec3& b) { return { max(a.x, b.x), max(a.y, b.y), max(a.z, b.z) }; }
 constexpr float PI = 3.1415926535897932f;
+constexpr float EPS = 1.e-8f;
 template<typename T, size_t N> constexpr inline uint32_t array_size(const T(&)[N]) { return N; }
 constexpr inline float rcp(float x) { return 1.f / x; }
 #define CC_CONSTEXPR
@@ -76,6 +78,7 @@ using cc::math::inverse;
 #define powf(x, y) cc::math::pow(x, y)
 #define sqrtf(x) cc::math::sqrtf(x)
 using cc::math::PI;
+using cc::math::EPS;
 using cc::array_size;
 #define CC_CONSTEXPR constexpr
 #endif

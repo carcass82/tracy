@@ -15,6 +15,11 @@ struct BBox
 		, maxbound{}
 	{}
 
+    CUDA_DEVICE_CALL BBox(const float in_minbound, const float in_maxbound)
+        : minbound(in_minbound, in_minbound, in_minbound)
+        , maxbound(in_maxbound, in_maxbound, in_maxbound)
+    {}
+
 	CUDA_DEVICE_CALL BBox(const vec3& in_minbound, const vec3& in_maxbound)
 		: minbound(in_minbound)
 		, maxbound(in_maxbound)
@@ -48,5 +53,5 @@ CUDA_DEVICE_CALL inline bool IntersectsWithBoundingBox(const BBox& box, const Ra
     const float tmin = max(tmin1.x, max(tmin1.y, tmin1.z));
     const float tmax = min(tmax1.x, min(tmax1.y, tmax1.z));
 
-    return (tmax >= max(1.e-8f, tmin) && tmin < nearest_intersection);
+    return (tmax >= max(EPS, tmin) && tmin < nearest_intersection);
 }
