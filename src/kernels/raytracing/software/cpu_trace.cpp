@@ -28,9 +28,9 @@ namespace
 	}
 
 #if USE_KDTREE
-	struct Triangle
+	struct alignas(64) Triangle
 	{
-		Triangle(const vec3& v0, const vec3& v1, const vec3& v2, int in_mesh_idx, int in_tri_idx)
+		Triangle(const vec3& v0, const vec3& v1, const vec3& v2, uint16_t in_mesh_idx, uint16_t in_tri_idx)
 			: vertices{ v0, v1, v2 }
 			, v0v1{ v1 - v0 }
 			, v0v2{ v2 - v0 }
@@ -38,12 +38,12 @@ namespace
 			, tri_idx{ in_tri_idx }
 		{}
 
-		vec3 vertices[3];
-		vec3 v0v1;
-		vec3 v0v2;
+		vec3 vertices[3];  // 36
+		vec3 v0v1;         // 48
+		vec3 v0v2;         // 60
 
-		int mesh_idx;
-		int tri_idx;
+		uint16_t mesh_idx; // 62
+		uint16_t tri_idx;  // 64
 	};
 #endif
 }
@@ -210,15 +210,27 @@ struct CpuTrace::CpuTraceDetails
 	void BuildInternalScene(const Scene& scene)
 	{
 #if USE_KDTREE
+
+		if (scene.GetObjectCount() > UINT16_MAX)
+		{
+			TracyLog("Unable to represent mesh index\n");
+			DEBUG_BREAK();
+		}
+
 		BBox root{ FLT_MAX, -FLT_MAX };
 		vector<const Triangle*> trimesh;
-		for (int i = 0; i < scene.GetObjectCount(); ++i)
+		for (uint16_t i = 0; i < scene.GetObjectCount(); ++i)
 		{
 			const Mesh& mesh = scene.GetObject(i);
-
-			for (int t = 0; t < mesh.GetTriCount(); ++t)
+			if (mesh.GetTriCount() * 3 > UINT16_MAX)
 			{
-				int tri_idx = t * 3;
+				TracyLog("Unable to represent triangle index\n");
+				DEBUG_BREAK();
+			}
+
+			for (uint16_t t = 0; t < mesh.GetTriCount(); ++t)
+			{
+				uint16_t tri_idx = t * 3;
 
 				const vec3& v0 = mesh.GetVertex(mesh.GetIndex(tri_idx + 0)).pos;
 				const vec3& v1 = mesh.GetVertex(mesh.GetIndex(tri_idx + 1)).pos;
@@ -462,12 +474,6 @@ vec3 CpuTrace::Trace(const Ray& ray, uint32_t random_ctx)
 void CpuTrace::RenderScene()
 {
 	float blend_factor = frame_counter_ / float(frame_counter_ + 1);
-
-#if defined(_MSC_VER) && _MSC_VER < 1920
- // ms compiler does not support openmp 3.0 until vs2019
- // (where it must be enabled with /openmp:experimental switch)
- #define collapse(x) 
-#endif
 
 	#pragma omp parallel for collapse(3) schedule(dynamic)
 	for (int j = 0; j < win_height_; ++j)

@@ -27,8 +27,8 @@ struct Node
 
 	size_t elem_start{ 0 };
 	size_t elem_end{ 0 };
-	Node* left = nullptr;
-	Node* right = nullptr;
+	Node* left{ nullptr };
+	Node* right{ nullptr };
 	BBox aabb{ FLT_MAX, -FLT_MAX };
 };
 

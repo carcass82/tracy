@@ -126,6 +126,8 @@ if(RENDER_MODULE STREQUAL "CPU (RayTracing)")
 	set(CPU_RAND_ALGORITHM "XorShift" CACHE STRING "Random Algorithm to use")
 	set_property(CACHE CPU_RAND_ALGORITHM PROPERTY STRINGS "Default" "XorShift" "Intel")
 	
+	option(NO_OPENMP "Disable OpenMP in CPU Trace loop" OFF)
+
 	if(CPU_RAND_ALGORITHM STREQUAL "XorShift")
 		add_definitions(-DRANDOM_XORSHIFT=1)
 	elseif(CPU_RAND_ALGORITHM STREQUAL "Intel")
@@ -213,15 +215,24 @@ if(MSVC)
     message(STATUS "Found MSVC: " ${CMAKE_CXX_COMPILER})
     set(CMAKE_CXX_FLAGS "/nologo /W3 /D_CRT_SECURE_NO_WARNINGS /MP /Gm- /EHsc /Zi")
 	set(CMAKE_CXX_FLAGS_DEBUG "${CMAKE_CXX_FLAGS_DEBUG} /Od /D_DEBUG /DNOVTABLE= ")
-	set(CMAKE_CXX_FLAGS_RELEASE "${CMAKE_CXX_FLAGS_RELEASE} /GR- /Gw /GL /O2 /fp:fast /DNDEBUG /DNOVTABLE=__declspec(novtable)")
+	set(CMAKE_CXX_FLAGS_RELEASE "${CMAKE_CXX_FLAGS_RELEASE} /GR- /Gw /GL /O2 /fp:fast /Qpar /DNDEBUG /DNOVTABLE=__declspec(novtable)")
 	
-	# choose "experimental" openmp implementation if available
-	# (and suppress warning C4849 about 'collapse' clause ignored)
-	if(MSVC_VERSION GREATER_EQUAL 1920)
-		set(CMAKE_CXX_FLAGS_RELEASE "${CMAKE_CXX_FLAGS_RELEASE} /openmp:experimental /wd4849")
-		#set(CMAKE_CXX_FLAGS_RELEASE "${CMAKE_CXX_FLAGS_RELEASE} -Qvec-report:2")
+	# enable auto vectorizer report
+	#set(CMAKE_CXX_FLAGS_RELEASE "${CMAKE_CXX_FLAGS_RELEASE} -Qvec-report:2")
+
+	# enable auto parallelizer report
+	#set(CMAKE_CXX_FLAGS_RELEASE "${CMAKE_CXX_FLAGS_RELEASE} -Qpar-report:2")
+
+	if(NO_OPENMP)
+		set(CMAKE_CXX_FLAGS_RELEASE "${CMAKE_CXX_FLAGS_RELEASE} /openmp-")
 	else()
-		set(CMAKE_CXX_FLAGS_RELEASE "${CMAKE_CXX_FLAGS_RELEASE} /openmp /wd4849")
+		# choose "experimental" openmp implementation if available
+		# (and suppress warning C4849 about 'collapse' clause ignored)
+		if(MSVC_VERSION GREATER_EQUAL 1920)
+			set(CMAKE_CXX_FLAGS_RELEASE "${CMAKE_CXX_FLAGS_RELEASE} /openmp:experimental /wd4849")
+		else()
+			set(CMAKE_CXX_FLAGS_RELEASE "${CMAKE_CXX_FLAGS_RELEASE} /openmp /wd4849")
+		endif()
 	endif()
     
 	set(CMAKE_EXE_LINKER_FLAGS_RELEASE "${CMAKE_EXE_LINKER_FLAGS_RELEASE} /DEBUG /LTCG /INCREMENTAL:NO")
@@ -229,9 +240,14 @@ if(MSVC)
 else()
 
     message(STATUS "Found C++ Compiler: " ${CMAKE_CXX_COMPILER})
-    set(CMAKE_CXX_FLAGS "-Wall -no-pie -DNOVTABLE= ")
-    set(CMAKE_CXX_FLAGS_DEBUG "-D_DEBUG -O0 -g")
-	set(CMAKE_CXX_FLAGS_RELEASE "-DNDEBUG -Ofast -march=native -fsingle-precision-constant -fopenmp -fno-rtti -funroll-loops -D_GLIBCXX_PARALLEL")
+    set(CMAKE_CXX_FLAGS "-Wall -no-pie -g -DNOVTABLE= ")
+    set(CMAKE_CXX_FLAGS_DEBUG "-D_DEBUG -O0")
+	set(CMAKE_CXX_FLAGS_RELEASE "-DNDEBUG -Ofast -march=native -fsingle-precision-constant -fno-rtti -funroll-loops -D_GLIBCXX_PARALLEL")
+	
+	if(NOT NO_OPENMP)
+		set(CMAKE_CXX_FLAGS_RELEASE "${CMAKE_CXX_FLAGS_RELEASE} -fopenmp")
+	endif()
+	
 	if(NOT "${CMAKE_CXX_COMPILER_ID}" STREQUAL "Clang")
 		set(CMAKE_CXX_FLAGS_RELEASE "${CMAKE_CXX_FLAGS_RELEASE} -flto")
 	endif()
