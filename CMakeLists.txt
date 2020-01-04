@@ -95,7 +95,8 @@ set(main_includes "./src/mesh.h"
                   "./src/vertex.h"
 				  "./src/aabb.h"
 				  "./src/kdtree.h"
-				  "./src/log.h")
+				  "./src/log.h"
+				  "./src/input.h")
 
 source_group("include\\" FILES ${main_includes})
 

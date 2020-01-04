@@ -12,6 +12,10 @@
 #include "mesh.h"
 #include "scene.h"
 
+#include "input.h"
+Input g_input;
+
+
 #if defined(CPU_KERNEL)
  #include "kernels/raytracing/software/cpu_trace.h"
  CpuTrace& g_kernel = CpuTrace::GetInstance();
@@ -25,6 +29,7 @@
  #error "at least one module should be enabled!"
 #endif
 
+
 #if defined(WIN32)
 LRESULT CALLBACK WindowProc(HWND hwnd, UINT uMsg, WPARAM wParam, LPARAM lParam)
 {
@@ -35,15 +40,17 @@ LRESULT CALLBACK WindowProc(HWND hwnd, UINT uMsg, WPARAM wParam, LPARAM lParam)
 		break;
 
 	case WM_KEYDOWN:
-		switch (wParam)
-		{
-		case VK_ESCAPE:
-			DestroyWindow(hwnd);
-			break;
-
-		default:
-			break;
-		}
+		g_input.keystatus[wParam] = true;
+		g_input.pending = true;
+		break;
+	
+	case WM_MOUSEMOVE:
+		g_input.mouse.pos.x = LOWORD(lParam);
+		g_input.mouse.pos.y = HIWORD(lParam);
+		g_input.mouse.buttonstatus[Input::MouseButton::Left] = wParam & MK_LBUTTON;
+		g_input.mouse.buttonstatus[Input::MouseButton::Middle] = wParam & MK_MBUTTON;
+		g_input.mouse.buttonstatus[Input::MouseButton::Right] = wParam & MK_RBUTTON;
+		g_input.pending = true;
 		break;
 
 	case WM_PAINT:
@@ -144,7 +151,9 @@ Handle TracyCreateWindow(int width, int height)
 
 void TracyDestroyWindow(Handle window_handle)
 {
-#if !defined(WIN32)
+#if defined(WIN32)
+	DestroyWindow(window_handle);
+#else
 	XDestroyWindow(window_handle->dpy, window_handle->win);
 	XCloseDisplay(window_handle->dpy);
 #endif
@@ -193,6 +202,80 @@ bool TracyProcessMessages(Handle window_handle)
 #endif
 
 	return false;
+}
+
+void TracyProcessInputs(Scene& scene, Input& input, Handle window_handle, double dt)
+{
+	if (input.pending)
+	{
+		if (input.GetKeyStatus(VK_ESCAPE))
+		{
+			TracyDestroyWindow(window_handle);
+			input.ResetKeyStatus(VK_ESCAPE);
+		}
+
+		if (input.GetKeyStatus(Input::KeyGroup::Movement))
+		{
+			float cam_speed = static_cast<float>(dt);
+
+			Camera& camera = scene.GetCamera();
+			vec3 new_cam_pos = camera.GetPosition();
+			vec3 cam_up = camera.GetUpVector();
+			vec3 cam_forward = camera.GetTarget() - camera.GetPosition();
+			vec3 cam_right = normalize(cross(cam_forward, cam_up));
+
+			if (input.keystatus['W']) { new_cam_pos += cam_speed * cam_forward; }
+
+			if (input.keystatus['S']) { new_cam_pos -= cam_speed * cam_forward; }
+
+			if (input.keystatus['A']) { new_cam_pos -= cam_speed * cam_right; }
+
+			if (input.keystatus['D']) { new_cam_pos += cam_speed * cam_right; }
+
+			if (input.keystatus['Q']) { new_cam_pos -= cam_speed * cam_up; }
+
+			if (input.keystatus['E']) { new_cam_pos += cam_speed * cam_up; }
+
+			input.ResetKeyStatus(Input::KeyGroup::Movement);
+
+			camera.UpdateView(new_cam_pos, camera.GetTarget(), cam_up);
+			camera.SetDirty(true);
+		}
+
+		static bool mousemoving = false;
+		if (input.mouse.buttonstatus[Input::MouseButton::Left])
+		{
+			float cam_speed = static_cast<float>(dt);
+
+			Camera& camera = scene.GetCamera();
+			vec3 cam_pos = camera.GetPosition();
+			vec3 cam_up = camera.GetUpVector();
+			vec3 cam_forward = camera.GetTarget() - camera.GetPosition();
+			vec3 cam_right = normalize(cross(cam_forward, cam_up));
+
+			static vec2 oldpos;
+			if (!mousemoving)
+			{
+				oldpos = input.mouse.pos;
+				mousemoving = true;
+			}
+
+			vec2 delta = cam_speed * (input.mouse.pos - oldpos);
+
+			mat4 rotation(1.f);
+			rotation = rotate(rotation, radians(delta.x), cam_up);
+			rotation = rotate(rotation, radians(delta.y), cam_right);
+
+			camera.UpdateView((vec4(cam_pos, 1.f) * rotation).xyz, camera.GetTarget(), cam_up);
+			camera.SetDirty(true);
+		}
+		else
+		{
+			mousemoving = false;
+		}
+
+		input.pending = false;
+	}
 }
 
 bool ShouldQuit(Handle window_handle)
@@ -251,22 +334,24 @@ int main(int argc, char** argv)
 			// TODO: threads
 			while (!ShouldQuit(win_handle))
 			{
-				if (TracyProcessMessages(win_handle))
-				{
-					continue;
-				}
-
+				TracyProcessMessages(win_handle);
+				
+				TracyProcessInputs(world, g_input, win_handle, frame_timer.GetDuration());
+				
+				frame_timer.Reset();
 				frame_timer.Begin();
+
+				trace_timer.Begin();
 
 				g_kernel.UpdateScene();
 
 				g_kernel.RenderScene();
 
-				frame_timer.End();
+				trace_timer.End();
 
 				++frame_count;
 
-				if (frame_timer.GetDuration() > 1.f)
+				if (trace_timer.GetDuration() > 1.f)
 				{
 					int raycount = g_kernel.GetRayCount();
 					bool has_ray_count = raycount > 0;
@@ -282,16 +367,17 @@ int main(int argc, char** argv)
 					         g_kernel.GetSamplesPerPixel(),
 					         world.GetObjectCount(),
 					         world.GetTriCount(),
-					         (has_ray_count ? (raycount * 1e-6f) / frame_timer.GetDuration() : frame_count / frame_timer.GetDuration()),
+					         (has_ray_count ? (raycount * 1e-6f) / trace_timer.GetDuration() : frame_count / trace_timer.GetDuration()),
 					         (has_ray_count ? "MRays/s" : "fps"));
 
 					UpdateWindowText(win_handle, window_title);
 
 					g_kernel.ResetRayCount();
 					trace_timer.Reset();
-					frame_timer.Reset();
 					frame_count = 0;
 				}
+
+				frame_timer.End();
 			}
 			g_kernel.Shutdown();
 			TracyDestroyWindow(win_handle);

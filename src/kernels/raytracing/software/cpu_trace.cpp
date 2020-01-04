@@ -473,6 +473,12 @@ vec3 CpuTrace::Trace(const Ray& ray, uint32_t random_ctx)
 
 void CpuTrace::RenderScene()
 {
+	if (camera_->IsDirty())
+	{
+		frame_counter_ = 0;
+		camera_->SetDirty(false);
+	}
+
 	float blend_factor = frame_counter_ / float(frame_counter_ + 1);
 
 #if defined(_MSC_VER) && _MSC_VER < 1920

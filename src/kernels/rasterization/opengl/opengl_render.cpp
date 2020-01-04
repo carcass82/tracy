@@ -56,6 +56,7 @@ struct OpenGLRender::Details
 	GLuint vs;
 	GLuint fs;
 	GLuint shader;
+	GLuint ubo_matrices;
 };
 
 
@@ -226,14 +227,13 @@ void OpenGLRender::Initialize(Handle in_window, int in_width, int in_height, con
 			GLuint ubo_matrices_idx = glGetUniformBlockIndex(details_->shader, "matrices");
 			glUniformBlockBinding(details_->shader, ubo_matrices_idx, 0);
 
-			GLuint ubo_matrices;
-			glGenBuffers(1, &ubo_matrices);
-			glBindBuffer(GL_UNIFORM_BUFFER, ubo_matrices);
+			glGenBuffers(1, &details_->ubo_matrices);
+			glBindBuffer(GL_UNIFORM_BUFFER, details_->ubo_matrices);
 			glBufferData(GL_UNIFORM_BUFFER, 2 * sizeof(mat4), NULL, GL_STATIC_DRAW);
 			glBufferSubData(GL_UNIFORM_BUFFER, sizeof(mat4) * 0, sizeof(mat4), value_ptr(camera_->GetProjection()));
 			glBufferSubData(GL_UNIFORM_BUFFER, sizeof(mat4) * 1, sizeof(mat4), value_ptr(camera_->GetView()));
 			glBindBuffer(GL_UNIFORM_BUFFER, 0);
-			glBindBufferRange(GL_UNIFORM_BUFFER, 0, ubo_matrices, 0, 2 * sizeof(mat4));
+			glBindBufferRange(GL_UNIFORM_BUFFER, 0, details_->ubo_matrices, 0, 2 * sizeof(mat4));
 		}
 
 		init_ = true;
@@ -252,6 +252,16 @@ void OpenGLRender::RenderScene()
 		//glPolygonMode(GL_FRONT_AND_BACK, GL_LINE);
 
 		glUseProgram(details_->shader);
+
+		if (camera_->IsDirty())
+		{
+			glBindBuffer(GL_UNIFORM_BUFFER, details_->ubo_matrices);
+			glBufferSubData(GL_UNIFORM_BUFFER, sizeof(mat4) * 0, sizeof(mat4), value_ptr(camera_->GetProjection()));
+			glBufferSubData(GL_UNIFORM_BUFFER, sizeof(mat4) * 1, sizeof(mat4), value_ptr(camera_->GetView()));
+			glBindBuffer(GL_UNIFORM_BUFFER, 0);
+
+			camera_->SetDirty(false);
+		}
 
 		for (int i = 0; i < static_cast<int>(details_->meshes.size()); ++i)
 		{
