@@ -208,10 +208,10 @@ void TracyProcessInputs(Scene& scene, Input& input, Handle window_handle, double
 {
 	if (input.pending)
 	{
-		if (input.GetKeyStatus(VK_ESCAPE))
+		if (input.GetKeyStatus(0x1b /* ESCAPE */))
 		{
 			TracyDestroyWindow(window_handle);
-			input.ResetKeyStatus(VK_ESCAPE);
+			input.ResetKeyStatus(0x1b /* ESCAPE */);
 		}
 
 		if (input.GetKeyStatus(Input::KeyGroup::Movement))
@@ -336,7 +336,10 @@ int main(int argc, char** argv)
 			{
 				TracyProcessMessages(win_handle);
 				
-				TracyProcessInputs(world, g_input, win_handle, frame_timer.GetDuration());
+				while (g_input.pending)
+				{
+					TracyProcessInputs(world, g_input, win_handle, frame_timer.GetDuration());
+				}
 				
 				frame_timer.Reset();
 				frame_timer.Begin();
