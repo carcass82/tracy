@@ -34,7 +34,7 @@ public:
 		return Ray(eye_, vec3(point_3d.x, point_3d.y, point_3d.z) - eye_);
 	}
 
-	void UpdateProjection(float fov, float ratio, float znear = .1f, float zfar = 10000.f)
+	CUDA_DEVICE_CALL void UpdateProjection(float fov, float ratio, float znear = .1f, float zfar = 10000.f)
 	{
 		fov_ = fov;
 		ratio_ = ratio;
@@ -44,7 +44,7 @@ public:
 		view_projection_inv_ = inverse(projection_ * view_);
 	}
 
-	void UpdateView(const vec3& eye, const vec3& center, const vec3& up)
+	CUDA_DEVICE_CALL void UpdateView(const vec3& eye, const vec3& center, const vec3& up)
 	{
 		eye_ = eye;
 		center_ = center;
@@ -54,19 +54,19 @@ public:
 		view_projection_inv_ = inverse(projection_ * view_);
 	}
 
-	bool IsDirty() const { return dirty_; }
+	CUDA_DEVICE_CALL bool IsDirty() const { return dirty_; }
 
-	void SetDirty(bool dirtyflag) const { dirty_ = dirtyflag; }
+	CUDA_DEVICE_CALL void SetDirty(bool dirtyflag) const { dirty_ = dirtyflag; }
 
 	CUDA_DEVICE_CALL const mat4& GetView() const { return view_; }
 
 	CUDA_DEVICE_CALL const mat4& GetProjection() const { return projection_; }
 
-	const vec3& GetPosition() const { return eye_; }
+	CUDA_DEVICE_CALL const vec3& GetPosition() const { return eye_; }
 
-	const vec3& GetUpVector() const { return up_; }
+	CUDA_DEVICE_CALL const vec3& GetUpVector() const { return up_; }
 
-	const vec3& GetTarget() const { return center_; }
+	CUDA_DEVICE_CALL const vec3& GetTarget() const { return center_; }
 
 private:
 	vec3 eye_;

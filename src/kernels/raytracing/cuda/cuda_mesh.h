@@ -5,8 +5,6 @@
  * (c) Carlo Casta, 2018
  */
 #pragma once
-#include <unordered_map>
-using std::unordered_map;
 
 #include <cuda_runtime.h>
 #include "cuda_log.h"
@@ -14,40 +12,7 @@ using std::unordered_map;
 #include "vertex.h"
 #include "mesh.h"
 #include "material.h"
-
-struct CUDAVertex
-{
-	CUDAVertex() {}
-
-	CUDAVertex(const vec3& in_pos, const vec3& in_normal, const vec2& in_uv0)
-		: pos{ in_pos }
-		, normal{ in_normal }
-		, uv0{ in_uv0 }
-	{}
-
-	vec3 pos;
-	vec3 normal;
-	vec2 uv0;
-};
-
-struct CUDAMaterial
-{
-	static Material* Convert(const Material* cpu_material)
-	{
-		if (host_to_device_.count(cpu_material) == 0)
-		{
-			Material* d_material;
-			CUDAAssert(cudaMalloc(&d_material, sizeof(Material)));
-			CUDAAssert(cudaMemcpy(d_material, cpu_material, sizeof(Material), cudaMemcpyHostToDevice));
-
-			host_to_device_[cpu_material] = d_material;
-		}
-
-		return host_to_device_[cpu_material];
-	}
-
-	static unordered_map<const Material*, Material*> host_to_device_;
-};
+#include "cuda_vertex.h"
 
 struct CUDAMesh
 {

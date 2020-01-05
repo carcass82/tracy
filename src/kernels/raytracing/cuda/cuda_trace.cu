@@ -16,12 +16,13 @@
 #include "ray.h"
 #include "camera.h"
 #include "material.h"
+#include "cuda_material.h"
 #include "cuda_mesh.h"
 #include "scene.h"
 #include "cuda_scene.h"
 
 // static material map initialization
-unordered_map<const Material*, Material*> CUDAMaterial::host_to_device_;
+unordered_map<const Material*, Material*> CUDAMaterial::device_materials_;
 
 // max gpu supported
 constexpr int MAX_GPU = 32;

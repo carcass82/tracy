@@ -130,7 +130,7 @@ bool IntersectsWithTree(const Tree<T>* tree, const Ray& ray, HitData& inout_inte
 		{
 			current = to_be_tested.pop();
 			
-			if (!current->empty() && ObjectTester(&tree->elems[current->elem_start], &tree->elems[current->elem_end], ray, inout_intersection))
+			if (!current->empty() && ObjectTester(&tree->elems[current->elem_start], &tree->elems[current->elem_end - 1] + 1, ray, inout_intersection))
 			{
 				hit_something = true;
 			}

@@ -43,6 +43,8 @@ private:
 	int win_height_{};
 	int frame_counter_{};
 
+	const Camera* camera_{};
+
 	struct CUDATraceDetails;
 	CUDATraceDetails* details_{};
 };

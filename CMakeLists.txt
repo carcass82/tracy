@@ -171,6 +171,8 @@ elseif(RENDER_MODULE STREQUAL "CUDA (RayTracing)")
 	list(APPEND tracy_sources ${cuda_sources})
 
 	set(cuda_includes "./src/kernels/raytracing/cuda/cuda_trace.h"
+	                  "./src/kernels/raytracing/cuda/cuda_vertex.h"
+					  "./src/kernels/raytracing/cuda/cuda_material.h"
 	                  "./src/kernels/raytracing/cuda/cuda_mesh.h"
 					  "./src/kernels/raytracing/cuda/cuda_scene.h"
 	                  "./src/kernels/raytracing/cuda/cuda_log.h")

@@ -114,6 +114,8 @@ void CUDATrace::Initialize(Handle in_window, int in_width, int in_height, const 
         CUDAAssert(cudaMemset(details_->scene_.d_output_, 0, win_width_ * win_height_ * sizeof(vec4)));
     }
 
+    camera_ = &in_scene.GetCamera();
+
     details_->scene_.width = win_width_;
     details_->scene_.height = win_height_;
     cuda_setup(in_scene, &details_->scene_);
@@ -121,6 +123,13 @@ void CUDATrace::Initialize(Handle in_window, int in_width, int in_height, const 
 
 void CUDATrace::UpdateScene()
 {
+    if (camera_ && camera_->IsDirty())
+    {
+        frame_counter_ = 0;
+        camera_->SetDirty(false);
+
+        CUDAAssert(cudaMemcpy(details_->scene_.d_camera_, camera_, sizeof(Camera), cudaMemcpyHostToDevice));
+    }
     cuda_trace(&details_->scene_, frame_counter_++);
 
     cudaArray* texture_ptr;

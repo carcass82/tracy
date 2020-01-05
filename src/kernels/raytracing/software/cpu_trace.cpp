@@ -144,8 +144,7 @@ struct CpuTrace::CpuTraceDetails
 				const vec3 v0v2 = it->v0v2;
 
 				vec3 pvec = cross(ray_direction, v0v2);
-				vec3 tvec = ray_origin - v0;
-
+				
 				float det = dot(v0v1, pvec);
 				float inv_det = rcp(det);
 
@@ -153,22 +152,22 @@ struct CpuTrace::CpuTraceDetails
 				// if the determinant is close to 0, the ray misses the triangle
 				if (det > EPS)
 				{
+					vec3 tvec = ray_origin - v0;
 					float u = dot(tvec, pvec);
-					if (u < .0f || u > det)
+					if (u < EPS || u > det)
 					{
 						continue;
 					}
 
 					vec3 qvec = cross(tvec, v0v1);
-
 					float v = dot(ray_direction, qvec);
-					if (v < .0f || u + v > det)
+					if (v < EPS || u + v > det)
 					{
 						continue;
 					}
 
 					float t = dot(v0v2, qvec) * inv_det;
-					if (t < intersection_data.t && t > 1.e-3f)
+					if (t < intersection_data.t && t > EPS)
 					{
 						intersection_data.t = t;
 						intersection_data.uv = vec2{ u, v } * inv_det;
