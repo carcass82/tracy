@@ -202,6 +202,8 @@ elseif(RENDER_MODULE STREQUAL "OpenGL (Raster)")
 	list(APPEND tracy_sources ${opengl_sources})
 
 	set(opengl_includes "./src/kernels/rasterization/opengl/opengl_render.h"
+	                    "./src/kernels/rasterization/opengl/gl_material.h"
+	                    "./src/kernels/rasterization/opengl/gl_mesh.h"
 	                    "./src/kernels/rasterization/opengl/materials.h")
 	source_group("kernel\\opengl\\include" FILES ${opengl_includes})
 	list(APPEND tracy_includes ${opengl_includes})

@@ -5,12 +5,14 @@
  * (c) Carlo Casta, 2018
  */
 #include "opengl_render.h"
-#include "materials.h"
 #include "GL/glew.h"
 
 #if !defined(WIN32)
 #include <GL/glx.h>
 #endif
+
+#include "materials.h"
+#include "gl_mesh.h"
 
 //
 // OpenGL - Details
@@ -18,30 +20,11 @@
 
 struct OpenGLRender::Details
 {
-	struct GLMesh
-	{
-		GLMesh(GLuint in_vao, int in_indexcount, const vec3& in_albedo, float in_metalness, float in_roughness, float in_ior)
-			: vao{ in_vao }
-			, indexcount{ in_indexcount }
-			, albedo{ in_albedo }
-			, metalness{ in_metalness }
-			, roughness{ in_roughness }
-			, ior{ in_ior }
-		{}
-
-		GLuint vao;
-		int indexcount;
-		
-		vec3 albedo;
-		float metalness;
-		float roughness;
-		float ior;
-	};
 	vector<GLMesh> meshes;
 
-	struct Light
+	struct GLLight
 	{
-		Light(const vec3& in_pos, const vec3& in_color)
+		GLLight(const vec3& in_pos, const vec3& in_color)
 			: position{ in_pos }
 			, color{ in_color }
 			, attenuation{ 1.0f, 0.09f, 0.032f }
@@ -51,7 +34,7 @@ struct OpenGLRender::Details
 		vec3 color;
 		vec3 attenuation;
 	};
-	vector<Light> lights;
+	vector<GLLight> lights;
 
 	GLuint vs;
 	GLuint fs;
@@ -71,10 +54,6 @@ OpenGLRender::OpenGLRender()
 
 OpenGLRender::~OpenGLRender()
 {
-	for (const Details::GLMesh& mesh : details_->meshes)
-	{
-		glDeleteVertexArrays(1, &mesh.vao);
-	}
 	delete details_;
 }
 
@@ -128,50 +107,9 @@ void OpenGLRender::Initialize(Handle in_window, int in_width, int in_height, con
 		// Upload geometry
 		for (const Mesh& mesh : in_scene.GetObjects())
 		{
-			if (mesh.GetMaterial()->GetType() != Material::MaterialID::eEMISSIVE)
-			{
-				GLuint vao;
-				glGenVertexArrays(1, &vao);
-				glBindVertexArray(vao);
+			details_->meshes.emplace_back(mesh);
 
-				GLuint vb;
-				glGenBuffers(1, &vb);
-				glBindBuffer(GL_ARRAY_BUFFER, vb);
-				glBufferData(GL_ARRAY_BUFFER, mesh.GetVertexCount() * sizeof(Vertex), &mesh.GetVertices()[0], GL_STATIC_DRAW);
-
-				GLuint ib;
-				glGenBuffers(1, &ib);
-				glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, ib);
-				glBufferData(GL_ELEMENT_ARRAY_BUFFER, mesh.GetIndices().size() * sizeof(Index), &mesh.GetIndices()[0], GL_STATIC_DRAW);
-
-				glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, sizeof(Vertex), (GLvoid*)offsetof(Vertex, pos));
-				glEnableVertexAttribArray(0);
-
-				glVertexAttribPointer(1, 3, GL_FLOAT, GL_TRUE, sizeof(Vertex), (GLvoid*)offsetof(Vertex, normal));
-				glEnableVertexAttribArray(1);
-
-				glVertexAttribPointer(2, 2, GL_FLOAT, GL_FALSE, sizeof(Vertex), (GLvoid*)offsetof(Vertex, uv0));
-				glEnableVertexAttribArray(2);
-
-				glVertexAttribPointer(3, 3, GL_FLOAT, GL_FALSE, sizeof(Vertex), (GLvoid*)offsetof(Vertex, tangent));
-				glEnableVertexAttribArray(3);
-
-				glVertexAttribPointer(4, 3, GL_FLOAT, GL_FALSE, sizeof(Vertex), (GLvoid*)offsetof(Vertex, bitangent));
-				glEnableVertexAttribArray(4);
-
-				glBindVertexArray(0);
-
-				glDeleteBuffers(1, &vb);
-				glDeleteBuffers(1, &ib);
-
-				details_->meshes.emplace_back(vao,
-					                          mesh.GetIndexCount(),
-					                          mesh.GetMaterial()->GetAlbedo(),
-					                          mesh.GetMaterial()->GetType() == Material::MaterialID::eMETAL ? 1.f : .0f,
-				                              mesh.GetMaterial()->GetRoughness(),
-				                              mesh.GetMaterial()->GetIOR());
-			}
-			else
+			if (mesh.GetMaterial()->GetType() == Material::MaterialID::eEMISSIVE)
 			{
 				// consider emissive objects as lights
 				details_->lights.emplace_back(mesh.GetCenter(), mesh.GetMaterial()->GetAlbedo());
@@ -263,12 +201,12 @@ void OpenGLRender::RenderScene()
 			camera_->SetDirty(false);
 		}
 
-		for (int i = 0; i < static_cast<int>(details_->meshes.size()); ++i)
+		for (const GLMesh& mesh : details_->meshes)
 		{
-			glUniform3fv(glGetUniformLocation(details_->shader, "material.albedo"), 1, value_ptr(details_->meshes[i].albedo));
-			glUniform1f(glGetUniformLocation(details_->shader, "material.metalness"), details_->meshes[i].metalness);
-			glUniform1f(glGetUniformLocation(details_->shader, "material.roughness"), details_->meshes[i].roughness);
-			glUniform1f(glGetUniformLocation(details_->shader, "material.ior"), details_->meshes[i].ior);
+			glUniform3fv(glGetUniformLocation(details_->shader, "material.albedo"), 1, value_ptr(mesh.material.albedo));
+			glUniform1f(glGetUniformLocation(details_->shader, "material.metalness"), mesh.material.metalness);
+			glUniform1f(glGetUniformLocation(details_->shader, "material.roughness"), mesh.material.roughness);
+			glUniform1f(glGetUniformLocation(details_->shader, "material.ior"), mesh.material.ior);
 
 			// TODO: support multiple lights, avoid setting uniform every time
 			glUniform3fv(glGetUniformLocation(details_->shader, "light.position"), 1, value_ptr(details_->lights[0].position));
@@ -277,10 +215,12 @@ void OpenGLRender::RenderScene()
 			glUniform1f(glGetUniformLocation(details_->shader, "light.linear"), details_->lights[0].attenuation.y);
 			glUniform1f(glGetUniformLocation(details_->shader, "light.quadratic"), details_->lights[0].attenuation.z);
 
-			glBindVertexArray(details_->meshes[i].vao);
-			glDrawElements(GL_TRIANGLES, details_->meshes[i].indexcount, GL_UNSIGNED_INT, (GLvoid*)0);
+			glBindVertexArray(mesh.vao);
+			glDrawElements(GL_TRIANGLES, mesh.indexcount, GL_UNSIGNED_INT, (GLvoid*)0);
 		}
 		glBindVertexArray(0);
+
+		glUseProgram(0);
 
 #if defined(WIN32)
 		SwapBuffers(GetDC(win_handle_));
