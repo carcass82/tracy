@@ -25,6 +25,9 @@ Input g_input;
 #elif defined(OPENGL_KERNEL)
  #include "kernels/rasterization/opengl/opengl_render.h"
  OpenGLRender& g_kernel = OpenGLRender::GetInstance();
+#elif defined(DXR_KERNEL)
+ #include "kernels/raytracing/dxr/dxr_trace.h"
+ DXRTrace& g_kernel = DXRTrace::GetInstance();
 #else
  #error "at least one module should be enabled!"
 #endif
@@ -298,6 +301,23 @@ bool ShouldQuit(Handle window_handle)
 #endif
 }
 
+const char* TracySecondsToString(double in_seconds)
+{
+	static char timestring[64] = {};
+
+	uint32_t seconds = static_cast<uint32_t>(in_seconds);
+
+	uint32_t minutes = (seconds / 60) % 60;
+	seconds -= minutes * 60;
+
+	uint32_t hours = (minutes / 60) % 60;
+	minutes -= hours * 60;
+
+	snprintf(timestring, 64, "%02d:%02d:%02d", hours, minutes, seconds);
+
+	return timestring;
+}
+
 #if defined(WIN32)
 int WINAPI WinMain(HINSTANCE /* hInstance */, HINSTANCE /* hPrevInstance */, LPSTR /* lpCmdLine */, int /* nCmdShow */)
 {
@@ -330,6 +350,9 @@ int main(int argc, char** argv)
 			int frame_count = 0;
 			Timer trace_timer;
 			Timer frame_timer;
+			Timer run_timer;
+
+			run_timer.Begin();
 
 			// TODO: threads
 			while (!ShouldQuit(win_handle))
@@ -354,20 +377,23 @@ int main(int argc, char** argv)
 
 				++frame_count;
 
-				if (trace_timer.GetDuration() > 1.f)
+				if (trace_timer.GetDuration() > 1.f || frame_count > 100)
 				{
 					int raycount = g_kernel.GetRayCount();
 					bool has_ray_count = raycount > 0;
 
-					static char window_title[MAX_PATH];
+					run_timer.End();
+
+					static char window_title[MAX_PATH] = {};
 					snprintf(window_title,
 					         MAX_PATH,
-					         ".:: Tracy 2.0 (%s) ::. '%s' :: %dx%d@%dspp :: [%d objs] [%d tris] [%.2f %s]",
+					         ".:: Tracy 2.0 (%s) ::. '%s' :: %dx%d@%dspp :: Elapsed: %s :: [%d objs] [%d tris] [%.2f %s]",
 					         g_kernel.GetName(),
 					         world.GetName().c_str(),
 					         WIDTH,
 					         HEIGHT,
 					         g_kernel.GetSamplesPerPixel(),
+					         TracySecondsToString(run_timer.GetDuration()),
 					         world.GetObjectCount(),
 					         world.GetTriCount(),
 					         (has_ray_count ? (raycount * 1e-6f) / trace_timer.GetDuration() : frame_count / trace_timer.GetDuration()),
@@ -378,6 +404,8 @@ int main(int argc, char** argv)
 					g_kernel.ResetRayCount();
 					trace_timer.Reset();
 					frame_count = 0;
+
+					run_timer.Begin();
 				}
 
 				frame_timer.End();

@@ -19,7 +19,7 @@ namespace cuda
 // NVidia CUDA samples
 // 
 template <typename T>
-inline void check(T result, char const* const func, const char* const file, int const line)
+inline void check(T result, const char* func, const char* file, int line)
 {
     if (result)
     {
@@ -32,7 +32,7 @@ inline void check(T result, char const* const func, const char* const file, int 
 }
 
 
-inline void ensure(cudaError_t val, const char* const file, int const line)
+inline void ensure(cudaError_t val, const char* file, int line)
 {
     if (val != cudaSuccess)
     {
