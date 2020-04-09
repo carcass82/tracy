@@ -59,36 +59,12 @@ using ObjectAABBTesterFunction = std::function<bool(const T&, const BBox&)>;
 template<typename T>
 using ObjectRayTesterFunction = std::function<bool(const T* start, const T* end, const Ray&, HitData&)>;
 
-template<typename T, size_t MIN_OBJECTS = 32, size_t MAX_DEPTH = 64>
+template<typename T, size_t MIN_OBJECTS = 16, size_t MAX_DEPTH = 32>
 Node* BuildTree(Tree<T>* tree, const vector<const T*>& objects, const BBox& box, ObjectAABBTesterFunction<T> ObjectBoxTester, size_t depth = 0)
 {
 	Node* node = new Node(box);
 
-	vector<const T*> forward;
-	vector<const T*> backward;
-
-	vec3 half_axis_size = ((box.maxbound - box.minbound) / 2.f) + EPS;
-	int axis_selector = depth % 3;
-
-	BBox backward_bbox{ box };
-	backward_bbox.maxbound[axis_selector] -= half_axis_size[axis_selector];
-	
-	BBox forward_bbox{ box };
-	forward_bbox.minbound[axis_selector] += half_axis_size[axis_selector];
-
-	for (const T* object : objects)
-	{
-		if (ObjectBoxTester(*object, forward_bbox))
-		{
-			forward.push_back(object);
-		}
-		if (ObjectBoxTester(*object, backward_bbox))
-		{
-			backward.push_back(object);
-		}
-	}
-
-	if (objects.size() <= MIN_OBJECTS || depth >= MAX_DEPTH || forward.size() + backward.size() > objects.size() * 1.5f)
+	if (objects.size() <= MIN_OBJECTS || depth >= MAX_DEPTH)
 	{
 		node->elem_start = tree->elems.size();
 		for (const T* object : objects)
@@ -99,13 +75,84 @@ Node* BuildTree(Tree<T>* tree, const vector<const T*>& objects, const BBox& box,
 
 		return node;
 	}
-	else
-	{
-		node->left = BuildTree<T, MIN_OBJECTS, MAX_DEPTH>(tree, forward, forward_bbox, ObjectBoxTester, depth + 1);
-
-		node->right = BuildTree<T, MIN_OBJECTS, MAX_DEPTH>(tree, backward, backward_bbox, ObjectBoxTester, depth + 1);
-	}
 	
+
+	float split_cost = FLT_MAX;
+	int split_candidate = 5;
+	int axis_candidate = depth % 3;
+
+	vector<const T*> right;
+	vector<const T*> left;
+
+	//for (int axis = 0; axis < 3; ++axis)
+	{
+		// DEBUG: why is this faster than choosing best cost from all 3 axis?
+		int axis = depth % 3;
+
+		for (int i = 1; i < 10; ++i)
+		{
+			right.clear();
+			left.clear();
+
+			vec3 split_right = ((box.maxbound - box.minbound) / 10.f * i) + EPS;
+			vec3 split_left = ((box.maxbound - box.minbound) / 10.f * (10 - i)) + EPS;
+
+			BBox right_bbox{ box };
+			right_bbox.maxbound[axis] -= split_left[axis];
+
+			BBox left_bbox{ box };
+			left_bbox.minbound[axis] += split_right[axis];
+
+			for (const T* object : objects)
+			{
+				if (ObjectBoxTester(*object, right_bbox))
+				{
+					right.push_back(object);
+				}
+				if (ObjectBoxTester(*object, left_bbox))
+				{
+					left.push_back(object);
+				}
+			}
+
+			float cost = (i / 10.f) * right.size() + ((10 - i) / 10.f) * left.size();
+			if (cost < split_cost)
+			{
+				axis_candidate = axis;
+				split_candidate = i;
+				split_cost = cost;
+			}
+		}
+	}
+
+	
+	right.clear();
+	left.clear();
+
+	vec3 split_right = ((box.maxbound - box.minbound) / 10.f * split_candidate) + EPS;
+	vec3 split_left = ((box.maxbound - box.minbound) / 10.f * (10 - split_candidate)) + EPS;
+
+	BBox right_bbox{ box };
+	right_bbox.maxbound[axis_candidate] -= split_left[axis_candidate];
+
+	BBox left_bbox{ box };
+	left_bbox.minbound[axis_candidate] += split_right[axis_candidate];
+
+	for (const T* object : objects)
+	{
+		if (ObjectBoxTester(*object, right_bbox))
+		{
+			right.push_back(object);
+		}
+		if (ObjectBoxTester(*object, left_bbox))
+		{
+			left.push_back(object);
+		}
+	}
+
+	node->left = BuildTree<T, MIN_OBJECTS, MAX_DEPTH>(tree, left, left_bbox, ObjectBoxTester, depth + 1);
+	node->right = BuildTree<T, MIN_OBJECTS, MAX_DEPTH>(tree, right, right_bbox, ObjectBoxTester, depth + 1);
+
 	return node;
 }
 

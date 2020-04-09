@@ -11,8 +11,8 @@
 
 #if USE_KDTREE
  #include "kdtree.h"
- constexpr int TREE_DEPTH = 64;
- constexpr int TREE_LEAF_ELEMS = 32;
+ constexpr int TREE_DEPTH = 32;
+ constexpr int TREE_LEAF_ELEMS = 16;
 #endif
 
 namespace
