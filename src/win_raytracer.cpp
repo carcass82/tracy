@@ -352,6 +352,11 @@ int main(int argc, char** argv)
 			Timer frame_timer;
 			Timer run_timer;
 
+			int max_raycount = INT_MIN;
+			int min_raycount = INT_MAX;
+			int avg_raycount = 0;
+			int avg_samples = 0;
+
 			run_timer.Begin();
 
 			// TODO: threads
@@ -400,6 +405,10 @@ int main(int argc, char** argv)
 
 					UpdateWindowText(win_handle, window_title);
 
+					min_raycount = min(min_raycount, raycount);
+					max_raycount = max(max_raycount, raycount);
+					avg_raycount = avg_raycount + (raycount - avg_raycount) / ++avg_samples;
+
 					g_kernel.ResetRayCount();
 					trace_timer.Reset();
 					frame_count = 0;
@@ -411,6 +420,8 @@ int main(int argc, char** argv)
 			}
 			g_kernel.Shutdown();
 			TracyDestroyWindow(win_handle);
+
+			TracyLog("\n*** Performance: %.2f MRays/s on average (min: %.2f, max: %.2f) ***\n\n", avg_raycount * 1e-6f, min_raycount * 1e-6f, max_raycount * 1e-6f);
 		}
 		else
 		{

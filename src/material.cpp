@@ -31,7 +31,7 @@ namespace
 
     CUDA_DEVICE_CALL constexpr inline float pow5(float x)
     {
-        float x2 = x * x;
+        float x2 = pow2(x);
         return x2 * x2 * x;
     }
 

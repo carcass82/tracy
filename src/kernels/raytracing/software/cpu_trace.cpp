@@ -485,7 +485,7 @@ void CpuTrace::RenderScene()
  #define collapse(x) 
 #endif
 
-	#pragma omp parallel for collapse(3) schedule(dynamic)
+	#pragma omp parallel for collapse(2) schedule(dynamic)
 	for (int j = 0; j < win_height_; ++j)
 	{
 		for (int i = 0; i < win_width_; ++i)
