@@ -28,7 +28,6 @@ public:
 	void OnPaint();
 
 	const char* GetName() const          { return "CPU"; }
-	const int GetSamplesPerPixel() const { return samples_; }
 	int GetRayCount() const              { return raycount_; }
 	void ResetRayCount()                 { raycount_ = 0; }
 
@@ -38,7 +37,6 @@ private:
 	CpuTrace();
 	vec3 Trace(const Ray& ray, uint32_t rand_ctx);
 
-	const int samples_{ 1 };
 	const int bounces_{ 5 };
 
 	Handle win_handle_{};

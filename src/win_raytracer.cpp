@@ -387,12 +387,11 @@ int main(int argc, char** argv)
 					static char window_title[MAX_PATH] = {};
 					snprintf(window_title,
 					         MAX_PATH,
-					         ".:: Tracy 2.0 (%s) ::. '%s' :: %dx%d@%dspp :: Elapsed: %s :: [%d objs] [%d tris] [%.2f %s]",
+					         ".:: Tracy 2.0 (%s) ::. '%s' :: %dx%d :: Elapsed: %s :: [%d objs] [%d tris] [%.2f %s]",
 					         g_kernel.GetName(),
 					         world.GetName().c_str(),
 					         WIDTH,
 					         HEIGHT,
-					         g_kernel.GetSamplesPerPixel(),
 					         TracySecondsToString(run_timer.GetDuration()),
 					         world.GetObjectCount(),
 					         world.GetTriCount(),

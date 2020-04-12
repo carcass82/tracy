@@ -29,7 +29,6 @@ public:
 
 	const char* GetName() const { return "OpenGL"; }
 
-	const int GetSamplesPerPixel() const { return 0; }
 	int GetRayCount() const { return 0; }
 
 	void ResetRayCount() {}

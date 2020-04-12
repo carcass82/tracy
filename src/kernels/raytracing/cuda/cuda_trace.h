@@ -28,14 +28,12 @@ public:
 	void OnPaint() {}
 
 	const char* GetName() const          { return "CUDA"; }
-	const int GetSamplesPerPixel() const { return samples_; }
 	int GetRayCount() const;
 	void ResetRayCount();
 
 private:
 	CUDATrace();
 
-	const int samples_{ 1 };
 	const int bounces_{ 5 };
 
 	Handle win_handle_{};

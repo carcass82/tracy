@@ -334,7 +334,7 @@ struct CpuTrace::CpuTraceDetails
 	uint32_t* bitmap_bytes;
 	
 #if defined(WIN32)
-	HBITMAP bitmap;
+	HBITMAP bitmap{};
 #else
 	XImage* bitmap{};
 #endif
@@ -490,22 +490,17 @@ void CpuTrace::RenderScene()
 	{
 		for (int i = 0; i < win_width_; ++i)
 		{
-			for (int s = 0; s < samples_; ++s)
-			{
-				static uint32_t random_ctx = 0x12345678;
+			static uint32_t random_ctx = 0x12345678;
+			
+			float u = (i + fastrand(random_ctx)) / float(win_width_);
+			float v = (j + fastrand(random_ctx)) / float(win_height_);
 
-				float u = (i + fastrand(random_ctx)) / float(win_width_);
-				float v = (j + fastrand(random_ctx)) / float(win_height_);
-				
-				vec3 sampled_col = Trace(camera_->GetRayFrom(u, v), random_ctx);
-				sampled_col /= (float)samples_;
+			vec3* pixel = &details_->output[j * win_width_ + i];
 
-				#pragma omp critical
-				{
-					vec3 old_col = details_->output[j * win_width_ + i];
-					details_->output[j * win_width_ + i] = lerp(sampled_col, old_col, blend_factor);
-				}
-			}
+			vec3 current_color = *pixel;
+			vec3 traced_color = Trace(camera_->GetRayFrom(u, v), random_ctx);
+
+			*pixel = lerp(traced_color, current_color, blend_factor);
 		}
 	}
 

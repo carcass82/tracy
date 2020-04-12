@@ -160,8 +160,14 @@ elseif(RENDER_MODULE STREQUAL "CUDA (RayTracing)")
 	include_directories(./src/kernels/raytracing/cuda/)
 	include_directories(${CMAKE_CUDA_TOOLKIT_INCLUDE_DIRECTORIES}) 
 
-	set(CUDA_COMPUTECAPABILITY "-arch=sm_30" CACHE STRING "Cuda Arch Compile Option")	
-	set(CMAKE_CUDA_FLAGS "-DCUDA_CALL=\"__host__ __device__\" -DCUDA_DEVICE_CALL=__device__ -D_FORCE_INLINES ${CUDA_COMPUTECAPABILITY}")
+	set(CUDA_ARCH Auto CACHE STRING "Cuda Arch Compile Option (Default: Autodetected)")
+	
+	# deprecated but currently the only way to detect cuda arch
+	include(FindCUDA)
+	cuda_select_nvcc_arch_flags(CUDA_COMPUTE_ARCH_FLAGS ${CUDA_ARCH})
+	message(STATUS "CUDA architecture Compile Flags: ${CUDA_COMPUTE_ARCH_FLAGS}")
+	
+	set(CMAKE_CUDA_FLAGS "-DCUDA_CALL=\"__host__ __device__\" -DCUDA_DEVICE_CALL=__device__ -D_FORCE_INLINES" ${CUDA_COMPUTE_ARCH_FLAGS})
 	set(CMAKE_CUDA_FLAGS_DEBUG "-G -D_DEBUG")
 	set(CMAKE_CUDA_FLAGS_RELEASE "--use_fast_math -O2 -g -lineinfo -DNDEBUG")
 
