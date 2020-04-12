@@ -7,6 +7,7 @@
 #pragma once
 #include <cstdint>
 #include <cfloat>
+#include <climits>
 
 #if !defined(CUDA_DEVICE_CALL)
 #define CUDA_DEVICE_CALL

@@ -23,7 +23,7 @@ inline float fastrand(RandomCtx ctx)
     x ^= x << 5;
     ctx = x;
 
-    return ((x >> 16) & 0x7fff) / (float)0x7fff;
+    return x / (float)UINT32_MAX;
 }
 
 #elif RANDOM_INTEL
@@ -35,7 +35,7 @@ inline float fastrand(RandomCtx ctx)
 inline float fastrand(RandomCtx ctx)
 {
     ctx = (214013u * ctx + 2531011u);
-    return ((ctx >> 16) & 0x7fff) / (float)0x7fff;
+    return  x / (float)UINT32_MAX;
 }
 
 #else
@@ -55,7 +55,7 @@ inline float fastrand(RandomCtx ctx)
         }
     }
     
-    return rand() / (float)RAND_MAX; // 0x7fff
+    return rand() / (float)RAND_MAX;
 }
 
 #endif
