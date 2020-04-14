@@ -15,6 +15,10 @@
  constexpr int TREE_LEAF_ELEMS = 16;
 #endif
 
+#if USE_SIMD
+ #include "simdhelper.h"
+#endif
+
 namespace
 {
 	vec3 sqrtf3(const vec3& a)
@@ -30,6 +34,12 @@ namespace
 #if USE_KDTREE
 	struct alignas(64) Triangle
 	{
+		explicit Triangle()
+			: mesh_idx(UINT16_MAX)
+			, tri_idx(UINT16_MAX)
+		{
+		}
+
 		Triangle(const vec3& v0, const vec3& v1, const vec3& v2, uint16_t in_mesh_idx, uint16_t in_tri_idx)
 			: vertices{ v0, v1, v2 }
 			, v0v1{ v1 - v0 }
@@ -45,6 +55,8 @@ namespace
 		uint16_t mesh_idx; // 62
 		uint16_t tri_idx;  // 64
 	};
+
+	static Triangle DummyTriangle;
 #endif
 }
 
@@ -85,7 +97,7 @@ struct CpuTrace::CpuTraceDetails
 			if (det > EPS)
 			{
 				float u = dot(tvec, pvec);
-				if (u < .0f || u > det)
+				if (u < EPS || u > det)
 				{
 					continue;
 				}
@@ -93,13 +105,13 @@ struct CpuTrace::CpuTraceDetails
 				vec3 qvec = cross(tvec, v0v1);
 
 				float v = dot(ray_direction, qvec);
-				if (v < .0f || u + v > det)
+				if (v < EPS || u + v > det)
 				{
 					continue;
 				}
 
 				float t = dot(v0v2, qvec) * inv_det;
-				if (t < inout_intersection.t && t > 1.e-3f)
+				if (t < inout_intersection.t && t > EPS)
 				{
 					inout_intersection.t = t;
 					inout_intersection.uv = vec2{ u, v } * inv_det;
@@ -130,21 +142,102 @@ struct CpuTrace::CpuTraceDetails
 
 #if USE_KDTREE
 
-		auto TriangleRayTester = [](const Triangle* first, const Triangle* last, const Ray& in_ray, HitData& intersection_data)
+		auto TriangleRayTester = [](const Triangle* in_triangles, const size_t in_count, const Ray& in_ray, HitData& intersection_data)
 		{
+
+#if USE_SIMD
 			bool hit_triangle = false;
 
-			vec3 ray_direction = in_ray.GetDirection();
-			vec3 ray_origin = in_ray.GetOrigin();
+			simd_vec3 ray_direction = in_ray.GetDirection();
+			simd_vec3 ray_origin = in_ray.GetOrigin();
 
-			for (const Triangle* it = first; it != last; ++it)
+			static const simd_float simd_EPS = make_simd(EPS);
+			simd_float simd_nearest_t = make_simd(intersection_data.t);
+
+			for (int idx = 0; idx < in_count; idx += 4)
 			{
-				const vec3 v0 =   it->vertices[0];
-				const vec3 v0v1 = it->v0v1;
-				const vec3 v0v2 = it->v0v2;
+				const Triangle* triangles[4] = {
+					idx + 0 < in_count ? in_triangles + idx + 0 : &DummyTriangle,
+					idx + 1 < in_count ? in_triangles + idx + 1 : &DummyTriangle,
+					idx + 2 < in_count ? in_triangles + idx + 2 : &DummyTriangle,
+					idx + 3 < in_count ? in_triangles + idx + 3 : &DummyTriangle,
+				};
+				const simd_float valid_condition = make_simd(idx + 0 < in_count, idx + 1 < in_count, idx + 2 < in_count, idx + 3 < in_count) < simd_ONE;
+				
+				const simd_vec3 v0   = { triangles[0]->vertices[0], triangles[1]->vertices[0], triangles[2]->vertices[0], triangles[3]->vertices[0] };
+				const simd_vec3 v0v1 = { triangles[0]->v0v1,        triangles[1]->v0v1,        triangles[2]->v0v1,        triangles[3]->v0v1 };
+				const simd_vec3 v0v2 = { triangles[0]->v0v2,        triangles[1]->v0v2,        triangles[2]->v0v2,        triangles[3]->v0v2 };
+
+				simd_vec3 pvec = cross(ray_direction, v0v2);
+				
+				simd_float det = dot(v0v1, pvec);
+				simd_float simd_inv_det = rcp(det);
+				
+				// if the determinant is negative the triangle is backfacing
+				// if the determinant is close to 0, the ray misses the triangle
+				simd_float determinant_condition = (det < simd_EPS);
+				
+				simd_vec3 tvec = ray_origin - v0;
+				simd_float simd_u = dot(tvec, pvec);
+				simd_float u_condition = (simd_u < simd_EPS | simd_u > det);
+
+				simd_vec3 qvec = cross(tvec, v0v1);
+				simd_float simd_v = dot(ray_direction, qvec);
+				simd_float v_condition = (simd_v < simd_EPS | simd_u + simd_v > det);
+
+				simd_float t = dot(v0v2, qvec) * simd_inv_det;
+				simd_float t_condition = (t < simd_EPS | t >= simd_nearest_t);
+				
+				simd_float mask = valid_condition | determinant_condition | u_condition | v_condition | t_condition;
+				simd_float simd_res = lerp(t, simd_MINUS_ONE, mask);
+					
+				alignas(16) float res[4];
+				get_simd(res, simd_res);
+
+				for (int i = 0; i < 4; ++i)
+				{
+					if (res[i] > EPS && res[i] < intersection_data.t)
+					{
+						simd_nearest_t = make_simd(res[i]);
+
+						alignas(16) float u[4];
+						get_simd(u, simd_u);
+
+						alignas(16) float v[4];
+						get_simd(v, simd_v);
+						
+						alignas(16) float inv_det[4];
+						get_simd(inv_det, simd_inv_det);
+
+						intersection_data.t = res[i];
+						intersection_data.uv = vec2{ u[i], v[i] } * inv_det[i];
+						intersection_data.triangle_index = triangles[3 - i]->tri_idx;
+						intersection_data.object_index = triangles[3 - i]->mesh_idx;
+
+						hit_triangle = true;
+					}
+				}
+			}
+
+			return hit_triangle;
+
+#else // USE_SIMD
+
+			bool hit_triangle = false;
+
+			const vec3 ray_direction = in_ray.GetDirection();
+			const vec3 ray_origin = in_ray.GetOrigin();
+
+			for (int idx = 0; idx < in_count; ++idx)
+			{
+				const Triangle* triangle = in_triangles + idx;
+
+				const vec3 v0   = triangle->vertices[0];
+				const vec3 v0v1 = triangle->v0v1;
+				const vec3 v0v2 = triangle->v0v2;
 
 				vec3 pvec = cross(ray_direction, v0v2);
-				
+
 				float det = dot(v0v1, pvec);
 				float inv_det = rcp(det);
 
@@ -167,41 +260,47 @@ struct CpuTrace::CpuTraceDetails
 					}
 
 					float t = dot(v0v2, qvec) * inv_det;
-					if (t < intersection_data.t && t > EPS)
+					if (t > EPS && t < intersection_data.t)
 					{
 						intersection_data.t = t;
 						intersection_data.uv = vec2{ u, v } * inv_det;
-						intersection_data.triangle_index = it->tri_idx;
-						intersection_data.object_index = it->mesh_idx;
+						intersection_data.triangle_index = triangle->tri_idx;
+						intersection_data.object_index = triangle->mesh_idx;
 						hit_triangle = true;
 					}
 				}
 			}
 
 			return hit_triangle;
+
+#endif // USE_SIMD
 		};
 
-		if (accel::IntersectsWithTree<Triangle, TREE_DEPTH + 1>(&SceneTree, ray, intersection_data, TriangleRayTester))
-		{
-			hit_any_mesh = true;
-			FillTriangleIntersectionData(scene.GetObject(intersection_data.object_index), ray, intersection_data);
-		}
 
-#else
-		
+
+
+#endif // USE_KDTREE
+
 		for (const Mesh& mesh : scene.GetObjects())
 		{
 			if (IntersectsWithBoundingBox(mesh.GetAABB(), ray, intersection_data.t))
 			{
+#if USE_KDTREE
+				if (accel::IntersectsWithTree<Triangle, TREE_DEPTH + 1>(&SceneTree, ray, intersection_data, TriangleRayTester))
+				{
+					hit_any_mesh = true;
+					FillTriangleIntersectionData(scene.GetObject(intersection_data.object_index), ray, intersection_data);
+				}
+				break;
+#else
 				if (IntersectsWithMesh(mesh, ray, intersection_data))
 				{
 					hit_any_mesh = true;
 					FillTriangleIntersectionData(mesh, ray, intersection_data);
 				}
+#endif
 			}
 		}
-
-#endif
 
 		return hit_any_mesh;
 	}

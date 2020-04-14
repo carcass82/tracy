@@ -57,7 +57,7 @@ template<typename T>
 using ObjectAABBTesterFunction = std::function<bool(const T&, const BBox&)>;
 
 template<typename T>
-using ObjectRayTesterFunction = std::function<bool(const T* start, const T* end, const Ray&, HitData&)>;
+using ObjectRayTesterFunction = std::function<bool(const T* elems, size_t count, const Ray&, HitData&)>;
 
 template<typename T, size_t MIN_OBJECTS = 16, size_t MAX_DEPTH = 32>
 Node* BuildTree(Tree<T>* tree, const vector<const T*>& objects, const BBox& box, ObjectAABBTesterFunction<T> ObjectBoxTester, size_t depth = 0)
@@ -94,8 +94,8 @@ Node* BuildTree(Tree<T>* tree, const vector<const T*>& objects, const BBox& box,
 			right.clear();
 			left.clear();
 
-			vec3 split_right = ((box.maxbound - box.minbound) / 10.f * i) + EPS;
-			vec3 split_left = ((box.maxbound - box.minbound) / 10.f * (10 - i)) + EPS;
+			vec3 split_right = ((box.maxbound - box.minbound) / 10.f * (float)i) + EPS;
+			vec3 split_left = ((box.maxbound - box.minbound) / 10.f * (float)(10 - i)) + EPS;
 
 			BBox right_bbox{ box };
 			right_bbox.maxbound[axis] -= split_left[axis];
@@ -129,8 +129,8 @@ Node* BuildTree(Tree<T>* tree, const vector<const T*>& objects, const BBox& box,
 	right.clear();
 	left.clear();
 
-	vec3 split_right = ((box.maxbound - box.minbound) / 10.f * split_candidate) + EPS;
-	vec3 split_left = ((box.maxbound - box.minbound) / 10.f * (10 - split_candidate)) + EPS;
+	vec3 split_right = ((box.maxbound - box.minbound) / 10.f * (float)split_candidate) + EPS;
+	vec3 split_left = ((box.maxbound - box.minbound) / 10.f * (float)(10 - split_candidate)) + EPS;
 
 	BBox right_bbox{ box };
 	right_bbox.maxbound[axis_candidate] -= split_left[axis_candidate];
@@ -177,7 +177,7 @@ bool IntersectsWithTree(const Tree<T>* tree, const Ray& ray, HitData& inout_inte
 		{
 			current = to_be_tested.pop();
 			
-			if (!current->empty() && ObjectTester(&tree->elems[current->elem_start], &tree->elems[current->elem_end - 1] + 1, ray, inout_intersection))
+			if (!current->empty() && ObjectTester(&tree->elems[current->elem_start], current->elem_end - current->elem_start, ray, inout_intersection))
 			{
 				hit_something = true;
 			}
