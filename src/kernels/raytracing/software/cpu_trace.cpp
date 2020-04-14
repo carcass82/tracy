@@ -151,10 +151,10 @@ struct CpuTrace::CpuTraceDetails
 			simd_vec3 ray_direction = in_ray.GetDirection();
 			simd_vec3 ray_origin = in_ray.GetOrigin();
 
-			static const simd_float simd_EPS = make_simd(EPS);
-			simd_float simd_nearest_t = make_simd(intersection_data.t);
+			static const simd_float simd_EPS(EPS);
+			simd_float simd_nearest_t(intersection_data.t);
 
-			for (int idx = 0; idx < in_count; idx += 4)
+			for (size_t idx = 0; idx < in_count; idx += 4)
 			{
 				const Triangle* triangles[4] = {
 					idx + 0 < in_count ? in_triangles + idx + 0 : &DummyTriangle,
@@ -162,7 +162,7 @@ struct CpuTrace::CpuTraceDetails
 					idx + 2 < in_count ? in_triangles + idx + 2 : &DummyTriangle,
 					idx + 3 < in_count ? in_triangles + idx + 3 : &DummyTriangle,
 				};
-				const simd_float valid_condition = make_simd(idx + 0 < in_count, idx + 1 < in_count, idx + 2 < in_count, idx + 3 < in_count) < simd_ONE;
+				const simd_float valid_condition = simd_float(idx + 0 < in_count, idx + 1 < in_count, idx + 2 < in_count, idx + 3 < in_count) < simd_ONE;
 				
 				const simd_vec3 v0   = { triangles[0]->vertices[0], triangles[1]->vertices[0], triangles[2]->vertices[0], triangles[3]->vertices[0] };
 				const simd_vec3 v0v1 = { triangles[0]->v0v1,        triangles[1]->v0v1,        triangles[2]->v0v1,        triangles[3]->v0v1 };
@@ -179,35 +179,28 @@ struct CpuTrace::CpuTraceDetails
 				
 				simd_vec3 tvec = ray_origin - v0;
 				simd_float simd_u = dot(tvec, pvec);
-				simd_float u_condition = (simd_u < simd_EPS | simd_u > det);
+				simd_float u_condition = ((simd_u < simd_EPS) | (simd_u > det));
 
 				simd_vec3 qvec = cross(tvec, v0v1);
 				simd_float simd_v = dot(ray_direction, qvec);
-				simd_float v_condition = (simd_v < simd_EPS | simd_u + simd_v > det);
+				simd_float v_condition = ((simd_v < simd_EPS) | (simd_u + simd_v > det));
 
 				simd_float t = dot(v0v2, qvec) * simd_inv_det;
-				simd_float t_condition = (t < simd_EPS | t >= simd_nearest_t);
+				simd_float t_condition = ((t < simd_EPS) | (t >= simd_nearest_t));
 				
 				simd_float mask = valid_condition | determinant_condition | u_condition | v_condition | t_condition;
 				simd_float simd_res = lerp(t, simd_MINUS_ONE, mask);
 					
-				alignas(16) float res[4];
-				get_simd(res, simd_res);
-
+				float* res = simd_res.get_float();
 				for (int i = 0; i < 4; ++i)
 				{
 					if (res[i] > EPS && res[i] < intersection_data.t)
 					{
-						simd_nearest_t = make_simd(res[i]);
+						simd_nearest_t = res[i];
 
-						alignas(16) float u[4];
-						get_simd(u, simd_u);
-
-						alignas(16) float v[4];
-						get_simd(v, simd_v);
-						
-						alignas(16) float inv_det[4];
-						get_simd(inv_det, simd_inv_det);
+						float* u = simd_u.get_float();
+                        float* v = simd_v.get_float();
+						float* inv_det = simd_inv_det.get_float();
 
 						intersection_data.t = res[i];
 						intersection_data.uv = vec2{ u[i], v[i] } * inv_det[i];
