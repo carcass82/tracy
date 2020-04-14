@@ -154,19 +154,28 @@ struct CpuTrace::CpuTraceDetails
 			static const simd_float simd_EPS(EPS);
 			simd_float simd_nearest_t(intersection_data.t);
 
-			for (size_t idx = 0; idx < in_count; idx += 4)
+			for (size_t idx = 0; idx < in_count; idx += SIMD_WIDTH)
 			{
-				const Triangle* triangles[4] = {
-					idx + 0 < in_count ? in_triangles + idx + 0 : &DummyTriangle,
-					idx + 1 < in_count ? in_triangles + idx + 1 : &DummyTriangle,
-					idx + 2 < in_count ? in_triangles + idx + 2 : &DummyTriangle,
-					idx + 3 < in_count ? in_triangles + idx + 3 : &DummyTriangle,
-				};
-				const simd_float valid_condition = simd_float(idx + 0 < in_count, idx + 1 < in_count, idx + 2 < in_count, idx + 3 < in_count) < simd_ONE;
+				const Triangle* triangles[SIMD_WIDTH];
+                
+                float valid_triangle[SIMD_WIDTH];
+                vec3 v0s[SIMD_WIDTH];
+                vec3 v0v1s[SIMD_WIDTH];
+                vec3 v0v2s[SIMD_WIDTH];
+                for (int i = 0; i < SIMD_WIDTH; ++i)
+                {
+                    triangles[i] = (idx + i < in_count)? (in_triangles + idx + i) : &DummyTriangle;
+                    valid_triangle[i] = (idx + i < in_count);
+
+                    v0s[i] = triangles[i]->vertices[0];
+                    v0v1s[i] = triangles[i]->v0v1;
+                    v0v2s[i] = triangles[i]->v0v2;
+                }
+                const simd_float valid_condition = simd_float(valid_triangle) < simd_ONE;
 				
-				const simd_vec3 v0   = { triangles[0]->vertices[0], triangles[1]->vertices[0], triangles[2]->vertices[0], triangles[3]->vertices[0] };
-				const simd_vec3 v0v1 = { triangles[0]->v0v1,        triangles[1]->v0v1,        triangles[2]->v0v1,        triangles[3]->v0v1 };
-				const simd_vec3 v0v2 = { triangles[0]->v0v2,        triangles[1]->v0v2,        triangles[2]->v0v2,        triangles[3]->v0v2 };
+                const simd_vec3 v0(v0s);
+                const simd_vec3 v0v1(v0v1s);
+				const simd_vec3 v0v2(v0v2s);
 
 				simd_vec3 pvec = cross(ray_direction, v0v2);
 				
@@ -192,7 +201,7 @@ struct CpuTrace::CpuTraceDetails
 				simd_float simd_res = lerp(t, simd_MINUS_ONE, mask);
 					
 				float* res = simd_res.get_float();
-				for (int i = 0; i < 4; ++i)
+				for (int i = 0; i < SIMD_WIDTH; ++i)
 				{
 					if (res[i] > EPS && res[i] < intersection_data.t)
 					{
@@ -204,8 +213,8 @@ struct CpuTrace::CpuTraceDetails
 
 						intersection_data.t = res[i];
 						intersection_data.uv = vec2{ u[i], v[i] } * inv_det[i];
-						intersection_data.triangle_index = triangles[3 - i]->tri_idx;
-						intersection_data.object_index = triangles[3 - i]->mesh_idx;
+						intersection_data.triangle_index = triangles[SIMD_WIDTH - 1 - i]->tri_idx;
+						intersection_data.object_index = triangles[SIMD_WIDTH - 1 - i]->mesh_idx;
 
 						hit_triangle = true;
 					}
@@ -221,7 +230,7 @@ struct CpuTrace::CpuTraceDetails
 			const vec3 ray_direction = in_ray.GetDirection();
 			const vec3 ray_origin = in_ray.GetOrigin();
 
-			for (int idx = 0; idx < in_count; ++idx)
+			for (size_t idx = 0; idx < in_count; ++idx)
 			{
 				const Triangle* triangle = in_triangles + idx;
 

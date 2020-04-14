@@ -35,7 +35,7 @@ inline float fastrand(RandomCtx ctx)
 inline float fastrand(RandomCtx ctx)
 {
     ctx = (214013u * ctx + 2531011u);
-    return  x / (float)UINT32_MAX;
+    return  ctx / (float)UINT32_MAX;
 }
 
 #else
