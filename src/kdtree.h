@@ -157,7 +157,7 @@ Node* BuildTree(Tree<T>* tree, const vector<const T*>& objects, const BBox& box,
 }
 
 template <typename T, size_t STACK_SIZE>
-bool IntersectsWithTree(const Tree<T>* tree, const Ray& ray, HitData& inout_intersection, ObjectRayTesterFunction<T> ObjectTester)
+bool IntersectsWithTree(const Tree<T>* tree, const Ray& ray, HitData& inout_intersection, const ObjectRayTesterFunction<T>& ObjectTester)
 {
 	FixedSizeStack<const Node*, STACK_SIZE> to_be_tested;
 

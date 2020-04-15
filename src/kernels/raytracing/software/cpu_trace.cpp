@@ -213,8 +213,8 @@ struct CpuTrace::CpuTraceDetails
 
 						intersection_data.t = res[i];
 						intersection_data.uv = vec2{ u[i], v[i] } * inv_det[i];
-						intersection_data.triangle_index = triangles[SIMD_WIDTH - 1 - i]->tri_idx;
-						intersection_data.object_index = triangles[SIMD_WIDTH - 1 - i]->mesh_idx;
+						intersection_data.triangle_index = triangles[i]->tri_idx;
+						intersection_data.object_index = triangles[i]->mesh_idx;
 
 						hit_triangle = true;
 					}

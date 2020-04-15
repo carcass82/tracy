@@ -119,14 +119,24 @@ if(RENDER_MODULE STREQUAL "CPU (RayTracing)")
 	set(CPU_RAND_ALGORITHM "XorShift" CACHE STRING "Random Algorithm to use")
 	set_property(CACHE CPU_RAND_ALGORITHM PROPERTY STRINGS "Default" "XorShift" "Intel")
 	option(NO_OPENMP "Disable OpenMP in CPU Trace loop" OFF)
-	option(USE_SIMD "Use 4-way SIMD in triangle-ray test function" OFF)
+	
+	#option(USE_SIMD "Use SIMD in triangle-ray test function" OFF)
+	set(USE_SIMD "Off" CACHE STRING "Use SIMD in triangle-ray test function")
+	set_property(CACHE USE_SIMD PROPERTY STRINGS "Off" "SSE" "AVX" "Auto")
 
 	set(cpu_includes "./src/kernels/raytracing/software/cpu_trace.h")
 
-	if (USE_SIMD)
+	if (NOT USE_SIMD STREQUAL "Off")
 		add_definitions(-DUSE_SIMD=1)
 		list(APPEND cpu_includes "./src/kernels/raytracing/software/simdhelper.h")
 		source_group("kernel\\cpu\\include" FILES ${cpu_includes})
+
+		if (USE_SIMD STREQUAL "SSE")
+			add_definitions(-DSIMD_SSE=1)
+		elseif(USE_SIMD STREQUAL "AVX")
+			add_definitions(-DSIMD_AVX=1)
+		#TODO: Autodetect
+		endif()
 	endif()
 
 	source_group("kernel\\cpu\\include" FILES ${cpu_includes})
