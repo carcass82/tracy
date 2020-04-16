@@ -116,11 +116,10 @@ if(RENDER_MODULE STREQUAL "CPU (RayTracing)")
 
 	include_directories(./src/kernels/raytracing/software/)
 
-	set(CPU_RAND_ALGORITHM "XorShift" CACHE STRING "Random Algorithm to use")
+	set(CPU_RAND_ALGORITHM "Intel" CACHE STRING "Random Algorithm to use")
 	set_property(CACHE CPU_RAND_ALGORITHM PROPERTY STRINGS "Default" "XorShift" "Intel")
 	option(NO_OPENMP "Disable OpenMP in CPU Trace loop" OFF)
 	
-	#option(USE_SIMD "Use SIMD in triangle-ray test function" OFF)
 	set(USE_SIMD "Off" CACHE STRING "Use SIMD in triangle-ray test function")
 	set_property(CACHE USE_SIMD PROPERTY STRINGS "Off" "SSE" "AVX" "Auto")
 
@@ -184,9 +183,10 @@ elseif(RENDER_MODULE STREQUAL "CUDA (RayTracing)")
 	# deprecated but currently the only way to detect cuda arch
 	include(FindCUDA)
 	cuda_select_nvcc_arch_flags(CUDA_COMPUTE_ARCH_FLAGS ${CUDA_ARCH})
-	message(STATUS "CUDA architecture Compile Flags: ${CUDA_COMPUTE_ARCH_FLAGS}")
+	string (REPLACE ";" " " CUDA_COMPUTE_ARCH_FLAGS_STRING "${CUDA_COMPUTE_ARCH_FLAGS}")
+	message(STATUS "CUDA architecture Compile Flags: " ${CUDA_COMPUTE_ARCH_FLAGS_STRING})
 	
-	set(CMAKE_CUDA_FLAGS "-DCUDA_CALL=\"__host__ __device__\" -DCUDA_DEVICE_CALL=__device__ -D_FORCE_INLINES" ${CUDA_COMPUTE_ARCH_FLAGS})
+	set(CMAKE_CUDA_FLAGS "-DCUDA_CALL=\"__host__ __device__\" -DCUDA_DEVICE_CALL=__device__ -D_FORCE_INLINES ${CUDA_COMPUTE_ARCH_FLAGS_STRING}")
 	set(CMAKE_CUDA_FLAGS_DEBUG "-G -D_DEBUG")
 	set(CMAKE_CUDA_FLAGS_RELEASE "--use_fast_math -O2 -g -lineinfo -DNDEBUG")
 
