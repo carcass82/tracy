@@ -61,34 +61,31 @@ __device__ bool IntersectsWithMesh(const CUDAMesh& mesh, const Ray& in_ray, HitD
 
             // if the determinant is negative the triangle is backfacing
             // if the determinant is close to 0, the ray misses the triangle
-            if (det < 1.e-8f)
+            if (det > EPS)
             {
-                continue;
-            }
+                vec3 tvec = ray_origin - v0;
+                float u = dot(tvec, pvec);
+                if (u < EPS || u > det)
+                {
+                    continue;
+                }
 
-            float invDet = 1.f / det;
+                vec3 qvec = cross(tvec, v0v1);
+                float v = dot(ray_direction, qvec);
+                if (v < EPS || u + v > det)
+                {
+                    continue;
+                }
 
-            vec3 tvec = ray_origin - v0;
-            float u = dot(tvec, pvec) * invDet;
-            if (u < .0f || u > 1.f)
-            {
-                continue;
-            }
-
-            vec3 qvec = cross(tvec, v0v1);
-            float v = dot(ray_direction, qvec) * invDet;
-            if (v < .0f || u + v > 1.f)
-            {
-                continue;
-            }
-
-            float t = dot(v0v2, qvec) * invDet;
-            if (t < inout_intersection.t && t > 1.e-3f)
-            {
-                inout_intersection.t = dot(v0v2, qvec) * invDet;
-                inout_intersection.uv = vec2{ u, v };
-                inout_intersection.triangle_index = i * 3;
-                hit_triangle = true;
+                float invDet = rcp(det);
+                float t = dot(v0v2, qvec) * invDet;
+                if (t < inout_intersection.t && t > EPS)
+                {
+                    inout_intersection.t = t;
+                    inout_intersection.uv = vec2{ u, v } * invDet;
+                    inout_intersection.triangle_index = i * 3;
+                    hit_triangle = true;
+                }
             }
         }
     }

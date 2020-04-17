@@ -90,8 +90,7 @@ struct CpuTrace::CpuTraceDetails
 			vec3 tvec = ray_origin - v0;
 
 			float det = dot(v0v1, pvec);
-			float inv_det = rcp(det);
-
+			
 			// if the determinant is negative the triangle is backfacing
 			// if the determinant is close to 0, the ray misses the triangle
 			if (det > EPS)
@@ -110,6 +109,7 @@ struct CpuTrace::CpuTraceDetails
 					continue;
 				}
 
+				float inv_det = rcp(det);
 				float t = dot(v0v2, qvec) * inv_det;
 				if (t < inout_intersection.t && t > EPS)
 				{
@@ -241,7 +241,6 @@ struct CpuTrace::CpuTraceDetails
 				vec3 pvec = cross(ray_direction, v0v2);
 
 				float det = dot(v0v1, pvec);
-				float inv_det = rcp(det);
 
 				// if the determinant is negative the triangle is backfacing
 				// if the determinant is close to 0, the ray misses the triangle
@@ -261,6 +260,7 @@ struct CpuTrace::CpuTraceDetails
 						continue;
 					}
 
+					float inv_det = rcp(det);
 					float t = dot(v0v2, qvec) * inv_det;
 					if (t > EPS && t < intersection_data.t)
 					{

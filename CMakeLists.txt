@@ -184,7 +184,7 @@ elseif(RENDER_MODULE STREQUAL "CUDA (RayTracing)")
 	include(FindCUDA)
 	cuda_select_nvcc_arch_flags(CUDA_COMPUTE_ARCH_FLAGS ${CUDA_ARCH})
 	string (REPLACE ";" " " CUDA_COMPUTE_ARCH_FLAGS_STRING "${CUDA_COMPUTE_ARCH_FLAGS}")
-	message(STATUS "CUDA architecture Compile Flags: " ${CUDA_COMPUTE_ARCH_FLAGS_STRING})
+	message(STATUS "CUDA architecture Compile Flags: ${CUDA_COMPUTE_ARCH_FLAGS_STRING}")
 	
 	set(CMAKE_CUDA_FLAGS "-DCUDA_CALL=\"__host__ __device__\" -DCUDA_DEVICE_CALL=__device__ -D_FORCE_INLINES ${CUDA_COMPUTE_ARCH_FLAGS_STRING}")
 	set(CMAKE_CUDA_FLAGS_DEBUG "-G -D_DEBUG")
