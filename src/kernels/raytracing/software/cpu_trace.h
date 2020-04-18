@@ -42,7 +42,6 @@ private:
 	Handle win_handle_{};
 	int win_width_{};
 	int win_height_{};
-	int frame_counter_{};
 	int raycount_{};
 
 	const Scene* scene_{};

@@ -32,4 +32,17 @@ struct CUDAScene
 
     int h_raycount;
     int* d_raycount;
+
+    
+    int GetRayCount()
+    {
+        CUDAAssert(cudaMemcpy(&h_raycount, d_raycount, sizeof(int), cudaMemcpyDeviceToHost));
+        return h_raycount;
+    }
+    
+    void ResetRayCount()
+    {
+        CUDAAssert(cudaMemset(d_raycount, 0, sizeof(int)));
+        h_raycount = 0;
+    }
 };

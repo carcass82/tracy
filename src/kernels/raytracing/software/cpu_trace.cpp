@@ -496,7 +496,7 @@ void CpuTrace::Initialize(Handle in_window, int in_width, int in_height, const S
 void CpuTrace::UpdateScene()
 {
 	// copy last frame result to bitmap for displaying
-	#pragma omp parallel for
+	#pragma omp parallel for collapse(2)
 	for (int j = 0; j < win_height_; ++j)
 	{
 		for (int i = 0; i < win_width_; ++i)
@@ -573,20 +573,10 @@ vec3 CpuTrace::Trace(const Ray& ray, uint32_t random_ctx)
 
 void CpuTrace::RenderScene()
 {
-	if (camera_->IsDirty())
-	{
-		frame_counter_ = 0;
-		camera_->SetDirty(false);
-	}
+	float frame_counter = (float)camera_->BeginFrame();
+	float blend_factor = frame_counter / float(frame_counter + 1);
 
-	float blend_factor = frame_counter_ / float(frame_counter_ + 1);
-
-#if defined(_MSC_VER) && _MSC_VER < 1920
- // pre-vs2019 ms compiler does not support openmp "collapse" clause
- #define collapse(x) 
-#endif
-
-	#pragma omp parallel for collapse(2) schedule(dynamic)
+	#pragma omp parallel for collapse(2) schedule(dynamic, 2)
 	for (int j = 0; j < win_height_; ++j)
 	{
 		for (int i = 0; i < win_width_; ++i)
@@ -604,8 +594,7 @@ void CpuTrace::RenderScene()
 			*pixel = lerp(traced_color, current_color, blend_factor);
 		}
 	}
-
-	++frame_counter_;
+	camera_->EndFrame();
 }
 
 void CpuTrace::OnPaint()

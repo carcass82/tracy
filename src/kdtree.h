@@ -91,8 +91,8 @@ Node* BuildTree(Tree<T>* tree, const vector<const T*>& objects, const BBox& box,
 
 		for (int i = 1; i < 10; ++i)
 		{
-			right.clear();
-			left.clear();
+			int right_count = 0;
+			int left_count = 0;
 
 			vec3 split_right = ((box.maxbound - box.minbound) / 10.f * (float)i) + EPS;
 			vec3 split_left = ((box.maxbound - box.minbound) / 10.f * (float)(10 - i)) + EPS;
@@ -107,15 +107,15 @@ Node* BuildTree(Tree<T>* tree, const vector<const T*>& objects, const BBox& box,
 			{
 				if (ObjectBoxTester(*object, right_bbox))
 				{
-					right.push_back(object);
+					++right_count;
 				}
 				if (ObjectBoxTester(*object, left_bbox))
 				{
-					left.push_back(object);
+					++left_count;
 				}
 			}
 
-			float cost = (i / 10.f) * right.size() + ((10 - i) / 10.f) * left.size();
+			float cost = (i / 10.f) * right_count + ((10 - i) / 10.f) * left_count;
 			if (cost < split_cost)
 			{
 				axis_candidate = axis;

@@ -41,14 +41,12 @@ CUDATrace::~CUDATrace()
 
 int CUDATrace::GetRayCount() const
 {
-    CUDAAssert(cudaMemcpy(&details_->scene_.h_raycount, details_->scene_.d_raycount, sizeof(int), cudaMemcpyDeviceToHost));
-    return details_->scene_.h_raycount;
+    return details_->scene_.GetRayCount();
 }
 
 void CUDATrace::ResetRayCount()
 {
-    CUDAAssert(cudaMemset(details_->scene_.d_raycount, 0, sizeof(int)));
-    details_->scene_.h_raycount = 0;
+    details_->scene_.ResetRayCount();
 }
 
 void CUDATrace::Initialize(Handle in_window, int in_width, int in_height, const Scene& in_scene)
@@ -123,14 +121,14 @@ void CUDATrace::Initialize(Handle in_window, int in_width, int in_height, const 
 
 void CUDATrace::UpdateScene()
 {
-    if (camera_ && camera_->IsDirty())
+    if (camera_->IsDirty())
     {
-        frame_counter_ = 0;
-        camera_->SetDirty(false);
-
         CUDAAssert(cudaMemcpy(details_->scene_.d_camera_, camera_, sizeof(Camera), cudaMemcpyHostToDevice));
     }
-    cuda_trace(&details_->scene_, frame_counter_++);
+
+    int frame_counter = (int)camera_->BeginFrame();
+    cuda_trace(&details_->scene_, frame_counter);
+    camera_->EndFrame();
 
     cudaArray* texture_ptr;
     CUDAAssert(cudaGraphicsMapResources(1, &details_->mapped_texture, 0));

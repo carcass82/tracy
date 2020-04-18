@@ -242,7 +242,6 @@ void TracyProcessInputs(Scene& scene, Input& input, Handle window_handle, double
 			input.ResetKeyStatus(Input::KeyGroup::Movement);
 
 			camera.UpdateView(new_cam_pos, camera.GetTarget(), cam_up);
-			camera.SetDirty(true);
 		}
 
 		static bool mousemoving = false;
@@ -270,7 +269,6 @@ void TracyProcessInputs(Scene& scene, Input& input, Handle window_handle, double
 			rotation = rotate(rotation, radians(delta.y), cam_right);
 
 			camera.UpdateView((vec4(cam_pos, 1.f) * rotation).xyz, camera.GetTarget(), cam_up);
-			camera.SetDirty(true);
 		}
 		else
 		{
