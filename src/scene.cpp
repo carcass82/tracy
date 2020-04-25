@@ -113,11 +113,7 @@ Mesh& Scene::AddSphere(const vec3& in_center, float in_radius, int steps /* = 32
 		v.normal = normalize(v.normal);
 	}
 
-	m.ComputeBoundingBox();
-	m.ComputeTangentsAndBitangents();
-
-	objects_.push_back(m);
-	return objects_.back();
+	return objects_.emplace_back(m.ComputeBoundingBox().ComputeTangentsAndBitangents());
 }
 
 Mesh& Scene::AddBox(const vec3& bottom, const vec3& top)
@@ -201,11 +197,7 @@ Mesh& Scene::AddBox(const vec3& bottom, const vec3& top)
 	m.vertices_.emplace_back(vertices[0], normals[5], vec2{}, vec3{}, vec3{}); // 23
 	m.indices_.push_back(15); m.indices_.push_back(23); m.indices_.push_back(16);
 
-	m.ComputeBoundingBox();
-	m.ComputeTangentsAndBitangents();
-
-	objects_.push_back(m);
-	return objects_.back();
+	return objects_.emplace_back(m.ComputeBoundingBox().ComputeTangentsAndBitangents());
 }
 
 Mesh& Scene::AddTriangle(const vec3& v1, const vec3& v2, const vec3& v3)
@@ -217,27 +209,19 @@ Mesh& Scene::AddTriangle(const vec3& v1, const vec3& v2, const vec3& v3)
 	m.vertices_.emplace_back(v3, vec3{}, vec2{}, vec3{}, vec3{});
 	m.indices_.emplace_back(0); m.indices_.emplace_back(1); m.indices_.emplace_back(2);
 
-	m.ComputeBoundingBox();
-	m.ComputeNormals();
-	m.ComputeTangentsAndBitangents();
-
-	objects_.push_back(m);
-	return objects_.back();
+	return objects_.emplace_back(m.ComputeBoundingBox().ComputeNormals().ComputeTangentsAndBitangents());
 }
 
 Mesh& Scene::AddMesh(const Mesh& mesh, bool compute_normals /* = false */)
 {
 	Mesh m{ mesh };
 
-	m.ComputeBoundingBox();
 	if (compute_normals)
 	{
 		m.ComputeNormals();
 	}
-	m.ComputeTangentsAndBitangents();
 
-	objects_.push_back(m);
-	return objects_.back();
+	return objects_.emplace_back(m.ComputeBoundingBox().ComputeTangentsAndBitangents());
 }
 
 bool Scene::Init(const char* scene_path, int& inout_width, int& inout_height)

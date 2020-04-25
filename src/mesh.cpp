@@ -7,7 +7,7 @@
 #include "mesh.h"
 #include <cfloat>
 
-void Mesh::ComputeNormals()
+Mesh& Mesh::ComputeNormals()
 {
 	for (int i = 0; i < static_cast<int>(indices_.size()); i += 3)
 	{
@@ -18,9 +18,11 @@ void Mesh::ComputeNormals()
 		vec3 normal = normalize(cross(v2.pos - v1.pos, v3.pos - v1.pos));
 		v1.normal = v2.normal = v3.normal = normal;
 	}
+
+	return *this;
 }
 
-void Mesh::ComputeTangentsAndBitangents()
+Mesh& Mesh::ComputeTangentsAndBitangents()
 {
 	// Lengyel, Eric. "Computing Tangent Space Basis Vectors for an Arbitrary Mesh"
 	// http://www.terathon.com/code/tangent.html
@@ -56,9 +58,11 @@ void Mesh::ComputeTangentsAndBitangents()
 		float sign = (dot(cross(v.normal, v.tangent), v.bitangent) < 0.0f) ? -1.0f : 1.0f;
 		v.bitangent = sign * cross(v.normal, v.tangent);
 	}
+
+	return *this;
 }
 
-void Mesh::ComputeBoundingBox()
+Mesh& Mesh::ComputeBoundingBox()
 {
 	vec3 vmin(FLT_MAX);
 	vec3 vmax(-FLT_MAX);
@@ -71,4 +75,6 @@ void Mesh::ComputeBoundingBox()
 	center_ = { (vmax + vmin) / 2.f };
 	size_ = { vmax - vmin };
 	aabb_ = { vmin, vmax };
+
+	return *this;
 }

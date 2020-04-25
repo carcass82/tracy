@@ -19,6 +19,11 @@
  #include "simdhelper.h"
 #endif
 
+#if defined(_MSC_VER) && _MSC_VER < 1920
+ // pre-vs2019 ms compiler does not support openmp "collapse" clause
+ #define collapse(x) 
+#endif
+
 namespace
 {
 	vec3 sqrtf3(const vec3& a)
@@ -32,31 +37,53 @@ namespace
 	}
 
 #if USE_KDTREE
-	struct alignas(64) Triangle
+	struct Triangle
 	{
-		explicit Triangle()
-			: mesh_idx(UINT16_MAX)
-			, tri_idx(UINT16_MAX)
-		{
-		}
-
 		Triangle(const vec3& v0, const vec3& v1, const vec3& v2, uint16_t in_mesh_idx, uint16_t in_tri_idx)
 			: vertices{ v0, v1, v2 }
-			, v0v1{ v1 - v0 }
-			, v0v2{ v2 - v0 }
 			, mesh_idx{ in_mesh_idx }
 			, tri_idx{ in_tri_idx }
 		{}
 
 		vec3 vertices[3];  // 36
-		vec3 v0v1;         // 48
-		vec3 v0v2;         // 60
-
-		uint16_t mesh_idx; // 62
-		uint16_t tri_idx;  // 64
+		uint16_t mesh_idx; // 38
+		uint16_t tri_idx;  // 40
 	};
 
-	static Triangle DummyTriangle;
+	struct OptimizedTriangle
+	{
+		explicit OptimizedTriangle()
+			: mesh_idx(UINT16_MAX)
+			, tri_idx(UINT16_MAX)
+		{
+		}
+
+		OptimizedTriangle(const Triangle& triangle)
+			: v0{ triangle.vertices[0] }
+			, v0v1{ triangle.vertices[1] - triangle.vertices[0] }
+			, v0v2{ triangle.vertices[2] - triangle.vertices[0] }
+			, mesh_idx{ triangle.mesh_idx }
+			, tri_idx{ triangle.tri_idx }
+		{}
+
+		vec3 v0;           // 12
+		vec3 v0v1;         // 24
+		vec3 v0v2;         // 36
+		uint16_t mesh_idx; // 38
+		uint16_t tri_idx;  // 40
+	};
+
+	struct OptimizedTriangleSOA
+	{
+		vec3* v0;
+		vec3* v0v1;
+		vec3* v0v2;
+		uint16_t* mesh_idx;
+		uint16_t* tri_idx;
+
+		// super hackish and bad on so many levels
+		OptimizedTriangleSOA& operator[](size_t i) const { return *const_cast<OptimizedTriangleSOA*>(this); }
+	};
 #endif
 }
 
@@ -142,7 +169,7 @@ struct CpuTrace::CpuTraceDetails
 
 #if USE_KDTREE
 
-		auto TriangleRayTester = [](const Triangle* in_triangles, const size_t in_count, const Ray& in_ray, HitData& intersection_data)
+		auto TriangleRayTester = [](const auto* in_triangles, const unsigned in_first, const unsigned in_last, const Ray& in_ray, HitData& intersection_data)
 		{
 
 #if USE_SIMD
@@ -154,28 +181,40 @@ struct CpuTrace::CpuTraceDetails
 			static const simd_float simd_EPS(EPS);
 			simd_float simd_nearest_t(intersection_data.t);
 
-			for (size_t idx = 0; idx < in_count; idx += SIMD_WIDTH)
+			for (size_t idx = in_first; idx < in_last; idx += SIMD_WIDTH)
 			{
-				const Triangle* triangles[SIMD_WIDTH];
-                
-                float valid_triangle[SIMD_WIDTH];
+#if USE_AOS
+				float valid_triangle[SIMD_WIDTH];
                 vec3 v0s[SIMD_WIDTH];
                 vec3 v0v1s[SIMD_WIDTH];
                 vec3 v0v2s[SIMD_WIDTH];
                 for (int i = 0; i < SIMD_WIDTH; ++i)
                 {
-                    triangles[i] = (idx + i < in_count)? (in_triangles + idx + i) : &DummyTriangle;
-                    valid_triangle[i] = (idx + i < in_count);
+                    valid_triangle[i] = (idx + i < in_last);
+					if (!(idx + i < in_last))
+					{
+						continue;
+					}
 
-                    v0s[i] = triangles[i]->vertices[0];
-                    v0v1s[i] = triangles[i]->v0v1;
-                    v0v2s[i] = triangles[i]->v0v2;
+                    v0s[i] = in_triangles[idx + i].v0;
+                    v0v1s[i] = in_triangles[idx + i].v0v1;
+                    v0v2s[i] = in_triangles[idx + i].v0v2;
                 }
-                const simd_float valid_condition = simd_float(valid_triangle) < simd_ONE;
-				
-                const simd_vec3 v0(v0s);
-                const simd_vec3 v0v1(v0v1s);
+#else
+				float valid_triangle[SIMD_WIDTH];
+				for (int i = 0; i < SIMD_WIDTH; ++i)
+				{
+					valid_triangle[i] = (idx + i < in_last);
+				}
+
+				vec3 *v0s = in_triangles->v0 + idx;
+				vec3 *v0v1s = in_triangles->v0v1 + idx;
+				vec3 *v0v2s = in_triangles->v0v2 + idx;
+#endif
+				const simd_vec3 v0(v0s);
+				const simd_vec3 v0v1(v0v1s);
 				const simd_vec3 v0v2(v0v2s);
+				const simd_float valid_condition = simd_float(valid_triangle) < simd_ONE;
 
 				simd_vec3 pvec = cross(ray_direction, v0v2);
 				
@@ -213,9 +252,13 @@ struct CpuTrace::CpuTraceDetails
 
 						intersection_data.t = res[i];
 						intersection_data.uv = vec2{ u[i], v[i] } * inv_det[i];
-						intersection_data.triangle_index = triangles[i]->tri_idx;
-						intersection_data.object_index = triangles[i]->mesh_idx;
-
+#if USE_AOS
+						intersection_data.triangle_index = in_triangles[idx + i].tri_idx;
+						intersection_data.object_index = in_triangles[idx + i].mesh_idx;
+#else
+						intersection_data.triangle_index = in_triangles->tri_idx[idx + i];
+						intersection_data.object_index = in_triangles->mesh_idx[idx + i];
+#endif
 						hit_triangle = true;
 					}
 				}
@@ -230,13 +273,17 @@ struct CpuTrace::CpuTraceDetails
 			const vec3 ray_direction = in_ray.GetDirection();
 			const vec3 ray_origin = in_ray.GetOrigin();
 
-			for (size_t idx = 0; idx < in_count; ++idx)
+			for (size_t idx = in_first; idx < in_last; ++idx)
 			{
-				const Triangle* triangle = in_triangles + idx;
-
-				const vec3 v0   = triangle->vertices[0];
-				const vec3 v0v1 = triangle->v0v1;
-				const vec3 v0v2 = triangle->v0v2;
+#if USE_AOS
+				const vec3 v0   = in_triangles[idx].v0;
+				const vec3 v0v1 = in_triangles[idx].v0v1;
+				const vec3 v0v2 = in_triangles[idx].v0v2;
+#else
+				const vec3 v0 = in_triangles->v0[idx];
+				const vec3 v0v1 = in_triangles->v0v1[idx];
+				const vec3 v0v2 = in_triangles->v0v2[idx];
+#endif
 
 				vec3 pvec = cross(ray_direction, v0v2);
 
@@ -266,8 +313,13 @@ struct CpuTrace::CpuTraceDetails
 					{
 						intersection_data.t = t;
 						intersection_data.uv = vec2{ u, v } * inv_det;
-						intersection_data.triangle_index = triangle->tri_idx;
-						intersection_data.object_index = triangle->mesh_idx;
+#if USE_AOS
+						intersection_data.triangle_index = in_triangles[idx].tri_idx;
+						intersection_data.object_index = in_triangles[idx].mesh_idx;
+#else
+						intersection_data.triangle_index = in_triangles->tri_idx[idx];
+						intersection_data.object_index = in_triangles->mesh_idx[idx];
+#endif
 						hit_triangle = true;
 					}
 				}
@@ -288,7 +340,11 @@ struct CpuTrace::CpuTraceDetails
 			if (IntersectsWithBoundingBox(mesh.GetAABB(), ray, intersection_data.t))
 			{
 #if USE_KDTREE
-				if (accel::IntersectsWithTree<Triangle, TREE_DEPTH + 1>(&SceneTree, ray, intersection_data, TriangleRayTester))
+#if USE_AOS
+				if (accel::IntersectsWithTree<accel::Tree<OptimizedTriangle>, OptimizedTriangle, TREE_DEPTH + 1>(&SceneTree, ray, intersection_data, TriangleRayTester))
+#else
+				if (accel::IntersectsWithTree<accel::OptimizedTree<OptimizedTriangleSOA>, OptimizedTriangleSOA, TREE_DEPTH + 1>(&SceneTree, ray, intersection_data, TriangleRayTester))
+#endif
 				{
 					hit_any_mesh = true;
 					FillTriangleIntersectionData(scene.GetObject(intersection_data.object_index), ray, intersection_data);
@@ -419,11 +475,47 @@ struct CpuTrace::CpuTraceDetails
 			return true;
 		};
 
+		auto TriangleToCompactTriangle = [](const Triangle& FullTriangle)
+		{
+			return OptimizedTriangle(FullTriangle);
+		};
+
+		auto VectorToSOA = [](OptimizedTriangleSOA& trianglelist, const vector<OptimizedTriangle>& triangles)
+		{
+			trianglelist.v0 = new vec3[triangles.size()];
+			trianglelist.v0v1 = new vec3[triangles.size()];
+			trianglelist.v0v2 = new vec3[triangles.size()];
+			trianglelist.mesh_idx = new uint16_t[triangles.size()];
+			trianglelist.tri_idx = new uint16_t[triangles.size()];
+
+			for (vector<OptimizedTriangle>::size_type i = 0; i < triangles.size(); ++i)
+			{
+				trianglelist.v0[i] = triangles[i].v0;
+				trianglelist.v0v1[i] = triangles[i].v0v1;
+				trianglelist.v0v2[i] = triangles[i].v0v2;
+				trianglelist.mesh_idx[i] = triangles[i].mesh_idx;
+				trianglelist.tri_idx[i] = triangles[i].tri_idx;
+			}
+		};
+
+#if USE_AOS
 		SceneTree.elems.reserve(trimesh.size());
-		SceneTree.root = accel::BuildTree<Triangle, TREE_LEAF_ELEMS, TREE_DEPTH>(&SceneTree, trimesh, root, TriangleAABBTester);
+		SceneTree.root = accel::BuildTree<Triangle, OptimizedTriangle, TREE_LEAF_ELEMS, TREE_DEPTH>(&SceneTree, trimesh, root, TriangleAABBTester, TriangleToCompactTriangle);
+#else
+		accel::Tree<OptimizedTriangle> Scene;
+		Scene.elems.reserve(trimesh.size());
+		Scene.root = accel::BuildTree<Triangle, OptimizedTriangle, TREE_LEAF_ELEMS, TREE_DEPTH>(&Scene, trimesh, root, TriangleAABBTester, TriangleToCompactTriangle);	
+		SceneTree.root = Scene.root;
+		VectorToSOA(SceneTree.elems, Scene.elems);
+#endif
 	}
 
-	accel::Tree<Triangle> SceneTree;
+#if USE_AOS
+	accel::Tree<OptimizedTriangle> SceneTree;
+#else
+	accel::OptimizedTree<OptimizedTriangleSOA> SceneTree;
+#endif
+
 #else
 	}
 #endif
@@ -581,7 +673,7 @@ void CpuTrace::RenderScene()
 	{
 		for (int i = 0; i < win_width_; ++i)
 		{
-			static uint32_t random_ctx = 0x12345678;
+			static uint32_t random_ctx = 0x12345;
 			
 			float u = (i + fastrand(random_ctx)) / float(win_width_);
 			float v = (j + fastrand(random_ctx)) / float(win_height_);

@@ -419,8 +419,11 @@ int main(int argc, char** argv)
 			g_kernel.Shutdown();
 			TracyDestroyWindow(win_handle);
 
-			run_timer.End();
-			TracyLog("\n*** Performance: %.2f MRays/s on average (min: %.2f, max: %.2f) - Run time: %s ***\n\n", avg_raycount * 1e-6f, min_raycount * 1e-6f, max_raycount * 1e-6f, TracySecondsToString(run_timer.GetDuration()));
+			if (avg_raycount > 0)
+			{
+				run_timer.End();
+				TracyLog("\n*** Performance: %.2f MRays/s on average (min: %.2f, max: %.2f) - Run time: %s ***\n\n", avg_raycount * 1e-6f, min_raycount * 1e-6f, max_raycount * 1e-6f, TracySecondsToString(run_timer.GetDuration()));
+			}
 		}
 		else
 		{

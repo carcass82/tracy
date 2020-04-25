@@ -116,12 +116,15 @@ if(RENDER_MODULE STREQUAL "CPU (RayTracing)")
 
 	include_directories(./src/kernels/raytracing/software/)
 
-	set(CPU_RAND_ALGORITHM "Intel" CACHE STRING "Random Algorithm to use")
-	set_property(CACHE CPU_RAND_ALGORITHM PROPERTY STRINGS "Default" "XorShift" "Intel")
+	set(CPU_RAND_ALGORITHM "LCG" CACHE STRING "Random Algorithm to use")
+	set_property(CACHE CPU_RAND_ALGORITHM PROPERTY STRINGS "rand()" "XorShift" "LCG")
 	option(NO_OPENMP "Disable OpenMP in CPU Trace loop" OFF)
 	
 	set(USE_SIMD "Off" CACHE STRING "Use SIMD in triangle-ray test function")
-	set_property(CACHE USE_SIMD PROPERTY STRINGS "Off" "SSE" "AVX" "Auto")
+	set_property(CACHE USE_SIMD PROPERTY STRINGS "Off" "SSE" "AVX")
+
+	set(DATA_LAYOUT "SoA" CACHE STRING "Layout Triangle Data as SoA (Structure of Arrays) or AoS (Array of Structures)")
+	set_property(CACHE DATA_LAYOUT PROPERTY STRINGS "SoA" "AoS")
 
 	set(cpu_includes "./src/kernels/raytracing/software/cpu_trace.h")
 
@@ -138,6 +141,10 @@ if(RENDER_MODULE STREQUAL "CPU (RayTracing)")
 		endif()
 	endif()
 
+	if (DATA_LAYOUT STREQUAL "AoS")
+		add_definitions(-DAOS=1)
+	endif()
+
 	source_group("kernel\\cpu\\include" FILES ${cpu_includes})
 	list(APPEND tracy_includes ${cpu_includes})
 
@@ -147,8 +154,8 @@ if(RENDER_MODULE STREQUAL "CPU (RayTracing)")
 	
 	if(CPU_RAND_ALGORITHM STREQUAL "XorShift")
 		add_definitions(-DRANDOM_XORSHIFT=1)
-	elseif(CPU_RAND_ALGORITHM STREQUAL "Intel")
-		add_definitions(-DRANDOM_INTEL=1)
+	elseif(CPU_RAND_ALGORITHM STREQUAL "LCG")
+		add_definitions(-DRANDOM_LCG=1)
 	endif()
 
 	

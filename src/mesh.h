@@ -27,11 +27,11 @@ public:
 		, material_(in_material)
 	{}
 
-	void ComputeNormals();
+	Mesh& ComputeNormals();
 
-	void ComputeTangentsAndBitangents();
+	Mesh& ComputeTangentsAndBitangents();
 
-	void ComputeBoundingBox();
+	Mesh& ComputeBoundingBox();
 
 	int GetVertexCount() const                    { return static_cast<int>(vertices_.size()); }
 

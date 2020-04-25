@@ -26,15 +26,16 @@ inline float fastrand(RandomCtx ctx)
     return x / (float)UINT32_MAX;
 }
 
-#elif RANDOM_INTEL
+#elif RANDOM_LCG
 
 //
 // PRNG from
 // https://software.intel.com/en-us/articles/fast-random-number-generator-on-the-intel-pentiumr-4-processor/
+// with constant values from glibc (according to https://en.wikipedia.org/wiki/Linear_congruential_generator#Parameters_in_common_use)
 //
 inline float fastrand(RandomCtx ctx)
 {
-    ctx = (214013u * ctx + 2531011u);
+    ctx = (1103515245u * ctx + 12345u);
     return  ctx / (float)UINT32_MAX;
 }
 

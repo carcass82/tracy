@@ -88,7 +88,7 @@ CUDA_DEVICE_CALL bool Material::Scatter(const Ray& ray, const HitData& hit, vec3
         float reflect_chance = (refracted != vec3{}) ? schlick(cosine, ior_) : 1.0f;
 
         out_scattered = Ray(hit.point, (fastrand(random_ctx) < reflect_chance) ? reflected : refracted);
-        out_attenuation = vec3{ 1.f, 1.f, 1.f };
+        out_attenuation = albedo_;
         out_emission = vec3{};
 
         return true;
