@@ -10,28 +10,13 @@
 
 #define CUDALog(msg, ...) TracyLog(msg, __VA_ARGS__)
 #define CUDAAssert(val)   cuda::ensure((val), __FILE__, __LINE__)
-#define CUDACheck(val)    cuda::check((val), #val, __FILE__, __LINE__)
 
 namespace cuda
 {
 //
 // from helper_cuda.h
 // NVidia CUDA samples
-// 
-template <typename T>
-inline void check(T result, const char* func, const char* file, int line)
-{
-    if (result)
-    {
-        cudaError_t cuda_error = cudaGetLastError();
-
-        CUDALog("[CUDA Error] at %s:%d code=%d (%s) \"%s\" \n", file, line, static_cast<unsigned int>(result), cudaGetErrorName(cuda_error), func);
-        cudaDeviceReset();
-        exit(EXIT_FAILURE);
-    }
-}
-
-
+//
 inline void ensure(cudaError_t val, const char* file, int line)
 {
     if (val != cudaSuccess)

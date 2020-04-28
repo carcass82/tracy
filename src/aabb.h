@@ -44,8 +44,11 @@ struct BBox
 //
 CUDA_DEVICE_CALL inline bool IntersectsWithBoundingBox(const BBox& box, const Ray& ray, float nearest_intersection = FLT_MAX)
 {
-    const vec3 minbound = (box.minbound - ray.GetOrigin()) * ray.GetInvDirection();
-    const vec3 maxbound = (box.maxbound - ray.GetOrigin()) * ray.GetInvDirection();
+    vec3 ray_origin = ray.GetOrigin();
+    vec3 ray_inv_dir = ray.GetDirectionInverse();
+
+    const vec3 minbound = (box.minbound - ray_origin) * ray_inv_dir;
+    const vec3 maxbound = (box.maxbound - ray_origin) * ray_inv_dir;
 
     const vec3 tmin1 = pmin(minbound, maxbound);
     const vec3 tmax1 = pmax(minbound, maxbound);

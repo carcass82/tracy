@@ -36,20 +36,24 @@ if(DEBUG_SHOW_NORMALS)
 	add_definitions(-DDEBUG_SHOW_NORMALS)
 endif()
 
-option(USE_ACCEL_STRUCTURE "Use KDTree to speed up tracing" ON)
-if(USE_ACCEL_STRUCTURE)
+option(TRACY_ACCELERATION_STRUCTURE "Use KDTree to speed up tracing" ON)
+if(TRACY_ACCELERATION_STRUCTURE)
 	add_definitions(-DUSE_KDTREE)
 endif()
 
+option(DEBUG_FORCE_CONSOLE "Force launch with debug console" OFF)
+if(DEBUG_FORCE_CONSOLE)
+	add_definitions(-DFORCE_CONSOLE)
+endif()
 
 
 ###############################################################################
 # Math library selection                                                      #
 ###############################################################################
-set(MATH_LIBRARY "cclib" CACHE STRING "Math Library")
-set_property(CACHE MATH_LIBRARY PROPERTY STRINGS cclib glm)
+set(TRACY_MATH_LIBRARY "cclib" CACHE STRING "Math Library")
+set_property(CACHE TRACY_MATH_LIBRARY PROPERTY STRINGS cclib glm)
 
-if(MATH_LIBRARY STREQUAL "glm")
+if(TRACY_MATH_LIBRARY STREQUAL "glm")
 	add_definitions(-DUSE_GLM)
 else()
 	add_definitions(-DUSE_CCLIB)
@@ -107,10 +111,10 @@ list(APPEND tracy_includes ${main_includes})
 ###############################################################################
 # Kernel selection                                                            #
 ###############################################################################
-set(RENDER_MODULE "CPU (RayTracing)" CACHE STRING "Render Module")
-set_property(CACHE RENDER_MODULE PROPERTY STRINGS "CPU (RayTracing)" "CUDA (RayTracing)" "OpenGL (Raster)")
+set(TRACY_RENDER_MODULE "CPU (RayTracing)" CACHE STRING "Render Module")
+set_property(CACHE TRACY_RENDER_MODULE PROPERTY STRINGS "CPU (RayTracing)" "CUDA (RayTracing)" "OpenGL (Raster)")
 
-if(RENDER_MODULE STREQUAL "CPU (RayTracing)")
+if(TRACY_RENDER_MODULE STREQUAL "CPU (RayTracing)")
 
 	add_definitions(-DCPU_KERNEL=1)
 
@@ -118,30 +122,31 @@ if(RENDER_MODULE STREQUAL "CPU (RayTracing)")
 
 	set(CPU_RAND_ALGORITHM "LCG" CACHE STRING "Random Algorithm to use")
 	set_property(CACHE CPU_RAND_ALGORITHM PROPERTY STRINGS "rand()" "XorShift" "LCG")
-	option(NO_OPENMP "Disable OpenMP in CPU Trace loop" OFF)
 	
-	set(USE_SIMD "Off" CACHE STRING "Use SIMD in triangle-ray test function")
-	set_property(CACHE USE_SIMD PROPERTY STRINGS "Off" "SSE" "AVX")
+	option(CPU_NO_OPENMP "Disable OpenMP in CPU Trace loop" OFF)
+	
+	set(CPU_USE_SIMD "Off" CACHE STRING "Use SIMD in triangle-ray test function")
+	set_property(CACHE CPU_USE_SIMD PROPERTY STRINGS "Off" "SSE" "AVX")
 
-	set(DATA_LAYOUT "SoA" CACHE STRING "Layout Triangle Data as SoA (Structure of Arrays) or AoS (Array of Structures)")
-	set_property(CACHE DATA_LAYOUT PROPERTY STRINGS "SoA" "AoS")
+	set(CPU_DATA_LAYOUT "SoA" CACHE STRING "Layout Triangle Data as SoA (Structure of Arrays) or AoS (Array of Structures)")
+	set_property(CACHE CPU_DATA_LAYOUT PROPERTY STRINGS "SoA" "AoS")
 
 	set(cpu_includes "./src/kernels/raytracing/software/cpu_trace.h")
 
-	if (NOT USE_SIMD STREQUAL "Off")
+	if (NOT CPU_USE_SIMD STREQUAL "Off")
 		add_definitions(-DUSE_SIMD=1)
 		list(APPEND cpu_includes "./src/kernels/raytracing/software/simdhelper.h")
 		source_group("kernel\\cpu\\include" FILES ${cpu_includes})
 
-		if (USE_SIMD STREQUAL "SSE")
+		if (CPU_USE_SIMD STREQUAL "SSE")
 			add_definitions(-DSIMD_SSE=1)
-		elseif(USE_SIMD STREQUAL "AVX")
+		elseif(CPU_USE_SIMD STREQUAL "AVX")
 			add_definitions(-DSIMD_AVX=1)
 		#TODO: Autodetect
 		endif()
 	endif()
 
-	if (DATA_LAYOUT STREQUAL "AoS")
+	if (CPU_DATA_LAYOUT STREQUAL "AoS")
 		add_definitions(-DAOS=1)
 	endif()
 
@@ -160,7 +165,7 @@ if(RENDER_MODULE STREQUAL "CPU (RayTracing)")
 
 	
 
-elseif(RENDER_MODULE STREQUAL "CUDA (RayTracing)")
+elseif(TRACY_RENDER_MODULE STREQUAL "CUDA (RayTracing)")
 
 	add_definitions(-DCUDA_KERNEL=1)
 	add_definitions(-DRANDOM_CUDA=1)
@@ -193,7 +198,7 @@ elseif(RENDER_MODULE STREQUAL "CUDA (RayTracing)")
 	string (REPLACE ";" " " CUDA_COMPUTE_ARCH_FLAGS_STRING "${CUDA_COMPUTE_ARCH_FLAGS}")
 	message(STATUS "CUDA architecture Compile Flags: ${CUDA_COMPUTE_ARCH_FLAGS_STRING}")
 	
-	set(CMAKE_CUDA_FLAGS "-DCUDA_CALL=\"__host__ __device__\" -DCUDA_DEVICE_CALL=__device__ -D_FORCE_INLINES ${CUDA_COMPUTE_ARCH_FLAGS_STRING}")
+	set(CMAKE_CUDA_FLAGS "--extended-lambda -DCUDA_CALL=\"__host__ __device__\" -DCUDA_DEVICE_CALL=__device__ -D_FORCE_INLINES ${CUDA_COMPUTE_ARCH_FLAGS_STRING}")
 	set(CMAKE_CUDA_FLAGS_DEBUG "-G -D_DEBUG")
 	set(CMAKE_CUDA_FLAGS_RELEASE "--use_fast_math -O2 -g -lineinfo -DNDEBUG")
 
@@ -213,7 +218,7 @@ elseif(RENDER_MODULE STREQUAL "CUDA (RayTracing)")
 
 	set_source_files_properties("./src/material.cpp" PROPERTIES LANGUAGE CUDA)
 
-elseif(RENDER_MODULE STREQUAL "OpenGL (Raster)")
+elseif(TRACY_RENDER_MODULE STREQUAL "OpenGL (Raster)")
 
 	add_definitions(-DOPENGL_KERNEL=1)
 
@@ -260,7 +265,7 @@ if(MSVC)
 	# enable auto parallelizer report
 	#set(CMAKE_CXX_FLAGS_RELEASE "${CMAKE_CXX_FLAGS_RELEASE} -Qpar-report:2")
 
-	if(NO_OPENMP)
+	if(CPU_NO_OPENMP)
 		set(CMAKE_CXX_FLAGS_RELEASE "${CMAKE_CXX_FLAGS_RELEASE} /openmp-")
 	else()
 		# choose "experimental" openmp implementation if available
@@ -281,7 +286,7 @@ else()
     set(CMAKE_CXX_FLAGS_DEBUG "-D_DEBUG -O0")
 	set(CMAKE_CXX_FLAGS_RELEASE "-DNDEBUG -Ofast -march=native -fsingle-precision-constant -fno-rtti -funroll-loops -D_GLIBCXX_PARALLEL")
 	
-	if(NOT NO_OPENMP)
+	if(NOT CPU_NO_OPENMP)
 		set(CMAKE_CXX_FLAGS_RELEASE "${CMAKE_CXX_FLAGS_RELEASE} -fopenmp")
 	endif()
 	
@@ -295,7 +300,7 @@ endif()
 ###############################################################################
 # Build Rules                                                                 #
 ###############################################################################
-if(WIN32)
+if(WIN32 AND NOT DEBUG_FORCE_CONSOLE)
 	set(WIN32_MAIN WIN32)
 elseif(UNIX)
 	find_package(X11 REQUIRED)

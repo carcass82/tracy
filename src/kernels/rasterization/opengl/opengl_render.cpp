@@ -197,8 +197,6 @@ void OpenGLRender::RenderScene()
 			glBufferSubData(GL_UNIFORM_BUFFER, sizeof(mat4) * 0, sizeof(mat4), value_ptr(camera_->GetProjection()));
 			glBufferSubData(GL_UNIFORM_BUFFER, sizeof(mat4) * 1, sizeof(mat4), value_ptr(camera_->GetView()));
 			glBindBuffer(GL_UNIFORM_BUFFER, 0);
-
-			camera_->SetDirty(false);
 		}
 
 		for (const GLMesh& mesh : details_->meshes)

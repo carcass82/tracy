@@ -93,10 +93,71 @@ __device__ bool IntersectsWithMesh(const CUDAMesh& mesh, const Ray& in_ray, HitD
     return hit_triangle;
 }
 
+#if USE_KDTREE
+__device__ bool ComputeIntersection(CUDAMesh* in_objects, int objectcount, accel::Tree<CUDATriangle, CUDAVector>* in_scenetree, const Ray& ray, HitData& intersection_data)
+#else
 __device__ bool ComputeIntersection(CUDAMesh* in_objects, int objectcount, const Ray& ray, HitData& intersection_data)
+#endif
 {
     bool hit_any_mesh = false;
-    
+
+#if USE_KDTREE
+
+    auto TriangleRayTester = [](const auto* in_triangles, const unsigned in_first, const unsigned in_last, const Ray& in_ray, HitData& intersection_data)
+    {
+        bool hit_triangle = false;
+
+        const vec3 ray_direction = in_ray.GetDirection();
+        const vec3 ray_origin = in_ray.GetOrigin();
+
+        for (size_t idx = in_first; idx < in_last; ++idx)
+        {
+            const vec3 v0 = in_triangles[idx].v0;
+            const vec3 v0v1 = in_triangles[idx].v0v1;
+            const vec3 v0v2 = in_triangles[idx].v0v2;
+
+            vec3 pvec = cross(ray_direction, v0v2);
+
+            float det = dot(v0v1, pvec);
+
+            // if the determinant is negative the triangle is backfacing
+            // if the determinant is close to 0, the ray misses the triangle
+            if (det > EPS)
+            {
+                vec3 tvec = ray_origin - v0;
+                float u = dot(tvec, pvec);
+                if (u < EPS || u > det)
+                {
+                    continue;
+                }
+
+                vec3 qvec = cross(tvec, v0v1);
+                float v = dot(ray_direction, qvec);
+                if (v < EPS || u + v > det)
+                {
+                    continue;
+                }
+
+                float inv_det = rcp(det);
+                float t = dot(v0v2, qvec) * inv_det;
+                if (t > EPS && t < intersection_data.t)
+                {
+                    intersection_data.t = t;
+                    intersection_data.uv = vec2{ u, v } *inv_det;
+                    intersection_data.triangle_index = in_triangles[idx].tri_idx;
+                    intersection_data.object_index = in_triangles[idx].mesh_idx;
+                    hit_triangle = true;
+                }
+            }
+        }
+
+        return hit_triangle;
+    };
+
+    hit_any_mesh = accel::IntersectsWithTree<accel::Tree<CUDATriangle, CUDAVector>, CUDATriangle>(in_scenetree, ray, intersection_data, TriangleRayTester);
+
+#else
+
     for (int i = 0; i < objectcount; ++i)
     {
         if (IntersectsWithMesh(in_objects[i], ray, intersection_data))
@@ -105,6 +166,8 @@ __device__ bool ComputeIntersection(CUDAMesh* in_objects, int objectcount, const
             hit_any_mesh = true;
         }
     }
+
+#endif
 
     if (hit_any_mesh)
     {
@@ -131,6 +194,9 @@ __device__ inline vec3 TraceInternal(const Camera& in_camera,
                                      const Ray& in_ray,
                                      CUDAMesh* in_objects,
                                      int objectcount,
+#if USE_KDTREE
+                                     accel::Tree<CUDATriangle, CUDAVector>* in_scenetree,
+#endif
                                      const Material* in_skymaterial,
                                      int& inout_raycount,
                                      RandomCtx fastrand_ctx)
@@ -145,7 +211,11 @@ __device__ inline vec3 TraceInternal(const Camera& in_camera,
 
         ++inout_raycount;
 
+#if USE_KDTREE
+        if (ComputeIntersection(in_objects, objectcount, in_scenetree, current_ray, hit_data))
+#else
         if (ComputeIntersection(in_objects, objectcount, current_ray, hit_data))
+#endif
         {
 
 #if DEBUG_SHOW_NORMALS
@@ -186,6 +256,9 @@ __device__ inline vec3 TraceInternal(const Camera& in_camera,
 __global__ void Trace(Camera* in_camera,
                       CUDAMesh* in_objects,
                       int in_objectcount,
+#if USE_KDTREE
+                      accel::Tree<CUDATriangle, CUDAVector>* in_scenetree,
+#endif
                       Material* in_skymaterial,
                       vec4* output_float,
                       int width,
@@ -216,7 +289,12 @@ __global__ void Trace(Camera* in_camera,
         float t = ((j + fastrand(&curand_ctx)) / f_height);
     
         Ray r = in_camera->GetRayFrom(s, t);
+
+#if USE_KDTREE
+        cur_color += TraceInternal(*in_camera, r, in_objects, in_objectcount, in_scenetree, in_skymaterial, cur_raycount, &curand_ctx);
+#else
         cur_color += TraceInternal(*in_camera, r, in_objects, in_objectcount, in_skymaterial, cur_raycount, &curand_ctx);
+#endif
     }
     cur_color /= MAX_SAMPLES;
     
@@ -248,6 +326,117 @@ __global__ void InitRandom(curandState* rand_state, int width, int height)
     curand_init(clock64(), i, j, &rand_state[j * width + i]);
 }
 
+#if USE_KDTREE
+__global__ void BuildCUDATree(accel::Tree<CUDATriangle, CUDAVector>* inout_SceneTree, CUDAMesh* in_objects, int in_objectcount)
+{
+    printf("BuildCUDATree: building triangle scene...\n");
+
+    BBox scene_bbox{ FLT_MAX, -FLT_MAX };
+    CUDAVector<CUDATriangle> scene;
+    for (uint16_t i = 0; i < in_objectcount; ++i)
+    {
+        const CUDAMesh& mesh = in_objects[i];
+        for (uint16_t t = 0; t < mesh.indexcount_; t += 3)
+        {
+            uint16_t tri = t / 3;
+
+            const vec3& v0 = mesh.vertices_[mesh.indices_[t + 0]].pos;
+            const vec3& v1 = mesh.vertices_[mesh.indices_[t + 1]].pos;
+            const vec3& v2 = mesh.vertices_[mesh.indices_[t + 2]].pos;
+
+            scene_bbox.minbound = pmin(mesh.aabb_.minbound, scene_bbox.minbound);
+            scene_bbox.maxbound = pmax(mesh.aabb_.maxbound, scene_bbox.maxbound);
+
+            scene.push_back(CUDATriangle{ v0, v1, v2, i, tri });
+        }
+    }
+
+    // Triangle-AABB intersection
+    auto TriangleAABBTester = [](const CUDATriangle& triangle, const BBox& aabb)
+    {
+        // triangle - box test using separating axis theorem (https://fileadmin.cs.lth.se/cs/Personal/Tomas_Akenine-Moller/pubs/tribox.pdf)
+        // code adapted from http://fileadmin.cs.lth.se/cs/Personal/Tomas_Akenine-Moller/code/tribox3.txt
+
+        vec3 v0{ triangle.vertices[0] - aabb.GetCenter() };
+        vec3 v1{ triangle.vertices[1] - aabb.GetCenter() };
+        vec3 v2{ triangle.vertices[2] - aabb.GetCenter() };
+
+        vec3 e0{ v1 - v0 };
+        vec3 e1{ v2 - v1 };
+        vec3 e2{ v0 - v2 };
+
+        vec3 fe0{ abs(e0.x), abs(e0.y), abs(e0.z) };
+        vec3 fe1{ abs(e1.x), abs(e1.y), abs(e1.z) };
+        vec3 fe2{ abs(e2.x), abs(e2.y), abs(e2.z) };
+
+        vec3 aabb_hsize = aabb.GetSize() / 2.f;
+
+        auto AxisTester = [] (float a, float b, float fa, float fb, float v0_0, float v0_1, float v1_0, float v1_1, float hsize_0, float hsize_1)
+        {
+            float p0 = a * v0_0 + b * v0_1;
+            float p1 = a * v1_0 + b * v1_1;
+
+            float rad = fa * hsize_0 + fb * hsize_1;
+            return (min(p0, p1) > rad || max(p0, p1) < -rad);
+        };
+
+        if (AxisTester(e0.z, -e0.y, fe0.z, fe0.y, v0.y, v0.z, v2.y, v2.z, aabb_hsize.y, aabb_hsize.z) ||
+            AxisTester(-e0.z, e0.x, fe0.z, fe0.x, v0.x, v0.z, v2.x, v2.z, aabb_hsize.x, aabb_hsize.z) ||
+            AxisTester(e0.y, -e0.x, fe0.y, fe0.x, v1.x, v1.y, v2.x, v2.y, aabb_hsize.x, aabb_hsize.y) ||
+
+            AxisTester(e1.z, -e1.y, fe1.z, fe1.y, v0.y, v0.z, v2.y, v2.z, aabb_hsize.y, aabb_hsize.z) ||
+            AxisTester(-e1.z, e1.x, fe1.z, fe1.x, v0.x, v0.z, v2.x, v2.z, aabb_hsize.x, aabb_hsize.z) ||
+            AxisTester(e1.y, -e1.x, fe1.y, fe1.x, v0.x, v0.y, v1.x, v1.y, aabb_hsize.x, aabb_hsize.y) ||
+
+            AxisTester(e2.z, -e2.y, fe2.z, fe2.y, v0.y, v0.z, v1.y, v1.z, aabb_hsize.y, aabb_hsize.z) ||
+            AxisTester(-e2.z, e2.x, fe2.z, fe2.x, v0.x, v0.z, v1.x, v1.z, aabb_hsize.x, aabb_hsize.z) ||
+            AxisTester(e2.y, -e2.x, fe2.y, fe2.x, v1.x, v1.y, v2.x, v2.y, aabb_hsize.x, aabb_hsize.y))
+        {
+            return false;
+        }
+
+        vec3 trimin = pmin(v0, pmin(v1, v2));
+        vec3 trimax = pmax(v0, pmax(v1, v2));
+        if ((trimin.x > aabb_hsize.x || trimax.x < -aabb_hsize.x) ||
+            (trimin.y > aabb_hsize.y || trimax.y < -aabb_hsize.y) ||
+            (trimin.z > aabb_hsize.z || trimax.z < -aabb_hsize.z))
+        {
+            return false;
+        }
+
+        {
+            vec3 trinormal = cross(e0, e1);
+
+            vec3 vmin, vmax;
+
+            if (trinormal.x > .0f) { vmin.x = -aabb_hsize.x - v0.x; vmax.x = aabb_hsize.x - v0.x; }
+            else { vmin.x = aabb_hsize.x - v0.x; vmax.x = -aabb_hsize.x - v0.x; }
+
+            if (trinormal.y > .0f) { vmin.y = -aabb_hsize.y - v0.y; vmax.y = aabb_hsize.y - v0.y; }
+            else { vmin.y = aabb_hsize.y - v0.y; vmax.y = -aabb_hsize.y - v0.y; }
+
+            if (trinormal.z > .0f) { vmin.z = -aabb_hsize.z - v0.z; vmax.z = aabb_hsize.z - v0.z; }
+            else { vmin.z = aabb_hsize.z - v0.z; vmax.z = -aabb_hsize.z - v0.z; }
+
+            if (dot(trinormal, vmin) > .0f || dot(trinormal, vmax) < .0f)
+            {
+                return false;
+            }
+        }
+
+        return true;
+    };
+
+    inout_SceneTree->elems.reserve(scene.size());
+
+    printf("Scene built with %d triangles, now building Tree...\n", scene.size());
+
+    accel::BuildTree<CUDATriangle>(inout_SceneTree, scene, scene_bbox, TriangleAABBTester);
+
+    printf("Tree Built with %d elements\n", inout_SceneTree->elems.size());
+}
+#endif
+
 extern "C" void cuda_setup(const Scene& in_scene, CUDAScene* out_scene)
 {
     int num_gpus = 0;
@@ -276,8 +465,6 @@ extern "C" void cuda_setup(const Scene& in_scene, CUDAScene* out_scene)
     //
     // copy data to the device
     //
-    out_scene->d_sky_ = CUDAMaterial::Convert(in_scene.GetSkyMaterial());
-
     CUDAAssert(cudaMalloc(&out_scene->d_objects_, in_scene.GetObjectCount() * sizeof(CUDAMesh)));
     for (int i = 0; i < in_scene.GetObjectCount(); ++i)
     {
@@ -286,6 +473,16 @@ extern "C" void cuda_setup(const Scene& in_scene, CUDAScene* out_scene)
     }
     out_scene->objectcount_ = in_scene.GetObjectCount();
 
+#if USE_KDTREE
+
+    CUDAAssert(cudaMalloc(&out_scene->d_scenetree, sizeof(accel::Tree<CUDATriangle, CUDAVector>)));
+    BuildCUDATree<<<1, 1>>>(out_scene->d_scenetree, out_scene->d_objects_, out_scene->objectcount_);
+    CUDAAssert(cudaGetLastError());
+
+#endif
+
+    out_scene->d_sky_ = CUDAMaterial::Convert(in_scene.GetSkyMaterial());
+    
     CUDAAssert(cudaMalloc(&out_scene->d_camera_, sizeof(Camera)));
     CUDAAssert(cudaMemcpy(out_scene->d_camera_, &in_scene.GetCamera(), sizeof(Camera), cudaMemcpyHostToDevice));
 
@@ -312,6 +509,9 @@ extern "C" void cuda_trace(CUDAScene* scene, int framecount)
     Trace<<<grid, block>>>(scene->d_camera_,
                            scene->d_objects_,
                            scene->objectcount_,
+#if USE_KDTREE
+                           scene->d_scenetree,
+#endif
                            scene->d_sky_,
                            scene->d_output_,
                            scene->width,

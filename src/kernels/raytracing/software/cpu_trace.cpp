@@ -11,8 +11,6 @@
 
 #if USE_KDTREE
  #include "kdtree.h"
- constexpr int TREE_DEPTH = 32;
- constexpr int TREE_LEAF_ELEMS = 16;
 #endif
 
 #if USE_SIMD
@@ -39,38 +37,22 @@ namespace
 #if USE_KDTREE
 	struct Triangle
 	{
-		Triangle(const vec3& v0, const vec3& v1, const vec3& v2, uint16_t in_mesh_idx, uint16_t in_tri_idx)
-			: vertices{ v0, v1, v2 }
-			, mesh_idx{ in_mesh_idx }
-			, tri_idx{ in_tri_idx }
+		Triangle(const vec3& in_v0, const vec3& in_v1, const vec3& in_v2, uint16_t in_mesh, uint16_t in_triangle)
+			: vertices{ in_v0, in_v1, in_v2 }
+			, v0v1(v1 - v0)
+			, v0v2(v2 - v0)
+			, mesh_idx(in_mesh)
+			, tri_idx(in_triangle)
 		{}
 
-		vec3 vertices[3];  // 36
-		uint16_t mesh_idx; // 38
-		uint16_t tri_idx;  // 40
-	};
-
-	struct OptimizedTriangle
-	{
-		explicit OptimizedTriangle()
-			: mesh_idx(UINT16_MAX)
-			, tri_idx(UINT16_MAX)
-		{
-		}
-
-		OptimizedTriangle(const Triangle& triangle)
-			: v0{ triangle.vertices[0] }
-			, v0v1{ triangle.vertices[1] - triangle.vertices[0] }
-			, v0v2{ triangle.vertices[2] - triangle.vertices[0] }
-			, mesh_idx{ triangle.mesh_idx }
-			, tri_idx{ triangle.tri_idx }
-		{}
-
-		vec3 v0;           // 12
-		vec3 v0v1;         // 24
-		vec3 v0v2;         // 36
-		uint16_t mesh_idx; // 38
-		uint16_t tri_idx;  // 40
+		union {
+			vec3 vertices[3];
+			struct { vec3 v0; vec3 v1; vec3 v2; };
+		};
+		vec3 v0v1;
+		vec3 v0v2;
+		uint16_t mesh_idx;
+		uint16_t tri_idx;
 	};
 
 	struct OptimizedTriangleSOA
@@ -343,7 +325,7 @@ struct CpuTrace::CpuTraceDetails
 #if USE_AOS
 				if (accel::IntersectsWithTree<accel::Tree<OptimizedTriangle>, OptimizedTriangle, TREE_DEPTH + 1>(&SceneTree, ray, intersection_data, TriangleRayTester))
 #else
-				if (accel::IntersectsWithTree<accel::OptimizedTree<OptimizedTriangleSOA>, OptimizedTriangleSOA, TREE_DEPTH + 1>(&SceneTree, ray, intersection_data, TriangleRayTester))
+				if (accel::IntersectsWithTree<accel::OptimizedTree<OptimizedTriangleSOA>, OptimizedTriangleSOA>(&SceneTree, ray, intersection_data, TriangleRayTester))
 #endif
 				{
 					hit_any_mesh = true;
@@ -373,8 +355,8 @@ struct CpuTrace::CpuTraceDetails
 			DEBUG_BREAK();
 		}
 
-		BBox root{ FLT_MAX, -FLT_MAX };
-		vector<const Triangle*> trimesh;
+		BBox scene_bbox{ FLT_MAX, -FLT_MAX };
+		vector<Triangle> scene_tris;
 		for (uint16_t i = 0; i < scene.GetObjectCount(); ++i)
 		{
 			const Mesh& mesh = scene.GetObject(i);
@@ -392,10 +374,10 @@ struct CpuTrace::CpuTraceDetails
 				const vec3& v1 = mesh.GetVertex(mesh.GetIndex(tri_idx + 1)).pos;
 				const vec3& v2 = mesh.GetVertex(mesh.GetIndex(tri_idx + 2)).pos;
 
-				root.minbound = pmin(mesh.GetAABB().minbound, root.minbound);
-				root.maxbound = pmax(mesh.GetAABB().maxbound, root.maxbound);
+				scene_bbox.minbound = pmin(mesh.GetAABB().minbound, scene_bbox.minbound);
+				scene_bbox.maxbound = pmax(mesh.GetAABB().maxbound, scene_bbox.maxbound);
 
-				trimesh.emplace_back(new Triangle{ v0, v1, v2, i, tri_idx });
+				scene_tris.emplace_back(v0, v1, v2, i, tri_idx);
 			}
 		}
 
@@ -475,12 +457,7 @@ struct CpuTrace::CpuTraceDetails
 			return true;
 		};
 
-		auto TriangleToCompactTriangle = [](const Triangle& FullTriangle)
-		{
-			return OptimizedTriangle(FullTriangle);
-		};
-
-		auto VectorToSOA = [](OptimizedTriangleSOA& trianglelist, const vector<OptimizedTriangle>& triangles)
+		auto VectorToSOA = [](OptimizedTriangleSOA& trianglelist, const vector<Triangle>& triangles)
 		{
 			trianglelist.v0 = new vec3[triangles.size()];
 			trianglelist.v0v1 = new vec3[triangles.size()];
@@ -488,7 +465,7 @@ struct CpuTrace::CpuTraceDetails
 			trianglelist.mesh_idx = new uint16_t[triangles.size()];
 			trianglelist.tri_idx = new uint16_t[triangles.size()];
 
-			for (vector<OptimizedTriangle>::size_type i = 0; i < triangles.size(); ++i)
+			for (vector<Triangle>::size_type i = 0; i < triangles.size(); ++i)
 			{
 				trianglelist.v0[i] = triangles[i].v0;
 				trianglelist.v0v1[i] = triangles[i].v0v1;
@@ -500,11 +477,12 @@ struct CpuTrace::CpuTraceDetails
 
 #if USE_AOS
 		SceneTree.elems.reserve(trimesh.size());
-		SceneTree.root = accel::BuildTree<Triangle, OptimizedTriangle, TREE_LEAF_ELEMS, TREE_DEPTH>(&SceneTree, trimesh, root, TriangleAABBTester, TriangleToCompactTriangle);
+		SceneTree.root = accel::BuildTree<Triangle, std::vector>(&SceneTree, scene_tris, scene_bbox, TriangleAABBTester);
 #else
-		accel::Tree<OptimizedTriangle> Scene;
-		Scene.elems.reserve(trimesh.size());
-		Scene.root = accel::BuildTree<Triangle, OptimizedTriangle, TREE_LEAF_ELEMS, TREE_DEPTH>(&Scene, trimesh, root, TriangleAABBTester, TriangleToCompactTriangle);	
+		accel::Tree<Triangle> Scene;
+		Scene.elems.reserve(scene_tris.size());
+		accel::BuildTree<Triangle, std::vector>(&Scene, scene_tris, scene_bbox, TriangleAABBTester);
+
 		SceneTree.root = Scene.root;
 		VectorToSOA(SceneTree.elems, Scene.elems);
 #endif

@@ -316,7 +316,7 @@ const char* TracySecondsToString(double in_seconds)
 	return timestring;
 }
 
-#if defined(WIN32)
+#if defined(WIN32) && !defined(FORCE_CONSOLE)
 int WINAPI WinMain(HINSTANCE /* hInstance */, HINSTANCE /* hPrevInstance */, LPSTR /* lpCmdLine */, int /* nCmdShow */)
 {
 	int argc = __argc;

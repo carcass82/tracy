@@ -9,13 +9,14 @@
 #include <cfloat>
 #include <climits>
 
-#if !defined(CUDA_DEVICE_CALL)
-#define CUDA_DEVICE_CALL
+#if !defined(CUDA_CALL) 
+#define CUDA_CALL
 #endif
 
 #if !defined(CUDA_DEVICE_CALL)
 #define CUDA_DEVICE_CALL
 #endif
+
 
 #if USE_GLM
  #if defined(__CUDACC__)
@@ -84,14 +85,6 @@ using cc::array_size;
 #define CC_CONSTEXPR constexpr
 #endif
 
-#if !defined(CUDA_CALL) 
- #define CUDA_CALL
-#endif
-
-#if !defined(CUDA_DEVICE_CALL)
- #define CUDA_DEVICE_CALL
-#endif
-
 //
 // HitData
 //
@@ -112,8 +105,14 @@ struct HitData
  #include <curand_kernel.h>
  using RandomCtx = curandState*;
  #define fastrand(x) curand_uniform(x)
+
+ #include <nvfunctional>
+ using nvstd::function;
 #else
  using RandomCtx = uint32_t&;
+
+ #include <functional>
+ using std::function;
 #endif
 
 #if defined(_WIN32)
