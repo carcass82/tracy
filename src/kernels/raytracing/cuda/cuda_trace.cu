@@ -112,7 +112,7 @@ __device__ bool ComputeIntersection(CUDAMesh* in_objects, int objectcount, const
 
         for (size_t idx = in_first; idx < in_last; ++idx)
         {
-            const vec3 v0 = in_triangles[idx].v0;
+            const vec3 v0 = in_triangles[idx].v[0];
             const vec3 v0v1 = in_triangles[idx].v0v1;
             const vec3 v0v2 = in_triangles[idx].v0v2;
 
@@ -357,9 +357,9 @@ __global__ void BuildCUDATree(accel::Tree<CUDATriangle, CUDAVector>* inout_Scene
         // triangle - box test using separating axis theorem (https://fileadmin.cs.lth.se/cs/Personal/Tomas_Akenine-Moller/pubs/tribox.pdf)
         // code adapted from http://fileadmin.cs.lth.se/cs/Personal/Tomas_Akenine-Moller/code/tribox3.txt
 
-        vec3 v0{ triangle.vertices[0] - aabb.GetCenter() };
-        vec3 v1{ triangle.vertices[1] - aabb.GetCenter() };
-        vec3 v2{ triangle.vertices[2] - aabb.GetCenter() };
+        vec3 v0{ triangle.v[0] - aabb.GetCenter() };
+        vec3 v1{ triangle.v[1] - aabb.GetCenter() };
+        vec3 v2{ triangle.v[2] - aabb.GetCenter() };
 
         vec3 e0{ v1 - v0 };
         vec3 e1{ v2 - v1 };

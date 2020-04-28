@@ -38,17 +38,14 @@ namespace
 	struct Triangle
 	{
 		Triangle(const vec3& in_v0, const vec3& in_v1, const vec3& in_v2, uint16_t in_mesh, uint16_t in_triangle)
-			: vertices{ in_v0, in_v1, in_v2 }
-			, v0v1(v1 - v0)
-			, v0v2(v2 - v0)
+			: v{ in_v0, in_v1, in_v2 }
+			, v0v1(v[1] - v[0])
+			, v0v2(v[2] - v[0])
 			, mesh_idx(in_mesh)
 			, tri_idx(in_triangle)
 		{}
 
-		union {
-			vec3 vertices[3];
-			struct { vec3 v0; vec3 v1; vec3 v2; };
-		};
+		vec3 v[3];
 		vec3 v0v1;
 		vec3 v0v2;
 		uint16_t mesh_idx;
@@ -387,9 +384,9 @@ struct CpuTrace::CpuTraceDetails
 			// triangle - box test using separating axis theorem (https://fileadmin.cs.lth.se/cs/Personal/Tomas_Akenine-Moller/pubs/tribox.pdf)
 			// code adapted from http://fileadmin.cs.lth.se/cs/Personal/Tomas_Akenine-Moller/code/tribox3.txt
 
-			vec3 v0{ triangle.vertices[0] - aabb.GetCenter() };
-			vec3 v1{ triangle.vertices[1] - aabb.GetCenter() };
-			vec3 v2{ triangle.vertices[2] - aabb.GetCenter() };
+			vec3 v0{ triangle.v[0] - aabb.GetCenter() };
+			vec3 v1{ triangle.v[1] - aabb.GetCenter() };
+			vec3 v2{ triangle.v[2] - aabb.GetCenter() };
 
 			vec3 e0{ v1 - v0 };
 			vec3 e1{ v2 - v1 };
@@ -467,7 +464,7 @@ struct CpuTrace::CpuTraceDetails
 
 			for (vector<Triangle>::size_type i = 0; i < triangles.size(); ++i)
 			{
-				trianglelist.v0[i] = triangles[i].v0;
+				trianglelist.v0[i] = triangles[i].v[0];
 				trianglelist.v0v1[i] = triangles[i].v0v1;
 				trianglelist.v0v2[i] = triangles[i].v0v2;
 				trianglelist.mesh_idx[i] = triangles[i].mesh_idx;

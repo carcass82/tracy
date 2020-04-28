@@ -21,10 +21,10 @@ public:
 	{}
 
 	__host__ CUDAMesh(const Mesh& cpu_mesh, const Material* d_material)
-		: center_(cpu_mesh.GetCenter())
+		: material_(d_material)
+		, center_(cpu_mesh.GetCenter())
 		, size_(cpu_mesh.GetSize())
 		, aabb_(cpu_mesh.GetAABB())
-		, material_(d_material)
 	{
 		vertexcount_ = cpu_mesh.GetVertexCount();
 

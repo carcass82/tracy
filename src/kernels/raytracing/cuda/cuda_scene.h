@@ -18,11 +18,9 @@
 #include "kdtree.h"
 #endif
 
-struct CUDATriangle {
-    union {
-        vec3 vertices[3];
-        struct { vec3 v0; vec3 v1; vec3 v2; };
-    };
+struct CUDATriangle
+{
+    vec3 v[3];
     vec3 v0v1;
     vec3 v0v2;
     uint16_t mesh_idx;
@@ -32,9 +30,9 @@ struct CUDATriangle {
     {}
 
     __device__ CUDATriangle(const vec3& in_v0, const vec3& in_v1, const vec3& in_v2, uint16_t in_mesh, uint16_t in_triangle)
-        : vertices{ in_v0, in_v1, in_v2 }
-        , v0v1(v1 - v0)
-        , v0v2(v2 - v0)
+        : v{ in_v0, in_v1, in_v2 }
+        , v0v1(v[1] - v[0])
+        , v0v2(v[2] - v[0])
         , mesh_idx(in_mesh)
         , tri_idx(in_triangle)
     {}
