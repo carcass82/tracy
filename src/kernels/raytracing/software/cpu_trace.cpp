@@ -53,22 +53,6 @@ namespace
 	};
 
 #if !defined(USE_AOS)
-	struct OptimizedNode
-	{
-		enum Children { eLeft, eRight, NumChildren };
-
-		unsigned int begin = 0;
-		unsigned int end = 0;
-		OptimizedNode* children[NumChildren];
-	};
-
-	template <typename OptimizedT>
-	struct OptimizedTree
-	{
-		OptimizedNode* root = {};
-		OptimizedT elems;
-	};
-
 	struct OptimizedTriangleSOA
 	{
 		vec3* v0;
@@ -76,9 +60,29 @@ namespace
 		vec3* v0v2;
 		uint16_t* mesh_idx;
 		uint16_t* tri_idx;
+	};
 
-		// super hackish and bad on so many levels
-		OptimizedTriangleSOA& operator[](size_t i) const { return *const_cast<OptimizedTriangleSOA*>(this); }
+	struct OptimizedTree
+	{
+		struct OptimizedNode* root = {};
+		OptimizedTriangleSOA elems;
+	};
+
+	struct OptimizedNode
+	{
+		CUDA_DEVICE_CALL bool IsEmpty() const                                      { return begin == end; }
+		CUDA_DEVICE_CALL unsigned int Begin() const                                { return begin; }
+		CUDA_DEVICE_CALL unsigned int End() const                                  { return end; }
+		CUDA_DEVICE_CALL const BBox& GetAABB() const                               { return aabb; }
+		CUDA_DEVICE_CALL const OptimizedNode* GetChild(accel::Child child) const   { return children[child]; }
+		CUDA_DEVICE_CALL const OptimizedTriangleSOA* GetData() const               { return &father->elems; }
+
+		unsigned int begin = 0;
+		unsigned int end = 0;
+
+		BBox aabb;
+		OptimizedNode* children[accel::Child::Count];
+		OptimizedTree* father = {};
 	};
 #endif
 #endif
@@ -166,7 +170,7 @@ struct CpuTrace::CpuTraceDetails
 
 #if USE_KDTREE
 
-		auto TriangleRayTester = [](const auto& in_triangles, const unsigned in_count, const Ray& in_ray, HitData& intersection_data)
+		auto TriangleRayTester = [](const auto& in_triangles, unsigned int in_first, unsigned in_count, const Ray& in_ray, HitData& intersection_data)
 		{
 
 #if USE_SIMD
@@ -178,7 +182,7 @@ struct CpuTrace::CpuTraceDetails
 			static const simd_float simd_EPS(EPS);
 			simd_float simd_nearest_t(intersection_data.t);
 
-			for (size_t idx = 0; idx < in_count; idx += SIMD_WIDTH)
+			for (size_t idx = in_first; idx < in_count; idx += SIMD_WIDTH)
 			{
 #if USE_AOS
 				float valid_triangle[SIMD_WIDTH];
@@ -270,7 +274,7 @@ struct CpuTrace::CpuTraceDetails
 			const vec3 ray_direction = in_ray.GetDirection();
 			const vec3 ray_origin = in_ray.GetOrigin();
 
-			for (size_t idx = 0; idx < in_count; ++idx)
+			for (size_t idx = in_first; idx < in_count; ++idx)
 			{
 #if USE_AOS
 				const vec3 v0   = in_triangles[idx].v[0];
@@ -340,7 +344,7 @@ struct CpuTrace::CpuTraceDetails
 #if USE_AOS
 				if (accel::IntersectsWithTree<Triangle>(&SceneTree, ray, intersection_data, TriangleRayTester))
 #else
-				if (accel::IntersectsWithTree<OptimizedTriangleSOA>(&SceneTree, ray, intersection_data, TriangleRayTester))
+				if (accel::IntersectsWithTree<OptimizedTriangleSOA>(SceneTree.root, ray, intersection_data, TriangleRayTester))
 #endif
 				{
 					hit_any_mesh = true;
@@ -441,7 +445,7 @@ struct CpuTrace::CpuTraceDetails
 		};
 
 #if !defined(USE_AOS)
-		auto VectorToSOA = [](OptimizedTree<OptimizedTriangleSOA>& out_optimized, const accel::Node<Triangle>& in_scene)
+		auto VectorToSOA = [](OptimizedTree& out_optimized, const accel::Node<Triangle>& in_scene)
 		{
 
 
@@ -514,7 +518,7 @@ struct CpuTrace::CpuTraceDetails
 #if USE_AOS
 	accel::Node<Triangle> SceneTree;
 #else
-	OptimizedTree<OptimizedTriangleSOA> SceneTree;
+	OptimizedTree SceneTree;
 #endif
 
 #else

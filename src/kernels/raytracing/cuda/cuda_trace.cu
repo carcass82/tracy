@@ -103,14 +103,14 @@ __device__ bool ComputeIntersection(CUDAMesh* in_objects, int objectcount, const
 
 #if USE_KDTREE
 
-    auto TriangleRayTester = [](const auto* in_triangles, const unsigned in_count, const Ray& in_ray, HitData& intersection_data)
+    auto TriangleRayTester = [](const auto* in_triangles, unsigned int in_first, unsigned int in_count, const Ray& in_ray, HitData& intersection_data)
     {
         bool hit_triangle = false;
 
         const vec3 ray_direction = in_ray.GetDirection();
         const vec3 ray_origin = in_ray.GetOrigin();
 
-        for (size_t idx = 0; idx < in_count; ++idx)
+        for (size_t idx = in_first; idx < in_count; ++idx)
         {
             const vec3 v0 = in_triangles[idx].v[0];
             const vec3 v0v1 = in_triangles[idx].v0v1;

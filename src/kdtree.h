@@ -47,21 +47,24 @@ public:
 		: Node({ FLT_MAX, -FLT_MAX }, in_depth)
 	{}
 
-	CUDA_DEVICE_CALL bool IsEmpty() const                      { return elems.empty();              }
-	CUDA_DEVICE_CALL unsigned int GetSize() const              { return (unsigned int)elems.size(); }
-	CUDA_DEVICE_CALL const BBox& GetAABB() const               { return aabb; }
-	CUDA_DEVICE_CALL void SetAABB(const BBox& value)           { aabb = value; }
-	CUDA_DEVICE_CALL const Node* GetChild(Child child) const   { return children[child]; }
-	CUDA_DEVICE_CALL Node* GetChild(Child child)               { return children[child]; }
-	CUDA_DEVICE_CALL void SetChild(Child child, Node* value)   { children[child] = value; }
-	CUDA_DEVICE_CALL const T& GetElement(unsigned int i) const { return elems[i]; }
-	CUDA_DEVICE_CALL T& GetElement(unsigned int i)             { return elems[i]; }
-	CUDA_DEVICE_CALL Container<T>& GetElements()               { return elems; }
-	CUDA_DEVICE_CALL const Container<T>& GetElements() const   { return elems; }
-	CUDA_DEVICE_CALL void ClearChild(Child child)              { delete children[child]; children[child] = nullptr; }
-	CUDA_DEVICE_CALL void ClearChildren()                      { ClearChild(Child::Right); ClearChild(Child::Left); }
-	CUDA_DEVICE_CALL void ClearElems()                         { Container<T>().swap(elems); }
-	CUDA_DEVICE_CALL unsigned int GetDepth() const             { return depth; }
+	CUDA_DEVICE_CALL bool IsEmpty() const                       { return elems.empty(); }
+	CUDA_DEVICE_CALL unsigned int GetSize() const               { return End() - Begin(); }
+	CUDA_DEVICE_CALL unsigned int Begin() const                 { return 0; }
+	CUDA_DEVICE_CALL unsigned int End() const                   { return (unsigned int)elems.size(); }
+	CUDA_DEVICE_CALL const BBox& GetAABB() const                { return aabb; }
+	CUDA_DEVICE_CALL void SetAABB(const BBox& value)            { aabb = value; }
+	CUDA_DEVICE_CALL const Node* GetChild(Child child) const    { return children[child]; }
+	CUDA_DEVICE_CALL Node* GetChild(Child child)                { return children[child]; }
+	CUDA_DEVICE_CALL void SetChild(Child child, Node* value)    { children[child] = value; }
+	CUDA_DEVICE_CALL const T& GetElement(unsigned int i) const  { return elems[i]; }
+	CUDA_DEVICE_CALL T& GetElement(unsigned int i)              { return elems[i]; }
+	CUDA_DEVICE_CALL Container<T>& GetElements()                { return elems; }
+	CUDA_DEVICE_CALL const Container<T>& GetElements() const    { return elems; }
+	CUDA_DEVICE_CALL const T* GetData() const                   { return &elems[0]; }
+	CUDA_DEVICE_CALL void ClearChild(Child child)               { delete children[child]; children[child] = nullptr; }
+	CUDA_DEVICE_CALL void ClearChildren()                       { ClearChild(Child::Right); ClearChild(Child::Left); }
+	CUDA_DEVICE_CALL void ClearElems()                          { Container<T>().swap(elems); }
+	CUDA_DEVICE_CALL unsigned int GetDepth() const              { return depth; }
 
 private:
 	Node* children[Child::Count] = {};
@@ -74,7 +77,7 @@ template<typename T>
 using ObjectAABBTesterFunction = function<bool(const T&, const BBox&)>;
 
 template<typename T>
-using ObjectsRayTesterFunction = function<bool(const T* elems, unsigned int count, const Ray&, HitData&)>;
+using ObjectsRayTesterFunction = function<bool(const T* elems, unsigned int first, unsigned int last, const Ray&, HitData&)>;
 
 template<typename T, template<class...> class Container = std::vector, class Predicate>
 CUDA_DEVICE_CALL void CopyIf(const Container<T>& src, Container<T>& dest, Predicate Pred)
@@ -228,7 +231,7 @@ CUDA_DEVICE_CALL bool IntersectsWithTree(const NodeType* tree, const Ray& ray, H
 		{
 			current = traversal_helper.Pop();
 
-			if (!current->IsEmpty() && ObjectTester(&current->GetElement(0), current->GetSize(), ray, inout_intersection))
+			if (!current->IsEmpty() && ObjectTester(current->GetData(), current->Begin(), current->End(), ray, inout_intersection))
 			{
 				hit_something = true;
 			}
