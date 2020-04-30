@@ -52,12 +52,13 @@ namespace
 		uint16_t tri_idx;
 	};
 
+#if !defined(USE_AOS)
 	struct OptimizedNode
 	{
 		enum Children { eLeft, eRight, NumChildren };
 
-		unsigned int begin = {};
-		unsigned int end = {};
+		unsigned int begin = 0;
+		unsigned int end = 0;
 		OptimizedNode* children[NumChildren];
 	};
 
@@ -79,6 +80,7 @@ namespace
 		// super hackish and bad on so many levels
 		OptimizedTriangleSOA& operator[](size_t i) const { return *const_cast<OptimizedTriangleSOA*>(this); }
 	};
+#endif
 #endif
 }
 
@@ -362,38 +364,6 @@ struct CpuTrace::CpuTraceDetails
 	{
 #if USE_KDTREE
 
-		if (scene.GetObjectCount() > UINT16_MAX)
-		{
-			TracyLog("Unable to represent mesh index\n");
-			DEBUG_BREAK();
-		}
-
-		BBox scene_bbox{ FLT_MAX, -FLT_MAX };
-		vector<Triangle> scene_tris;
-		for (uint16_t i = 0; i < scene.GetObjectCount(); ++i)
-		{
-			const Mesh& mesh = scene.GetObject(i);
-			if (mesh.GetTriCount() * 3 > UINT16_MAX)
-			{
-				TracyLog("Unable to represent triangle index\n");
-				DEBUG_BREAK();
-			}
-
-			for (uint16_t t = 0; t < mesh.GetTriCount(); ++t)
-			{
-				uint16_t tri_idx = t * 3;
-
-				const vec3& v0 = mesh.GetVertex(mesh.GetIndex(tri_idx + 0)).pos;
-				const vec3& v1 = mesh.GetVertex(mesh.GetIndex(tri_idx + 1)).pos;
-				const vec3& v2 = mesh.GetVertex(mesh.GetIndex(tri_idx + 2)).pos;
-
-				scene_bbox.minbound = pmin(mesh.GetAABB().minbound, scene_bbox.minbound);
-				scene_bbox.maxbound = pmax(mesh.GetAABB().maxbound, scene_bbox.maxbound);
-
-				scene_tris.emplace_back(v0, v1, v2, i, tri_idx);
-			}
-		}
-
 		// Triangle-AABB intersection
 		auto TriangleAABBTester = [](const Triangle& triangle, const BBox& aabb)
 		{
@@ -470,8 +440,11 @@ struct CpuTrace::CpuTraceDetails
 			return true;
 		};
 
+#if !defined(USE_AOS)
 		auto VectorToSOA = [](OptimizedTree<OptimizedTriangleSOA>& out_optimized, const accel::Node<Triangle>& in_scene)
 		{
+
+
 			//trianglelist.v0 = new vec3[triangles.size()];
 			//trianglelist.v0v1 = new vec3[triangles.size()];
 			//trianglelist.v0v2 = new vec3[triangles.size()];
@@ -487,17 +460,54 @@ struct CpuTrace::CpuTraceDetails
 			//	trianglelist.tri_idx[i] = triangles[i].tri_idx;
 			//}
 		};
+#endif
+
+		if (scene.GetObjectCount() > UINT16_MAX)
+		{
+			TracyLog("Unable to represent mesh index\n");
+			DEBUG_BREAK();
+		}
+
+		{
+			BBox scene_bbox{ FLT_MAX, -FLT_MAX };
+			vector<Triangle> scene_tris;
+			for (uint16_t i = 0; i < scene.GetObjectCount(); ++i)
+			{
+				const Mesh& mesh = scene.GetObject(i);
+				if (mesh.GetTriCount() * 3 > UINT16_MAX)
+				{
+					TracyLog("Unable to represent triangle index\n");
+					DEBUG_BREAK();
+				}
+
+				for (uint16_t t = 0; t < mesh.GetTriCount(); ++t)
+				{
+					uint16_t tri_idx = t * 3;
+
+					const vec3& v0 = mesh.GetVertex(mesh.GetIndex(tri_idx + 0)).pos;
+					const vec3& v1 = mesh.GetVertex(mesh.GetIndex(tri_idx + 1)).pos;
+					const vec3& v2 = mesh.GetVertex(mesh.GetIndex(tri_idx + 2)).pos;
+
+					scene_bbox.minbound = pmin(mesh.GetAABB().minbound, scene_bbox.minbound);
+					scene_bbox.maxbound = pmax(mesh.GetAABB().maxbound, scene_bbox.maxbound);
+
+					scene_tris.emplace_back(v0, v1, v2, i, tri_idx);
+				}
+			}
 
 #if USE_AOS
-		SceneTree.aabb = scene_bbox;
-		SceneTree.elems.assign(scene_tris.begin(), scene_tris.end());
+			SceneTree.SetAABB(scene_bbox);
+			SceneTree.GetElements().assign(scene_tris.begin(), scene_tris.end());
+		}
+		
 		accel::BuildTree<Triangle, std::vector>(&SceneTree, TriangleAABBTester);
 #else
-		accel::Node<Triangle> Scene(scene_bbox);
-		Scene.elems.assign(scene_tris.begin(), scene_tris.end());
-		accel::BuildTree<Triangle, std::vector>(&Scene, TriangleAABBTester);
+			accel::Node<Triangle> Scene(scene_bbox);
+			Scene.GetElements().assign(scene_tris.begin(), scene_tris.end());
+			accel::BuildTree<Triangle, std::vector>(&Scene, TriangleAABBTester);
 
-		VectorToSOA(SceneTree, Scene);
+			VectorToSOA(SceneTree, Scene);
+		}
 #endif
 	}
 

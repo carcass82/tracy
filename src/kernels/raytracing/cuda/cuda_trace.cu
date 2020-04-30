@@ -428,14 +428,14 @@ __global__ void BuildCUDATree(accel::Node<CUDATriangle, CUDAVector>* inout_Scene
             }
         }
 
-        inout_SceneTree->aabb = scene_bbox;
-        inout_SceneTree->elems.assign(scene.begin(), scene.end());
+        inout_SceneTree->SetAABB(scene_bbox);
+        inout_SceneTree->GetElements().assign(scene.begin(), scene.end());
     }
     long long int end = clock64();
 
     // NOTE: assuming clock is 1000MHz to convert results to ms
 
-    printf("Scene built with %d triangles in %.2fms, now building Tree...\n", inout_SceneTree->elems.size(), (end - start) / 1.e+6f);
+    printf("Scene built with %d triangles in %.2fms, now building Tree...\n", inout_SceneTree->GetSize(), (end - start) / 1.e+6f);
 
     start = clock64();
     accel::BuildTree<CUDATriangle, CUDAVector>(inout_SceneTree, TriangleAABBTester);

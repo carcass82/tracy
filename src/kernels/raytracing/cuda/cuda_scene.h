@@ -42,78 +42,119 @@ template<typename T>
 class CUDAVector
 {
 private:
-    T* m_begin;
-    unsigned int m_size;
-    unsigned int m_capacity;
+    unsigned int size_;
+    unsigned int capacity_;
+    T* buffer_;
 
 public:
     __device__ explicit CUDAVector(unsigned int capacity = 0)
-        : m_size(0)
-        , m_capacity(capacity)
-        , m_begin(nullptr)
+        : size_(0)
+        , capacity_(capacity)
+        , buffer_(static_cast<T*>(::operator new(capacity_ * sizeof(T))))
     {
-        realloc();
     }
 
     __device__ ~CUDAVector()
     {
-        delete[] m_begin;
+        for (unsigned int i = 0; i < size_; ++i)
+        {
+            buffer_[i].~T();
+        }
+        ::operator delete(buffer_);
+    }
+
+    __device__ CUDAVector(const CUDAVector& other)
+        : size_(0)
+        , capacity_(other.capacity_)
+        , buffer_(static_cast<T*>(::operator new(capacity_ * sizeof(T))))
+    {
+        for (unsigned int i = 0; i < other.size_; ++i)
+        {
+            push_back(other.buffer_[i]);
+        }
+    }
+
+    __device__ CUDAVector& operator=(CUDAVector& other)
+    {
+        if (this != other)
+        {
+            CUDAVector<T> temp(other);
+            other.swap(*this);
+        }
+        return *this;
+    }
+
+    __device__ CUDAVector(CUDAVector&& other) noexcept
+        : size_(0)
+        , capacity_(0)
+        , buffer_(nullptr)
+    {
+        if (this != other)
+        {
+            other.swap(*this);
+        }
+    }
+
+    __device__ CUDAVector& operator=(CUDAVector&& other) noexcept
+    {
+        other.swap(*this);
+        return *this;
     }
 
     __device__ T& operator[](unsigned int index)
     {
-        return m_begin[index];
+        return buffer_[index];
     }
 
     __device__ const T& operator[](unsigned int index) const
     {
-        return m_begin[index];
+        return buffer_[index];
     }
 
     __device__ T* begin() const
     {
-        return m_begin;
+        return buffer_;
     }
 
     __device__ T* end() const
     {
-        return m_begin + m_size;
+        return buffer_ + size_;
     }
 
     __device__ unsigned int size() const
     {
-        return m_size;
+        return size_;
     }
 
     __device__ bool empty() const
     {
-        return m_size == 0;
+        return size_ == 0;
     }
 
     __device__ void push_back(const T& value)
     {
-        if (m_size >= m_capacity)
+        if (size_ == capacity_)
         {
-            m_capacity = m_capacity * 2 + 1;
+            capacity_ = capacity_ * 2 + 1;
             realloc();
         }
         
-        m_begin[m_size++] = value;
+        new (buffer_ + size_++) T(value);
     }
 
     __device__ void pop_back()
     {
-        m_begin[--m_size].~T();
+        buffer_[size_--].~T();
     }
 
     __device__ const T& front() const
     {
-        return m_begin[0];
+        return buffer_[0];
     }
 
     __device__ const T& back() const
     {
-        return m_begin[m_size - 1];
+        return buffer_[size_ - 1];
     }
 
     __device__ void assign(const T* first, const T* last)
@@ -124,27 +165,37 @@ public:
 
     __device__ void clear()
     {
-        for (unsigned int i = 0; i < m_size; ++i)
+        for (unsigned int i = 0; i < size_; ++i)
         {
             pop_back();
         }
     }
 
-    __device__ void shrink_to_fit()
+    __device__ void swap(CUDAVector& other) noexcept
     {
-        m_capacity = m_size;
-        realloc();
+        _swap(capacity_, other.capacity_);
+        _swap(size_, other.size_);
+        _swap(buffer_, other.buffer_);
     }
-
 
 private:
 
+    template<typename AnyType>
+    __device__ void _swap(AnyType& a, AnyType& b)
+    {
+        AnyType temp(std::move(a));
+        a = std::move(b);
+        b = std::move(temp);
+    }
+
     __device__ void realloc()
     {
-        T* expanded = new T[m_capacity];
-        memcpy(expanded, m_begin, m_size * sizeof(T));
-        delete[] m_begin;
-        m_begin = expanded;
+        CUDAVector<T> expanded(capacity_);
+        for (unsigned int i = 0; i < size_; ++i)
+        {
+            expanded.push_back(buffer_[i]);
+        }
+        expanded.swap(*this);
     }
 };
 
