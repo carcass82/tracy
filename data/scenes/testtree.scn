@@ -1,13 +1,13 @@
 #
-# Scene to test triangular mesh mixed with builtin shapes
+# Scene to test SAH decisions when building kd-tree
 #
-SCN TriMesh Test
-OUT 640 480
+SCN TestTree
+OUT 1024 768
 
 #
 # CAM Eye Center Up fov
 #
-CAM (0.5, 0.5, 1.5) (0.0, 0.0, 0.0) (0.0, 1.0, 0.0) 60.0
+CAM (0, 3, 5) (0.0, 0.0, 0.0) (0.0, 1.0, 0.0) 60.0
 
 #
 # MTL Name TYPE ALBEDO [Roughness] [IoR]
@@ -22,11 +22,10 @@ CAM (0.5, 0.5, 1.5) (0.0, 0.0, 0.0) (0.0, 1.0, 0.0) 60.0
 # optional roughness only makes sense for Metals and
 # IoR for Dielectrics. They defaults to 0 and 1 respectively.
 #
-MTL Light E (5.0, 5.0, 5.0)
-MTL Grey L (0.2, 0.2, 0.2)
-MTL Copper M (0.95, 0.64, 0.54) 0.2
-MTL Gold M (1.0, 0.71, 0.29) 0.05
-MTL Glass D (1.0, 1.0, 1.0) 1.5
+MTL Red L (0.2, 0.0, 0.0)
+MTL Green L (0.0, 0.2, 0.0)
+MTL Blue L (0.0, 0.0, 0.2)
+MTL Yellow L (0.2, 0.2, 0.0)
 
 #
 # SKY [ALBEDO]
@@ -34,7 +33,7 @@ MTL Glass D (1.0, 1.0, 1.0) 1.5
 # sky is just an emissive material used when rays miss
 # all objects in the scene. It defaults to (0,0,0)
 #
-SKY (0, 0, 0)
+SKY (1, 1, 1)
 
 #
 # OBJ TYPE COORD1 [COORD2] [COORD3] MTL
@@ -43,12 +42,7 @@ SKY (0, 0, 0)
 # - B MIN MAX  (box)
 # - T V1 V2 V3 (triangle)
 #
-OBJ S ( 2.0, 5.0, -1.0) 2.0 Light
-OBJ S (-1.0, 0.2, -1.0) 0.5 Gold
-OBJ S (0.5, 0, -1.0) 0.3 Glass
-OBJ B (-10.0, -0.51, -10.0) (10.0, -0.3, 10.0) Grey
-
-#
-# TRI PATH MTL
-#
-TRI data/teapot.obj Copper
+OBJ T ( 5, -2, -4) ( 6, -2, -4) ( 6, -1, -4) Red
+OBJ T ( 0, -2, -4) ( 1, -2, -4) ( 1, -1, -4) Green
+OBJ T (-2, -2, -4) (-1, -2, -4) (-1, -1, -4) Blue
+OBJ T (-4, -2, -5) ( 4, -2,  0) ( 4, -2, -5) Yellow

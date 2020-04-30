@@ -47,11 +47,12 @@ private:
     unsigned int m_capacity;
 
 public:
-    __device__  explicit CUDAVector()
+    __device__ explicit CUDAVector(unsigned int capacity = 0)
         : m_size(0)
-        , m_capacity(16)
+        , m_capacity(capacity)
+        , m_begin(nullptr)
     {
-        m_begin = new T[m_capacity];
+        realloc();
     }
 
     __device__ ~CUDAVector()
@@ -76,7 +77,7 @@ public:
 
     __device__ T* end() const
     {
-        return m_begin + m_size + 1;
+        return m_begin + m_size;
     }
 
     __device__ unsigned int size() const
@@ -89,24 +90,12 @@ public:
         return m_size == 0;
     }
 
-    __device__ void reserve(unsigned int newcapacity)
-    {
-        delete[] m_begin;
-        m_begin = new T[newcapacity];
-
-        m_capacity = newcapacity;
-    }
-
     __device__ void push_back(const T& value)
     {
-        if (!(m_size < m_capacity))
+        if (m_size >= m_capacity)
         {
-            T* expanded = new T[m_capacity * 2];
-            memcpy(expanded, m_begin, m_capacity * sizeof(T));
-            delete[] m_begin;
-            m_begin = expanded;
-
-            m_capacity *= 2;
+            m_capacity = m_capacity * 2 + 1;
+            realloc();
         }
         
         m_begin[m_size++] = value;
@@ -114,15 +103,48 @@ public:
 
     __device__ void pop_back()
     {
-        if (m_size > 0)
+        m_begin[--m_size].~T();
+    }
+
+    __device__ const T& front() const
+    {
+        return m_begin[0];
+    }
+
+    __device__ const T& back() const
+    {
+        return m_begin[m_size - 1];
+    }
+
+    __device__ void assign(const T* first, const T* last)
+    {
+        while (first != last)
+            push_back(*first++);
+    }
+
+    __device__ void clear()
+    {
+        for (unsigned int i = 0; i < m_size; ++i)
         {
-            --m_size;
+            pop_back();
         }
     }
 
-    __device__ T& back() const
+    __device__ void shrink_to_fit()
     {
-        return m_begin[m_size - 1];
+        m_capacity = m_size;
+        realloc();
+    }
+
+
+private:
+
+    __device__ void realloc()
+    {
+        T* expanded = new T[m_capacity];
+        memcpy(expanded, m_begin, m_size * sizeof(T));
+        delete[] m_begin;
+        m_begin = expanded;
     }
 };
 
@@ -137,8 +159,8 @@ struct CUDAScene
 	int objectcount_;
 
 #if USE_KDTREE
-    accel::Tree<CUDATriangle, CUDAVector>* h_scenetree;
-    accel::Tree<CUDATriangle, CUDAVector>* d_scenetree;
+    accel::Node<CUDATriangle, CUDAVector>* h_scenetree;
+    accel::Node<CUDATriangle, CUDAVector>* d_scenetree;
 #endif
 
     Material* d_sky_;

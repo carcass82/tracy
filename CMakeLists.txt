@@ -36,9 +36,14 @@ if(DEBUG_SHOW_NORMALS)
 	add_definitions(-DDEBUG_SHOW_NORMALS)
 endif()
 
-option(TRACY_ACCELERATION_STRUCTURE "Use KDTree to speed up tracing" ON)
+option(TRACY_ACCELERATION_STRUCTURE "Use Kd-Tree to speed up tracing" ON)
 if(TRACY_ACCELERATION_STRUCTURE)
 	add_definitions(-DUSE_KDTREE)
+endif()
+
+option(DEBUG_KDTREE_DISABLE_SAH "Disable SAH (Surface Area Heuristic) when building Kd-Tree" OFF)
+if(DEBUG_KDTREE_DISABLE_SAH)
+	add_definitions(-DDISABLE_SAH)
 endif()
 
 option(DEBUG_FORCE_CONSOLE "Force launch with debug console" OFF)
@@ -147,7 +152,7 @@ if(TRACY_RENDER_MODULE STREQUAL "CPU (RayTracing)")
 	endif()
 
 	if (CPU_DATA_LAYOUT STREQUAL "AoS")
-		add_definitions(-DAOS=1)
+		add_definitions(-DUSE_AOS=1)
 	endif()
 
 	source_group("kernel\\cpu\\include" FILES ${cpu_includes})
