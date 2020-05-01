@@ -94,7 +94,7 @@ __device__ bool IntersectsWithMesh(const CUDAMesh& mesh, const Ray& in_ray, HitD
 }
 
 #if USE_KDTREE
-__device__ bool ComputeIntersection(CUDAMesh* in_objects, int objectcount, accel::Node<CUDATriangle, CUDAVector>* in_scenetree, const Ray& ray, HitData& intersection_data)
+__device__ bool ComputeIntersection(CUDAMesh* in_objects, int objectcount, accel::Node<Triangle, Vector>* in_scenetree, const Ray& ray, HitData& intersection_data)
 #else
 __device__ bool ComputeIntersection(CUDAMesh* in_objects, int objectcount, const Ray& ray, HitData& intersection_data)
 #endif
@@ -154,7 +154,7 @@ __device__ bool ComputeIntersection(CUDAMesh* in_objects, int objectcount, const
         return hit_triangle;
     };
 
-    hit_any_mesh = accel::IntersectsWithTree<CUDATriangle>(in_scenetree, ray, intersection_data, TriangleRayTester);
+    hit_any_mesh = accel::IntersectsWithTree<Triangle>(in_scenetree, ray, intersection_data, TriangleRayTester);
 
 #else
 
@@ -177,9 +177,9 @@ __device__ bool ComputeIntersection(CUDAMesh* in_objects, int objectcount, const
         const Index i1 = m.indices_[intersection_data.triangle_index + 1];
         const Index i2 = m.indices_[intersection_data.triangle_index + 2];
 
-        const CUDAVertex v0 = m.vertices_[i0];
-        const CUDAVertex v1 = m.vertices_[i1];
-        const CUDAVertex v2 = m.vertices_[i2];
+        const Vertex v0 = m.vertices_[i0];
+        const Vertex v1 = m.vertices_[i1];
+        const Vertex v2 = m.vertices_[i2];
 
         intersection_data.point = ray.GetPoint(intersection_data.t);
         intersection_data.normal = normalize((1.f - intersection_data.uv.x - intersection_data.uv.y) * v0.normal + intersection_data.uv.x * v1.normal + intersection_data.uv.y * v2.normal);
@@ -195,7 +195,7 @@ __device__ inline vec3 TraceInternal(const Camera& in_camera,
                                      CUDAMesh* in_objects,
                                      int objectcount,
 #if USE_KDTREE
-                                     accel::Node<CUDATriangle, CUDAVector>* in_scenetree,
+                                     accel::Node<Triangle, Vector>* in_scenetree,
 #endif
                                      const Material* in_skymaterial,
                                      int& inout_raycount,
@@ -257,7 +257,7 @@ __global__ void Trace(Camera* in_camera,
                       CUDAMesh* in_objects,
                       int in_objectcount,
 #if USE_KDTREE
-                      accel::Node<CUDATriangle, CUDAVector>* in_scenetree,
+                      accel::Node<Triangle, Vector>* in_scenetree,
 #endif
                       Material* in_skymaterial,
                       vec4* output_float,
@@ -327,10 +327,10 @@ __global__ void InitRandom(curandState* rand_state, int width, int height)
 }
 
 #if USE_KDTREE
-__global__ void BuildCUDATree(accel::Node<CUDATriangle, CUDAVector>* inout_SceneTree, CUDAMesh* in_objects, int in_objectcount)
+__global__ void BuildCUDATree(accel::Node<Triangle, Vector>* inout_SceneTree, CUDAMesh* in_objects, int in_objectcount)
 {
     // Triangle-AABB intersection
-    auto TriangleAABBTester = [](const CUDATriangle& triangle, const BBox& aabb)
+    auto TriangleAABBTester = [](const Triangle& triangle, const BBox& aabb)
     {
         // triangle - box test using separating axis theorem (https://fileadmin.cs.lth.se/cs/Personal/Tomas_Akenine-Moller/pubs/tribox.pdf)
         // code adapted from http://fileadmin.cs.lth.se/cs/Personal/Tomas_Akenine-Moller/code/tribox3.txt
@@ -409,7 +409,6 @@ __global__ void BuildCUDATree(accel::Node<CUDATriangle, CUDAVector>* inout_Scene
     long long int start = clock64();
     {
         BBox scene_bbox{ FLT_MAX, -FLT_MAX };
-        CUDAVector<CUDATriangle> scene;
         for (uint16_t i = 0; i < in_objectcount; ++i)
         {
             const CUDAMesh& mesh = in_objects[i];
@@ -424,12 +423,11 @@ __global__ void BuildCUDATree(accel::Node<CUDATriangle, CUDAVector>* inout_Scene
                 scene_bbox.minbound = pmin(mesh.aabb_.minbound, scene_bbox.minbound);
                 scene_bbox.maxbound = pmax(mesh.aabb_.maxbound, scene_bbox.maxbound);
 
-                scene.push_back(CUDATriangle{ v0, v1, v2, i, tri });
+                inout_SceneTree->GetElements().push_back(Triangle{ v0, v1, v2, i, tri });
             }
         }
 
         inout_SceneTree->SetAABB(scene_bbox);
-        inout_SceneTree->GetElements().assign(scene.begin(), scene.end());
     }
     long long int end = clock64();
 
@@ -438,7 +436,7 @@ __global__ void BuildCUDATree(accel::Node<CUDATriangle, CUDAVector>* inout_Scene
     printf("Scene built with %d triangles in %.2fms, now building Tree...\n", inout_SceneTree->GetSize(), (end - start) / 1.e+6f);
 
     start = clock64();
-    accel::BuildTree<CUDATriangle, CUDAVector>(inout_SceneTree, TriangleAABBTester);
+    accel::BuildTree<Triangle, Vector>(inout_SceneTree, TriangleAABBTester);
     end = clock64();
 
     printf("Tree Built in %.2fms\n", (end - start) / 1.e+6f);
@@ -483,7 +481,7 @@ extern "C" void cuda_setup(const Scene& in_scene, CUDAScene* out_scene)
 
 #if USE_KDTREE
 
-    CUDAAssert(cudaMalloc(&out_scene->d_scenetree, sizeof(accel::Node<CUDATriangle, CUDAVector>)));
+    CUDAAssert(cudaMalloc(&out_scene->d_scenetree, sizeof(accel::Node<Triangle, Vector>)));
     BuildCUDATree<<<1, 1>>>(out_scene->d_scenetree, out_scene->d_objects_, out_scene->objectcount_);
     CUDAAssert(cudaGetLastError());
 
@@ -505,7 +503,6 @@ extern "C" void cuda_setup(const Scene& in_scene, CUDAScene* out_scene)
     CUDAAssert(cudaMalloc(&out_scene->d_raycount, sizeof(int)));
     CUDAAssert(cudaMemset(out_scene->d_raycount, 0, sizeof(int)));
 }
-
 
 extern "C" void cuda_trace(CUDAScene* scene, int framecount)
 {

@@ -102,6 +102,8 @@ set(main_includes "./src/mesh.h"
                   "./src/timer.h"
                   "./src/random.h"
                   "./src/vertex.h"
+				  "./src/triangle.h"
+				  "./src/container.h"
 				  "./src/aabb.h"
 				  "./src/kdtree.h"
 				  "./src/log.h"
@@ -136,7 +138,8 @@ if(TRACY_RENDER_MODULE STREQUAL "CPU (RayTracing)")
 	set(CPU_DATA_LAYOUT "SoA" CACHE STRING "Layout Triangle Data as SoA (Structure of Arrays) or AoS (Array of Structures)")
 	set_property(CACHE CPU_DATA_LAYOUT PROPERTY STRINGS "SoA" "AoS")
 
-	set(cpu_includes "./src/kernels/raytracing/software/cpu_trace.h")
+	set(cpu_includes "./src/kernels/raytracing/software/cpu_trace.h"
+	                 "./src/kernels/raytracing/software/cpu_specific.h")
 
 	if (NOT CPU_USE_SIMD STREQUAL "Off")
 		add_definitions(-DUSE_SIMD=1)
@@ -213,11 +216,11 @@ elseif(TRACY_RENDER_MODULE STREQUAL "CUDA (RayTracing)")
 	list(APPEND tracy_sources ${cuda_sources})
 
 	set(cuda_includes "./src/kernels/raytracing/cuda/cuda_trace.h"
-	                  "./src/kernels/raytracing/cuda/cuda_vertex.h"
 					  "./src/kernels/raytracing/cuda/cuda_material.h"
 	                  "./src/kernels/raytracing/cuda/cuda_mesh.h"
 					  "./src/kernels/raytracing/cuda/cuda_scene.h"
-	                  "./src/kernels/raytracing/cuda/cuda_log.h")
+	                  "./src/kernels/raytracing/cuda/cuda_log.h"
+					  "./src/kernels/raytracing/cuda/cuda_specific.h")
 	source_group("kernel\\cuda\\include" FILES ${cuda_includes})
 	list(APPEND tracy_includes ${cuda_includes})
 
@@ -246,7 +249,8 @@ elseif(TRACY_RENDER_MODULE STREQUAL "OpenGL (Raster)")
 	set(opengl_includes "./src/kernels/rasterization/opengl/opengl_render.h"
 	                    "./src/kernels/rasterization/opengl/gl_material.h"
 	                    "./src/kernels/rasterization/opengl/gl_mesh.h"
-	                    "./src/kernels/rasterization/opengl/materials.h")
+	                    "./src/kernels/rasterization/opengl/materials.h"
+						"./src/kernels/rasterization/opengl/opengl_specific.h")
 	source_group("kernel\\opengl\\include" FILES ${opengl_includes})
 	list(APPEND tracy_includes ${opengl_includes})
 

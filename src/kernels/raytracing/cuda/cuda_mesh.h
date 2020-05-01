@@ -12,7 +12,6 @@
 #include "vertex.h"
 #include "mesh.h"
 #include "material.h"
-#include "cuda_vertex.h"
 
 struct CUDAMesh
 {
@@ -27,26 +26,15 @@ public:
 		, aabb_(cpu_mesh.GetAABB())
 	{
 		vertexcount_ = cpu_mesh.GetVertexCount();
-
-		vector<CUDAVertex> vertices_helper;
-		vertices_helper.reserve(vertexcount_);
-		for (const Vertex& vertex : cpu_mesh.GetVertices())
-		{
-			vertices_helper.emplace_back(vertex.pos, vertex.normal, vertex.uv0);
-		}
-		CUDAAssert(cudaMalloc(&vertices_, vertexcount_ * sizeof(CUDAVertex)));
-		CUDAAssert(cudaMemcpy(vertices_, &vertices_helper[0], vertexcount_ * sizeof(CUDAVertex), cudaMemcpyHostToDevice));
+		CUDAAssert(cudaMalloc(&vertices_, vertexcount_ * sizeof(Vertex)));
+		CUDAAssert(cudaMemcpy(vertices_, &cpu_mesh.GetVertices()[0], vertexcount_ * sizeof(Vertex), cudaMemcpyHostToDevice));
 
 		indexcount_ = cpu_mesh.GetIndexCount();
 		CUDAAssert(cudaMalloc(&indices_, indexcount_ * sizeof(Index)));
 		CUDAAssert(cudaMemcpy(indices_, &cpu_mesh.GetIndices()[0], indexcount_* sizeof(Index), cudaMemcpyHostToDevice));
 	}
 
-	//
-	//
-	//
-
-	CUDAVertex* vertices_;
+	Vertex* vertices_;
 	int vertexcount_;
 	Index* indices_;
 	int indexcount_;

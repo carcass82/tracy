@@ -149,52 +149,52 @@ Mesh& Scene::AddBox(const vec3& bottom, const vec3& top)
 	};
 
 	Mesh m;
-	m.vertices_.emplace_back(vertices[4], normals[0], vec2{}, vec3{}, vec3{}); // 0
-	m.vertices_.emplace_back(vertices[2], normals[0], vec2{}, vec3{}, vec3{}); // 1
-	m.vertices_.emplace_back(vertices[0], normals[0], vec2{}, vec3{}, vec3{}); // 2
+	m.vertices_.emplace_back(vertices[4], normals[0]); // 0
+	m.vertices_.emplace_back(vertices[2], normals[0]); // 1
+	m.vertices_.emplace_back(vertices[0], normals[0]); // 2
 	m.indices_.push_back(0); m.indices_.push_back(1); m.indices_.push_back(2);
 
-	m.vertices_.emplace_back(vertices[2], normals[1], vec2{}, vec3{}, vec3{}); // 3
-	m.vertices_.emplace_back(vertices[7], normals[1], vec2{}, vec3{}, vec3{}); // 4
-	m.vertices_.emplace_back(vertices[3], normals[1], vec2{}, vec3{}, vec3{}); // 5
+	m.vertices_.emplace_back(vertices[2], normals[1]); // 3
+	m.vertices_.emplace_back(vertices[7], normals[1]); // 4
+	m.vertices_.emplace_back(vertices[3], normals[1]); // 5
 	m.indices_.push_back(3); m.indices_.push_back(4); m.indices_.push_back(5);
 
-	m.vertices_.emplace_back(vertices[6], normals[2], vec2{}, vec3{}, vec3{}); // 6
-	m.vertices_.emplace_back(vertices[5], normals[2], vec2{}, vec3{}, vec3{}); // 7
-	m.vertices_.emplace_back(vertices[7], normals[2], vec2{}, vec3{}, vec3{}); // 8
+	m.vertices_.emplace_back(vertices[6], normals[2]); // 6
+	m.vertices_.emplace_back(vertices[5], normals[2]); // 7
+	m.vertices_.emplace_back(vertices[7], normals[2]); // 8
 	m.indices_.push_back(6); m.indices_.push_back(7); m.indices_.push_back(8);
 
-	m.vertices_.emplace_back(vertices[1], normals[3], vec2{}, vec3{}, vec3{}); // 9
-	m.vertices_.emplace_back(vertices[7], normals[3], vec2{}, vec3{}, vec3{}); // 10
-	m.vertices_.emplace_back(vertices[5], normals[3], vec2{}, vec3{}, vec3{}); // 11
+	m.vertices_.emplace_back(vertices[1], normals[3]); // 9
+	m.vertices_.emplace_back(vertices[7], normals[3]); // 10
+	m.vertices_.emplace_back(vertices[5], normals[3]); // 11
 	m.indices_.push_back(9); m.indices_.push_back(10); m.indices_.push_back(11);
 
-	m.vertices_.emplace_back(vertices[0], normals[4], vec2{}, vec3{}, vec3{}); // 12
-	m.vertices_.emplace_back(vertices[3], normals[4], vec2{}, vec3{}, vec3{}); // 13
-	m.vertices_.emplace_back(vertices[1], normals[4], vec2{}, vec3{}, vec3{}); // 14
+	m.vertices_.emplace_back(vertices[0], normals[4]); // 12
+	m.vertices_.emplace_back(vertices[3], normals[4]); // 13
+	m.vertices_.emplace_back(vertices[1], normals[4]); // 14
 	m.indices_.push_back(12); m.indices_.push_back(13); m.indices_.push_back(14);
 
-	m.vertices_.emplace_back(vertices[4], normals[5], vec2{}, vec3{}, vec3{}); // 15
-	m.vertices_.emplace_back(vertices[1], normals[5], vec2{}, vec3{}, vec3{}); // 16
-	m.vertices_.emplace_back(vertices[5], normals[5], vec2{}, vec3{}, vec3{}); // 17
+	m.vertices_.emplace_back(vertices[4], normals[5]); // 15
+	m.vertices_.emplace_back(vertices[1], normals[5]); // 16
+	m.vertices_.emplace_back(vertices[5], normals[5]); // 17
 	m.indices_.push_back(15); m.indices_.push_back(16); m.indices_.push_back(17);
 
-	m.vertices_.emplace_back(vertices[6], normals[0], vec2{}, vec3{}, vec3{}); // 18
+	m.vertices_.emplace_back(vertices[6], normals[0]); // 18
 	m.indices_.push_back(0); m.indices_.push_back(18); m.indices_.push_back(1);
 
-	m.vertices_.emplace_back(vertices[6], normals[1], vec2{}, vec3{}, vec3{}); // 19
+	m.vertices_.emplace_back(vertices[6], normals[1]); // 19
 	m.indices_.push_back(3); m.indices_.push_back(19); m.indices_.push_back(4);
 
-	m.vertices_.emplace_back(vertices[4], normals[2], vec2{}, vec3{}, vec3{}); // 20
+	m.vertices_.emplace_back(vertices[4], normals[2]); // 20
 	m.indices_.push_back(6); m.indices_.push_back(20); m.indices_.push_back(7);
 
-	m.vertices_.emplace_back(vertices[3], normals[3], vec2{}, vec3{}, vec3{}); // 21
+	m.vertices_.emplace_back(vertices[3], normals[3]); // 21
 	m.indices_.push_back(9); m.indices_.push_back(21); m.indices_.push_back(10);
 
-	m.vertices_.emplace_back(vertices[2], normals[4], vec2{}, vec3{}, vec3{}); // 22
+	m.vertices_.emplace_back(vertices[2], normals[4]); // 22
 	m.indices_.push_back(12); m.indices_.push_back(22); m.indices_.push_back(13);
 
-	m.vertices_.emplace_back(vertices[0], normals[5], vec2{}, vec3{}, vec3{}); // 23
+	m.vertices_.emplace_back(vertices[0], normals[5]); // 23
 	m.indices_.push_back(15); m.indices_.push_back(23); m.indices_.push_back(16);
 
 	return objects_.emplace_back(m.ComputeBoundingBox().ComputeTangentsAndBitangents());
@@ -204,9 +204,9 @@ Mesh& Scene::AddTriangle(const vec3& v1, const vec3& v2, const vec3& v3)
 {
 	Mesh m;
 
-	m.vertices_.emplace_back(v1, vec3{}, vec2{}, vec3{}, vec3{});
-	m.vertices_.emplace_back(v2, vec3{}, vec2{}, vec3{}, vec3{});
-	m.vertices_.emplace_back(v3, vec3{}, vec2{}, vec3{}, vec3{});
+	m.vertices_.emplace_back(v1);
+	m.vertices_.emplace_back(v2);
+	m.vertices_.emplace_back(v3);
 	m.indices_.emplace_back(0); m.indices_.emplace_back(1); m.indices_.emplace_back(2);
 
 	return objects_.emplace_back(m.ComputeBoundingBox().ComputeNormals().ComputeTangentsAndBitangents());
@@ -445,7 +445,7 @@ bool Scene::Init(const char* scene_path, int& inout_width, int& inout_height)
 											uv = vec2{ attrib.texcoords[uvoffset], attrib.vertices[uvoffset + 1] };
 										}
 
-										m_Vertices.emplace_back(pos, normal, uv, vec3{}, vec3{});
+										m_Vertices.emplace_back(pos, normal, uv);
 
 										int last_inserted = (int)m_Vertices.size() - 1;
 										m_Indices.emplace_back(last_inserted);

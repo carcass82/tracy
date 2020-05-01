@@ -73,10 +73,10 @@ private:
 	unsigned int depth = 0;
 };
 
-template<typename T>
+template <typename T>
 using ObjectAABBTesterFunction = function<bool(const T&, const BBox&)>;
 
-template<typename T>
+template <typename T>
 using ObjectsRayTesterFunction = function<bool(const T* elems, unsigned int first, unsigned int last, const Ray&, HitData&)>;
 
 template<typename T, template<class...> class Container = std::vector, class Predicate>
@@ -91,7 +91,7 @@ CUDA_DEVICE_CALL void CopyIf(const Container<T>& src, Container<T>& dest, Predic
 	}
 }
 
-template<typename T, class NodeType>
+template <typename T, class NodeType>
 CUDA_DEVICE_CALL inline unsigned int SplitAndGetDuplicationPercentage(const NodeType& current_node, NodeType& right_node, NodeType& left_node, const ObjectAABBTesterFunction<T>& ObjectBoxTester)
 {
 	constexpr float ROUND = 1.e-4f;
@@ -173,12 +173,12 @@ CUDA_DEVICE_CALL inline unsigned int SplitAndGetDuplicationPercentage(const Node
 }
 
 
-template<typename ElemType,
-         template<class...> class Container = std::vector,
-         typename NodeType = Node<ElemType, Container>,
-         unsigned int MIN_OBJECTS = TREE_MINOBJECTS,
-         unsigned int MAX_DEPTH = TREE_MAXDEPTH,
-         unsigned int USELESS_SPLIT_THRESHOLD = TREE_USELESS_SPLIT_THRESHOLD>
+template <typename ElemType,
+          template<class...> class Container = std::vector,
+          typename NodeType = Node<ElemType, Container>,
+          unsigned int MIN_OBJECTS = TREE_MINOBJECTS,
+          unsigned int MAX_DEPTH = TREE_MAXDEPTH,
+          unsigned int USELESS_SPLIT_THRESHOLD = TREE_USELESS_SPLIT_THRESHOLD>
 CUDA_DEVICE_CALL inline void BuildTree(NodeType* tree, const ObjectAABBTesterFunction<ElemType>& ObjectBoxTester)
 {
 	if (!tree->IsEmpty())
@@ -211,7 +211,7 @@ CUDA_DEVICE_CALL inline void BuildTree(NodeType* tree, const ObjectAABBTesterFun
 	}
 }
 
-template<typename ElemType, template<class...> class Container = std::vector, typename NodeType = Node<ElemType, Container>, unsigned int STACK_SIZE = TREE_MAXDEPTH + 1>
+template <typename ElemType, template<class...> class Container = std::vector, typename NodeType = Node<ElemType, Container>, unsigned int STACK_SIZE = TREE_MAXDEPTH + 1>
 CUDA_DEVICE_CALL bool IntersectsWithTree(const NodeType* tree, const Ray& ray, HitData& inout_intersection, const ObjectsRayTesterFunction<ElemType>& ObjectTester)
 {
 	FixedSizeStack<const NodeType*, STACK_SIZE> traversal_helper;
