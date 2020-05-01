@@ -39,7 +39,7 @@ public:
 
 	Mesh& ComputeNormals();
 	
-	template<typename VertexDecl = Vertex, bool enabled = VertexDecl::VertexHasTangents>
+	template<typename VertexType = Vertex, bool enabled = VertexType::VertexHasTangents>
 	typename std::enable_if<enabled, Mesh&>::type ComputeTangentsAndBitangents()
 	{
 		// Lengyel, Eric. "Computing Tangent Space Basis Vectors for an Arbitrary Mesh"
@@ -47,9 +47,9 @@ public:
 
 		for (int i = 0; i < static_cast<int>(indices_.size()); i += 3)
 		{
-			Vertex& v1 = vertices_[indices_[i + 0]];
-			Vertex& v2 = vertices_[indices_[i + 1]];
-			Vertex& v3 = vertices_[indices_[i + 2]];
+			VertexType& v1 = vertices_[indices_[i + 0]];
+			VertexType& v2 = vertices_[indices_[i + 1]];
+			VertexType& v3 = vertices_[indices_[i + 2]];
 
 			// Edges of the triangle : position delta
 			vec3 delta_pos1 = v2.pos - v1.pos;
@@ -67,7 +67,7 @@ public:
 			v1.bitangent += v2.bitangent = v3.bitangent = bitangent;
 		}
 
-		for (Vertex& v : vertices_)
+		for (VertexType& v : vertices_)
 		{
 			// orthonormalize tangent
 			v.tangent = normalize(v.tangent - v.normal * dot(v.normal, v.tangent));
@@ -80,7 +80,7 @@ public:
 		return *this;
 	}
 
-	template<typename VertexDecl = Vertex, bool enabled = VertexDecl::VertexHasTangents>
+	template<typename VertexType = Vertex, bool enabled = VertexType::VertexHasTangents>
 	typename std::enable_if<!enabled, Mesh&>::type ComputeTangentsAndBitangents()
 	{
 		return *this;
