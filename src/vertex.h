@@ -6,15 +6,14 @@
  */
 #pragma once
 
-template<bool HAS_UV, bool HAS_TANGENTS, bool HAS_BITANGENTS>
-struct BaseVertex {};
+template <bool WITH_TANGENTS_AND_BITANGENTS> struct BaseVertex {};
 
 //
 //
 //
 
 template<>
-struct BaseVertex<true, true, true>
+struct BaseVertex<true>
 {
 	CUDA_DEVICE_CALL BaseVertex(const vec3& in_pos, const vec3& in_normal, const vec2& in_uv0, const vec3& in_tangent, const vec3& in_bitangent)
 		: pos(in_pos)
@@ -46,7 +45,7 @@ struct BaseVertex<true, true, true>
 //
 
 template<>
-struct BaseVertex<true, false, false>
+struct BaseVertex<false>
 {
 	CUDA_DEVICE_CALL BaseVertex(const vec3& in_pos, const vec3& in_normal = {}, const vec2& in_uv0 = {})
 		: pos(in_pos)

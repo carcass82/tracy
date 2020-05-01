@@ -7,5 +7,5 @@
 #pragma once
 
 #include "vertex.h"
-using Vertex = BaseVertex<true, true, true>; /* uv, tangent and bitangent */
+using Vertex = BaseVertex<true>; /* with tangent and bitangent */
 using Index = unsigned int;
