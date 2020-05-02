@@ -11,6 +11,7 @@
 
 #if USE_KDTREE
  #include "kdtree.h"
+ #include "triangle.h"
 #endif
 
 #if USE_SIMD
@@ -34,64 +35,17 @@ namespace
 		return vec3{ clamp(a.x, min, max), clamp(a.y, min, max), clamp(a.z, min, max) };
 	}
 
-#if USE_KDTREE
-	struct Triangle
+	struct TriInfo
 	{
-		Triangle(const vec3& in_v0, const vec3& in_v1, const vec3& in_v2, uint16_t in_mesh, uint16_t in_triangle)
-			: v{ in_v0, in_v1, in_v2 }
-			, v0v1(v[1] - v[0])
-			, v0v2(v[2] - v[0])
-			, mesh_idx(in_mesh)
-			, tri_idx(in_triangle)
+		constexpr TriInfo(uint32_t mesh_idx, uint32_t triangle_idx)
+			: packed((mesh_idx << 24) | triangle_idx)
 		{}
 
-		vec3 v[3];
-		vec3 v0v1;
-		vec3 v0v2;
-		uint16_t mesh_idx;
-		uint16_t tri_idx;
+		constexpr uint32_t GetMeshId() const { return packed >> 24; }
+		constexpr uint32_t GetTriangleId() const { return packed & 0xffffff; }
+
+		uint32_t packed;
 	};
-
-#if SPARSEARRAY_EXPERIMENTAL
-	using accel::Child;
-
-	template <typename Father, typename T>
-	struct CustomNode
-	{
-		bool IsEmpty() const                          { return first == last; }
-		const T* GetData() const                      { return &root->triangles_[0]; }
-		unsigned int Begin() const                    { return first; }
-		unsigned int End() const                      { return last; }
-		const BBox& GetAABB() const                   { return aabb; }
-		const CustomNode* GetChild(Child child) const { return root->GetChild(children[child]); }
-		CustomNode* GetChild(Child child)             { return root->GetChild(children[child]); }
-
-
-		CustomNode(const Father* in_root)
-			: first(0), last(0), children{ UINT32_MAX, UINT32_MAX }, root(in_root)
-		{}
-
-		BBox aabb;                           // 12
-
-		unsigned int first;                  // 4
-		unsigned int last;                   // 4
-		unsigned int children[Child::Count]; // 8
-
-		const Father* root;                  // 4
-	};
-
-	struct CustomTree
-	{
-		const CustomNode<CustomTree, Triangle>* GetChild(unsigned int idx) const
-		{
-			return (idx < nodes_.size()) ? &nodes_[idx] : nullptr;
-		}
-
-		vector<CustomNode<CustomTree, Triangle>> nodes_;
-		vector<Triangle> triangles_;
-	};
-#endif
-#endif
 }
 
 //
@@ -176,9 +130,8 @@ struct CpuTrace::CpuTraceDetails
 
 #if USE_KDTREE
 
-		auto TriangleRayTester = [](const auto& in_triangles, unsigned int in_first, unsigned in_count, const Ray& in_ray, HitData& intersection_data)
+		auto TriangleRayTester = [](const auto& in_triangles, unsigned int in_first, unsigned int in_count, const Ray& in_ray, HitData& intersection_data)
 		{
-
 #if USE_SIMD
 			bool hit_triangle = false;
 
@@ -196,15 +149,24 @@ struct CpuTrace::CpuTraceDetails
                 vec3 v0v2s[SIMD_WIDTH];
                 for (int i = 0; i < SIMD_WIDTH; ++i)
                 {
-                    valid_triangle[i] = (idx + i < in_count);
-					if (!(idx + i < in_count))
+					valid_triangle[i] = (idx + i < in_count);
+					if ((idx + i < in_count))
 					{
-						continue;
-					}
+						const uint32_t mesh_id = in_triangles[idx + i].GetMeshId();
+						const uint32_t triangle_id = in_triangles[idx + i].GetTriangleId() * 3;
 
-                    v0s[i] = in_triangles[idx + i].v[0];
-                    v0v1s[i] = in_triangles[idx + i].v0v1;
-                    v0v2s[i] = in_triangles[idx + i].v0v2;
+						const Mesh& mesh = SceneManager::Get().GetScene().GetObject(mesh_id);
+
+						const vec3 v0 = mesh.GetVertex(mesh.GetIndex(triangle_id + 0)).pos;
+						const vec3 v1 = mesh.GetVertex(mesh.GetIndex(triangle_id + 1)).pos;
+						const vec3 v2 = mesh.GetVertex(mesh.GetIndex(triangle_id + 2)).pos;
+						const vec3 v0v1 = v1 - v0;
+						const vec3 v0v2 = v2 - v0;
+
+						v0s[i] = v0;
+						v0v1s[i] = v0v1;
+						v0v2s[i] = v0v2;
+					}
                 }
 
 				const simd_vec3 v0(v0s);
@@ -248,8 +210,8 @@ struct CpuTrace::CpuTraceDetails
 
 						intersection_data.t = res[i];
 						intersection_data.uv = vec2{ u[i], v[i] } * inv_det[i];
-						intersection_data.triangle_index = in_triangles[idx + i].tri_idx;
-						intersection_data.object_index = in_triangles[idx + i].mesh_idx;
+						intersection_data.triangle_index = in_triangles[idx + i].GetTriangleId() * 3;
+						intersection_data.object_index = in_triangles[idx + i].GetMeshId();
 						hit_triangle = true;
 					}
 				}
@@ -266,11 +228,16 @@ struct CpuTrace::CpuTraceDetails
 
 			for (unsigned int idx = in_first; idx < in_count; ++idx)
 			{
-				const auto& triangle = in_triangles[idx];
+				const uint32_t mesh_id = in_triangles[idx].GetMeshId();
+				const uint32_t triangle_id = in_triangles[idx].GetTriangleId() * 3;
 
-				const vec3 v0   = triangle.v[0];
-				const vec3 v0v1 = triangle.v0v1;
-				const vec3 v0v2 = triangle.v0v2;
+				const Mesh& mesh = SceneManager::Get().GetScene().GetObject(mesh_id);
+
+				const vec3 v0 = mesh.GetVertex(mesh.GetIndex(triangle_id + 0)).pos;
+				const vec3 v1 = mesh.GetVertex(mesh.GetIndex(triangle_id + 1)).pos;
+				const vec3 v2 = mesh.GetVertex(mesh.GetIndex(triangle_id + 2)).pos;
+				const vec3 v0v1 = v1 - v0;
+				const vec3 v0v2 = v2 - v0;
 
 				vec3 pvec = cross(ray_direction, v0v2);
 
@@ -300,8 +267,8 @@ struct CpuTrace::CpuTraceDetails
 					{
 						intersection_data.t = t;
 						intersection_data.uv = vec2{ u, v } * inv_det;
-						intersection_data.triangle_index = triangle.tri_idx;
-						intersection_data.object_index = triangle.mesh_idx;
+						intersection_data.triangle_index = triangle_id;
+						intersection_data.object_index = mesh_id;
 						hit_triangle = true;
 					}
 				}
@@ -325,7 +292,7 @@ struct CpuTrace::CpuTraceDetails
 #if SPARSEARRAY_EXPERIMENTAL
 				if (accel::IntersectsWithTree<Triangle>(OptimizedTree.GetChild(0), ray, intersection_data, TriangleRayTester))
 #else
-				if (accel::IntersectsWithTree<Triangle>(&SceneTree, ray, intersection_data, TriangleRayTester))
+				if (accel::IntersectsWithTree<TriInfo>(&SceneTree, ray, intersection_data, TriangleRayTester))
 #endif
 				{
 					hit_any_mesh = true;
@@ -348,16 +315,19 @@ struct CpuTrace::CpuTraceDetails
 	void BuildInternalScene(const Scene& scene)
 	{
 #if USE_KDTREE
-
 		// Triangle-AABB intersection
-		auto TriangleAABBTester = [](const Triangle& triangle, const BBox& aabb)
+		auto TriangleAABBTester = [](const auto& in_triangle, const BBox& in_aabb)
 		{
 			// triangle - box test using separating axis theorem (https://fileadmin.cs.lth.se/cs/Personal/Tomas_Akenine-Moller/pubs/tribox.pdf)
 			// code adapted from http://fileadmin.cs.lth.se/cs/Personal/Tomas_Akenine-Moller/code/tribox3.txt
+			uint32_t mesh_id = in_triangle.GetMeshId();
+			uint32_t triangle_id = in_triangle.GetTriangleId() * 3;
 
-			vec3 v0{ triangle.v[0] - aabb.GetCenter() };
-			vec3 v1{ triangle.v[1] - aabb.GetCenter() };
-			vec3 v2{ triangle.v[2] - aabb.GetCenter() };
+			const Mesh& mesh = SceneManager::Get().GetScene().GetObject(mesh_id);
+
+			vec3 v0{ mesh.GetVertex(mesh.GetIndex(triangle_id + 0)).pos - in_aabb.GetCenter() };
+			vec3 v1{ mesh.GetVertex(mesh.GetIndex(triangle_id + 1)).pos - in_aabb.GetCenter() };
+			vec3 v2{ mesh.GetVertex(mesh.GetIndex(triangle_id + 2)).pos - in_aabb.GetCenter() };
 
 			vec3 e0{ v1 - v0 };
 			vec3 e1{ v2 - v1 };
@@ -367,7 +337,7 @@ struct CpuTrace::CpuTraceDetails
 			vec3 fe1{ abs(e1.x), abs(e1.y), abs(e1.z) };
 			vec3 fe2{ abs(e2.x), abs(e2.y), abs(e2.z) };
 
-			vec3 aabb_hsize = aabb.GetSize() / 2.f;
+			vec3 aabb_hsize = in_aabb.GetSize() / 2.f;
 
 			auto AxisTester = [](float a, float b, float fa, float fb, float v0_0, float v0_1, float v1_0, float v1_1, float hsize_0, float hsize_1)
 			{
@@ -425,90 +395,40 @@ struct CpuTrace::CpuTraceDetails
 			return true;
 		};
 
-		if (scene.GetObjectCount() > UINT16_MAX)
+		if (scene.GetObjectCount() > UINT8_MAX)
 		{
-			TracyLog("Unable to represent mesh index\n");
+			TracyLog("Unable to represent mesh index (%d meshes while UINT8_MAX is %d)\n", scene.GetObjectCount(), UINT8_MAX);
 			DEBUG_BREAK();
 		}
 
+		SceneTree.GetElements().reserve(scene.GetTriCount());
 		{
 			BBox scene_bbox{ FLT_MAX, -FLT_MAX };
-			vector<Triangle> scene_tris;
 			for (uint16_t i = 0; i < scene.GetObjectCount(); ++i)
 			{
 				const Mesh& mesh = scene.GetObject(i);
-				if (mesh.GetTriCount() * 3 > UINT16_MAX)
+				if (mesh.GetTriCount() > pow(2, 24) - 1)
 				{
-					TracyLog("Unable to represent triangle index\n");
+					TracyLog("Unable to represent triangle index (%d triangles while UINT24_MAX is %d)\n", mesh.GetTriCount(), pow(2, 24) - 1);
 					DEBUG_BREAK();
 				}
 
-				for (uint16_t t = 0; t < mesh.GetTriCount(); ++t)
+				for (int t = 0; t < mesh.GetTriCount(); ++t)
 				{
-					uint16_t tri_idx = t * 3;
-
-					const vec3& v0 = mesh.GetVertex(mesh.GetIndex(tri_idx + 0)).pos;
-					const vec3& v1 = mesh.GetVertex(mesh.GetIndex(tri_idx + 1)).pos;
-					const vec3& v2 = mesh.GetVertex(mesh.GetIndex(tri_idx + 2)).pos;
-
-					scene_bbox.minbound = pmin(mesh.GetAABB().minbound, scene_bbox.minbound);
-					scene_bbox.maxbound = pmax(mesh.GetAABB().maxbound, scene_bbox.maxbound);
-
-					scene_tris.emplace_back(v0, v1, v2, i, tri_idx);
+					SceneTree.GetElements().emplace_back(i, t);
 				}
-			}
 
-			TracyLog("scene contains %d triangles\n", scene_tris.size());
+				scene_bbox.minbound = pmin(mesh.GetAABB().minbound, scene_bbox.minbound);
+				scene_bbox.maxbound = pmax(mesh.GetAABB().maxbound, scene_bbox.maxbound);
+			}
 
 			SceneTree.SetAABB(scene_bbox);
-			SceneTree.GetElements().assign(scene_tris.begin(), scene_tris.end());
 		}
 		
-		accel::BuildTree<Triangle, std::vector>(&SceneTree, TriangleAABBTester);
-
-#if SPARSEARRAY_EXPERIMENTAL
-		{
-			using TriangleNode = CustomNode<CustomTree, Triangle>;
-
-			vector<std::pair<unsigned int, accel::Node<Triangle>*>> build_queue;
-			OptimizedTree.nodes_.push_back(TriangleNode(&OptimizedTree));
-			
-			build_queue.push_back(std::pair(0, &SceneTree));
-			while (!build_queue.empty())
-			{
-				auto current_node = build_queue.back();
-				build_queue.pop_back();
-
-				if (current_node.second)
-				{
-					OptimizedTree.nodes_[current_node.first].aabb = current_node.second->GetAABB();
-
-					if (current_node.second->IsEmpty())
-					{
-						unsigned int right_children = OptimizedTree.nodes_.size();
-						OptimizedTree.nodes_[current_node.first].children[Child::Right] = right_children;
-						OptimizedTree.nodes_.push_back(TriangleNode(&OptimizedTree));
-						build_queue.push_back(std::pair(right_children, current_node.second->GetChild(accel::Child::Right)));
-
-						unsigned int left_children = OptimizedTree.nodes_.size();
-						OptimizedTree.nodes_[current_node.first].children[Child::Left] = left_children;
-						OptimizedTree.nodes_.push_back(TriangleNode(&OptimizedTree));
-						build_queue.push_back(std::pair(left_children, current_node.second->GetChild(accel::Child::Left)));
-					}
-					else
-					{
-						OptimizedTree.nodes_[current_node.first].first = OptimizedTree.triangles_.size();
-						OptimizedTree.triangles_.insert(OptimizedTree.triangles_.end(), current_node.second->GetElements().begin(), current_node.second->GetElements().end());
-						OptimizedTree.nodes_[current_node.first].last = OptimizedTree.triangles_.size();
-					}
-				}
-			}
-		}
-		TracyLog("built optimized tree with actual size of %d nodes and %d triangles\n", OptimizedTree.nodes_.size(), OptimizedTree.triangles_.size());
-#endif
+		accel::BuildTree<TriInfo>(&SceneTree, TriangleAABBTester);
 	}
 
-	accel::Node<Triangle> SceneTree;
+	accel::Node<TriInfo> SceneTree;
 	
 #if SPARSEARRAY_EXPERIMENTAL
 	CustomTree OptimizedTree;
