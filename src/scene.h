@@ -20,33 +20,6 @@ using std::unordered_map;
 #include "mesh.h"
 #include "camera.h"
 
-class SceneManager
-{
-public:
-	static SceneManager& Get()
-	{
-		static SceneManager singleton_;
-		return singleton_;
-	}
-
-	SceneManager(const SceneManager&) = delete;	
-	SceneManager& operator=(const SceneManager&) = delete;
-
-	SceneManager(SceneManager&&) = delete;
-	SceneManager& operator=(SceneManager&&) = delete;
-
-	void SetScene(const Scene& in_scene) { scene_ = &in_scene; }
-	const Scene& GetScene() const        { return *scene_; }
-
-private:
-	SceneManager() : scene_(nullptr) {}
-	const Scene* scene_;
-};
-
-//
-// --------------------------------------------------------------------------
-//
-
 class Scene
 {
 public:
@@ -87,7 +60,7 @@ private:
 };
 
 //
-//
+// --------------------------------------------------------------------------
 //
 
 inline int Scene::GetTriCount() const
@@ -100,3 +73,30 @@ inline int Scene::GetTriCount() const
 
 	return res;
 }
+
+//
+// --------------------------------------------------------------------------
+//
+
+class SceneManager
+{
+public:
+	static SceneManager& Get()
+	{
+		static SceneManager singleton_;
+		return singleton_;
+	}
+
+	SceneManager(const SceneManager&) = delete;	
+	SceneManager& operator=(const SceneManager&) = delete;
+
+	SceneManager(SceneManager&&) = delete;
+	SceneManager& operator=(SceneManager&&) = delete;
+
+	void SetScene(const Scene& in_scene) { scene_ = &in_scene; }
+	const Scene& GetScene() const        { return *scene_; }
+
+private:
+	SceneManager() : scene_(nullptr) {}
+	const Scene* scene_;
+};

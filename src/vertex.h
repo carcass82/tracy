@@ -5,6 +5,7 @@
  * (c) Carlo Casta, 2018
  */
 #pragma once
+#include "common.h"
 
 template <bool WITH_TANGENTS_AND_BITANGENTS> struct BaseVertex {};
 

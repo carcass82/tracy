@@ -5,6 +5,7 @@
  * (c) Carlo Casta, 2018
  */
 #pragma once
+#include "common.h"
 
 struct Triangle
 {
