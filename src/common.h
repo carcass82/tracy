@@ -28,6 +28,8 @@
 
 #define GLM_ENABLE_EXPERIMENTAL
 #define GLM_FORCE_PRECISION_MEDIUMP_FLOAT
+#define GLM_FORCE_SWIZZLE
+#define GLM_FORCE_INTRINSICS
 
 #include <glm/vec2.hpp>
 #include <glm/vec3.hpp>
@@ -52,8 +54,8 @@ using glm::lookAt;
 #define cosf(x) glm::fastCos(x)
 #define sinf(x) glm::fastSin(x)
 CUDA_DEVICE_CALL inline void sincosf(float x, float* s, float* c) { *s = sinf(x); *c = cosf(x); }
-CUDA_DEVICE_CALL constexpr inline vec3 pmin(const vec3& a, const vec3& b) { return { min(a.x, b.x), min(a.y, b.y), min(a.z, b.z) }; }
-CUDA_DEVICE_CALL constexpr inline vec3 pmax(const vec3& a, const vec3& b) { return { max(a.x, b.x), max(a.y, b.y), max(a.z, b.z) }; }
+CUDA_DEVICE_CALL inline vec3 pmin(const vec3& a, const vec3& b) { return { min(a.x, b.x), min(a.y, b.y), min(a.z, b.z) }; }
+CUDA_DEVICE_CALL inline vec3 pmax(const vec3& a, const vec3& b) { return { max(a.x, b.x), max(a.y, b.y), max(a.z, b.z) }; }
 constexpr float PI = 3.1415926535897932f;
 constexpr float EPS = 1.e-8f;
 template<typename T, size_t N> constexpr inline uint32_t array_size(const T(&)[N]) { return N; }

@@ -22,10 +22,10 @@ template <typename T, int FIXED_SIZE>
 class FixedSizeStack
 {
 public:
-	CUDA_CALL void Push(T item)    { array_[++head_] = item; }
-	CUDA_CALL T    Pop()           { return array_[head_--]; }
-	CUDA_CALL bool IsEmpty() const { return head_ == -1; }
-	CUDA_CALL bool IsFull() const  { return head_ + 1 == FIXED_SIZE; }
+	CUDA_DEVICE_CALL void Push(T item)    { array_[++head_] = item; }
+	CUDA_DEVICE_CALL T    Pop()           { return array_[head_--]; }
+	CUDA_DEVICE_CALL bool IsEmpty() const { return head_ == -1; }
+	CUDA_DEVICE_CALL bool IsFull() const  { return head_ + 1 == FIXED_SIZE; }
 
 private:
 	int head_ = -1;
@@ -38,33 +38,33 @@ template <typename T, template<class...> class Container = std::vector>
 class Node
 {
 public:
-	CUDA_DEVICE_CALL Node(const BBox& in_aabb, unsigned int in_depth = 0)
+	Node(const BBox& in_aabb, unsigned int in_depth = 0)
 		: aabb(in_aabb)
 		, depth(in_depth)
 	{}
 
-	CUDA_DEVICE_CALL Node(unsigned int in_depth = 0)
+	Node(unsigned int in_depth = 0)
 		: Node({ FLT_MAX, -FLT_MAX }, in_depth)
 	{}
 
-	CUDA_DEVICE_CALL bool IsEmpty() const                       { return elems.empty(); }
-	CUDA_DEVICE_CALL unsigned int GetSize() const               { return End() - Begin(); }
-	CUDA_DEVICE_CALL unsigned int Begin() const                 { return 0; }
-	CUDA_DEVICE_CALL unsigned int End() const                   { return (unsigned int)elems.size(); }
-	CUDA_DEVICE_CALL const BBox& GetAABB() const                { return aabb; }
-	CUDA_DEVICE_CALL void SetAABB(const BBox& value)            { aabb = value; }
-	CUDA_DEVICE_CALL const Node* GetChild(Child child) const    { return children[child]; }
-	CUDA_DEVICE_CALL Node* GetChild(Child child)                { return children[child]; }
-	CUDA_DEVICE_CALL void SetChild(Child child, Node* value)    { children[child] = value; }
-	CUDA_DEVICE_CALL const T& GetElement(unsigned int i) const  { return elems[i]; }
-	CUDA_DEVICE_CALL T& GetElement(unsigned int i)              { return elems[i]; }
-	CUDA_DEVICE_CALL Container<T>& GetElements()                { return elems; }
-	CUDA_DEVICE_CALL const Container<T>& GetElements() const    { return elems; }
-	CUDA_DEVICE_CALL const T* GetData() const                   { return &elems[0]; }
-	CUDA_DEVICE_CALL void ClearChild(Child child)               { delete children[child]; children[child] = nullptr; }
-	CUDA_DEVICE_CALL void ClearChildren()                       { ClearChild(Child::Right); ClearChild(Child::Left); }
-	CUDA_DEVICE_CALL void ClearElems()                          { Container<T>().swap(elems); }
-	CUDA_DEVICE_CALL unsigned int GetDepth() const              { return depth; }
+	bool IsEmpty() const                       { return elems.empty(); }
+	unsigned int GetSize() const               { return End() - Begin(); }
+	unsigned int Begin() const                 { return 0; }
+	unsigned int End() const                   { return (unsigned int)elems.size(); }
+	const BBox& GetAABB() const                { return aabb; }
+	void SetAABB(const BBox& value)            { aabb = value; }
+	const Node* GetChild(Child child) const    { return children[child]; }
+	Node* GetChild(Child child)                { return children[child]; }
+	void SetChild(Child child, Node* value)    { children[child] = value; }
+	const T& GetElement(unsigned int i) const  { return elems[i]; }
+	T& GetElement(unsigned int i)              { return elems[i]; }
+	Container<T>& GetElements()                { return elems; }
+	const Container<T>& GetElements() const    { return elems; }
+	const T* GetData() const                   { return &elems[0]; }
+	void ClearChild(Child child)               { delete children[child]; children[child] = nullptr; }
+	void ClearChildren()                       { ClearChild(Child::Right); ClearChild(Child::Left); }
+	void ClearElems()                          { Container<T>().swap(elems); }
+	unsigned int GetDepth() const              { return depth; }
 
 private:
 	Node* children[Child::Count] = {};
@@ -80,7 +80,7 @@ template <typename T>
 using ObjectsRayTesterFunction = function<bool(const T* elems, unsigned int first, unsigned int last, const Ray&, HitData&)>;
 
 template<typename T, template<class...> class Container = std::vector, class Predicate>
-CUDA_DEVICE_CALL void CopyIf(const Container<T>& src, Container<T>& dest, Predicate Pred)
+void CopyIf(const Container<T>& src, Container<T>& dest, Predicate Pred)
 {
 	for (auto& src_object : src)
 	{
@@ -92,7 +92,7 @@ CUDA_DEVICE_CALL void CopyIf(const Container<T>& src, Container<T>& dest, Predic
 }
 
 template <typename T, class NodeType>
-CUDA_DEVICE_CALL inline unsigned int SplitAndGetDuplicationPercentage(const NodeType& current_node, NodeType& right_node, NodeType& left_node, const ObjectAABBTesterFunction<T>& ObjectBoxTester)
+inline unsigned int SplitAndGetDuplicationPercentage(const NodeType& current_node, NodeType& right_node, NodeType& left_node, const ObjectAABBTesterFunction<T>& ObjectBoxTester)
 {
 	constexpr float ROUND = 1.e-4f;
 
@@ -179,7 +179,7 @@ template <typename ElemType,
           unsigned int MIN_OBJECTS = TREE_MINOBJECTS,
           unsigned int MAX_DEPTH = TREE_MAXDEPTH,
           unsigned int USELESS_SPLIT_THRESHOLD = TREE_USELESS_SPLIT_THRESHOLD>
-CUDA_DEVICE_CALL inline void BuildTree(NodeType* tree, const ObjectAABBTesterFunction<ElemType>& ObjectBoxTester)
+inline void BuildTree(NodeType* tree, const ObjectAABBTesterFunction<ElemType>& ObjectBoxTester)
 {
 	if (!tree->IsEmpty())
 	{

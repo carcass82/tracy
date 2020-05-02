@@ -84,7 +84,7 @@ private:
 };
 
 template<typename VertexType, bool enabled>
-typename std::enable_if<enabled, Mesh&>::type Mesh::ComputeTangentsAndBitangents()
+inline typename std::enable_if<enabled, Mesh&>::type Mesh::ComputeTangentsAndBitangents()
 {
 	// Lengyel, Eric. "Computing Tangent Space Basis Vectors for an Arbitrary Mesh"
 	// http://www.terathon.com/code/tangent.html
@@ -125,7 +125,7 @@ typename std::enable_if<enabled, Mesh&>::type Mesh::ComputeTangentsAndBitangents
 }
 
 template<typename VertexType, bool enabled>
-typename std::enable_if<!enabled, Mesh&>::type Mesh::ComputeTangentsAndBitangents()
+inline typename std::enable_if<!enabled, Mesh&>::type Mesh::ComputeTangentsAndBitangents()
 {
 	return *this;
 }

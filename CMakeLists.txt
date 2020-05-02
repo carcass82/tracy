@@ -135,9 +135,6 @@ if(TRACY_RENDER_MODULE STREQUAL "CPU (RayTracing)")
 	set(CPU_USE_SIMD "Off" CACHE STRING "Use SIMD in triangle-ray test function")
 	set_property(CACHE CPU_USE_SIMD PROPERTY STRINGS "Off" "SSE" "AVX")
 
-	set(CPU_DATA_LAYOUT "SoA" CACHE STRING "Layout Triangle Data as SoA (Structure of Arrays) or AoS (Array of Structures)")
-	set_property(CACHE CPU_DATA_LAYOUT PROPERTY STRINGS "SoA" "AoS")
-
 	set(cpu_includes "./src/kernels/raytracing/software/cpu_trace.h"
 	                 "./src/kernels/raytracing/software/cpu_specific.h")
 
@@ -269,10 +266,10 @@ if(MSVC)
 	set(CMAKE_CXX_FLAGS_RELEASE "${CMAKE_CXX_FLAGS_RELEASE} /GR- /Gw /GL /O2 /fp:fast /Qpar /DNDEBUG /DNOVTABLE=__declspec(novtable)")
 	
 	# enable auto vectorizer report
-	#set(CMAKE_CXX_FLAGS_RELEASE "${CMAKE_CXX_FLAGS_RELEASE} -Qvec-report:2")
+	#set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} /Qvec-report:2")
 
 	# enable auto parallelizer report
-	#set(CMAKE_CXX_FLAGS_RELEASE "${CMAKE_CXX_FLAGS_RELEASE} -Qpar-report:2")
+	#set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} /Qpar-report:2")
 
 	if(CPU_NO_OPENMP)
 		set(CMAKE_CXX_FLAGS_RELEASE "${CMAKE_CXX_FLAGS_RELEASE} /openmp-")

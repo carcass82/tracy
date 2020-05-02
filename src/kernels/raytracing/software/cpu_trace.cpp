@@ -52,37 +52,43 @@ namespace
 		uint16_t tri_idx;
 	};
 
-#if !defined(USE_AOS)
-	struct OptimizedTriangleSOA
+#if SPARSEARRAY_EXPERIMENTAL
+	using accel::Child;
+
+	template <typename Father, typename T>
+	struct CustomNode
 	{
-		vec3* v0;
-		vec3* v0v1;
-		vec3* v0v2;
-		uint16_t* mesh_idx;
-		uint16_t* tri_idx;
+		bool IsEmpty() const                          { return first == last; }
+		const T* GetData() const                      { return &root->triangles_[0]; }
+		unsigned int Begin() const                    { return first; }
+		unsigned int End() const                      { return last; }
+		const BBox& GetAABB() const                   { return aabb; }
+		const CustomNode* GetChild(Child child) const { return root->GetChild(children[child]); }
+		CustomNode* GetChild(Child child)             { return root->GetChild(children[child]); }
+
+
+		CustomNode(const Father* in_root)
+			: first(0), last(0), children{ UINT32_MAX, UINT32_MAX }, root(in_root)
+		{}
+
+		BBox aabb;                           // 12
+
+		unsigned int first;                  // 4
+		unsigned int last;                   // 4
+		unsigned int children[Child::Count]; // 8
+
+		const Father* root;                  // 4
 	};
 
-	struct OptimizedTree
+	struct CustomTree
 	{
-		struct OptimizedNode* root = {};
-		OptimizedTriangleSOA elems;
-	};
+		const CustomNode<CustomTree, Triangle>* GetChild(unsigned int idx) const
+		{
+			return (idx < nodes_.size()) ? &nodes_[idx] : nullptr;
+		}
 
-	struct OptimizedNode
-	{
-		CUDA_DEVICE_CALL bool IsEmpty() const                                      { return begin == end; }
-		CUDA_DEVICE_CALL unsigned int Begin() const                                { return begin; }
-		CUDA_DEVICE_CALL unsigned int End() const                                  { return end; }
-		CUDA_DEVICE_CALL const BBox& GetAABB() const                               { return aabb; }
-		CUDA_DEVICE_CALL const OptimizedNode* GetChild(accel::Child child) const   { return children[child]; }
-		CUDA_DEVICE_CALL const OptimizedTriangleSOA* GetData() const               { return &father->elems; }
-
-		unsigned int begin = 0;
-		unsigned int end = 0;
-
-		BBox aabb;
-		OptimizedNode* children[accel::Child::Count];
-		OptimizedTree* father = {};
+		vector<CustomNode<CustomTree, Triangle>> nodes_;
+		vector<Triangle> triangles_;
 	};
 #endif
 #endif
@@ -182,9 +188,8 @@ struct CpuTrace::CpuTraceDetails
 			static const simd_float simd_EPS(EPS);
 			simd_float simd_nearest_t(intersection_data.t);
 
-			for (size_t idx = in_first; idx < in_count; idx += SIMD_WIDTH)
+			for (unsigned int idx = in_first; idx < in_count; idx += SIMD_WIDTH)
 			{
-#if USE_AOS
 				float valid_triangle[SIMD_WIDTH];
                 vec3 v0s[SIMD_WIDTH];
                 vec3 v0v1s[SIMD_WIDTH];
@@ -197,21 +202,11 @@ struct CpuTrace::CpuTraceDetails
 						continue;
 					}
 
-                    v0s[i] = in_triangles[idx + i].v0;
+                    v0s[i] = in_triangles[idx + i].v[0];
                     v0v1s[i] = in_triangles[idx + i].v0v1;
                     v0v2s[i] = in_triangles[idx + i].v0v2;
                 }
-#else
-				float valid_triangle[SIMD_WIDTH];
-				for (int i = 0; i < SIMD_WIDTH; ++i)
-				{
-					valid_triangle[i] = (idx + i < in_count);
-				}
 
-				vec3 *v0s = in_triangles->v0 + idx;
-				vec3 *v0v1s = in_triangles->v0v1 + idx;
-				vec3 *v0v2s = in_triangles->v0v2 + idx;
-#endif
 				const simd_vec3 v0(v0s);
 				const simd_vec3 v0v1(v0v1s);
 				const simd_vec3 v0v2(v0v2s);
@@ -253,13 +248,8 @@ struct CpuTrace::CpuTraceDetails
 
 						intersection_data.t = res[i];
 						intersection_data.uv = vec2{ u[i], v[i] } * inv_det[i];
-#if USE_AOS
 						intersection_data.triangle_index = in_triangles[idx + i].tri_idx;
 						intersection_data.object_index = in_triangles[idx + i].mesh_idx;
-#else
-						intersection_data.triangle_index = in_triangles->tri_idx[idx + i];
-						intersection_data.object_index = in_triangles->mesh_idx[idx + i];
-#endif
 						hit_triangle = true;
 					}
 				}
@@ -274,17 +264,13 @@ struct CpuTrace::CpuTraceDetails
 			const vec3 ray_direction = in_ray.GetDirection();
 			const vec3 ray_origin = in_ray.GetOrigin();
 
-			for (size_t idx = in_first; idx < in_count; ++idx)
+			for (unsigned int idx = in_first; idx < in_count; ++idx)
 			{
-#if USE_AOS
-				const vec3 v0   = in_triangles[idx].v[0];
-				const vec3 v0v1 = in_triangles[idx].v0v1;
-				const vec3 v0v2 = in_triangles[idx].v0v2;
-#else
-				const vec3 v0 = in_triangles->v0[idx];
-				const vec3 v0v1 = in_triangles->v0v1[idx];
-				const vec3 v0v2 = in_triangles->v0v2[idx];
-#endif
+				const auto& triangle = in_triangles[idx];
+
+				const vec3 v0   = triangle.v[0];
+				const vec3 v0v1 = triangle.v0v1;
+				const vec3 v0v2 = triangle.v0v2;
 
 				vec3 pvec = cross(ray_direction, v0v2);
 
@@ -314,13 +300,8 @@ struct CpuTrace::CpuTraceDetails
 					{
 						intersection_data.t = t;
 						intersection_data.uv = vec2{ u, v } * inv_det;
-#if USE_AOS
-						intersection_data.triangle_index = in_triangles[idx].tri_idx;
-						intersection_data.object_index = in_triangles[idx].mesh_idx;
-#else
-						intersection_data.triangle_index = in_triangles->tri_idx[idx];
-						intersection_data.object_index = in_triangles->mesh_idx[idx];
-#endif
+						intersection_data.triangle_index = triangle.tri_idx;
+						intersection_data.object_index = triangle.mesh_idx;
 						hit_triangle = true;
 					}
 				}
@@ -341,10 +322,10 @@ struct CpuTrace::CpuTraceDetails
 			if (IntersectsWithBoundingBox(mesh.GetAABB(), ray, intersection_data.t))
 			{
 #if USE_KDTREE
-#if USE_AOS
-				if (accel::IntersectsWithTree<Triangle>(&SceneTree, ray, intersection_data, TriangleRayTester))
+#if SPARSEARRAY_EXPERIMENTAL
+				if (accel::IntersectsWithTree<Triangle>(OptimizedTree.GetChild(0), ray, intersection_data, TriangleRayTester))
 #else
-				if (accel::IntersectsWithTree<OptimizedTriangleSOA>(SceneTree.root, ray, intersection_data, TriangleRayTester))
+				if (accel::IntersectsWithTree<Triangle>(&SceneTree, ray, intersection_data, TriangleRayTester))
 #endif
 				{
 					hit_any_mesh = true;
@@ -444,28 +425,6 @@ struct CpuTrace::CpuTraceDetails
 			return true;
 		};
 
-#if !defined(USE_AOS)
-		auto VectorToSOA = [](OptimizedTree& out_optimized, const accel::Node<Triangle>& in_scene)
-		{
-
-
-			//trianglelist.v0 = new vec3[triangles.size()];
-			//trianglelist.v0v1 = new vec3[triangles.size()];
-			//trianglelist.v0v2 = new vec3[triangles.size()];
-			//trianglelist.mesh_idx = new uint16_t[triangles.size()];
-			//trianglelist.tri_idx = new uint16_t[triangles.size()];
-			//
-			//for (vector<Triangle>::size_type i = 0; i < triangles.size(); ++i)
-			//{
-			//	trianglelist.v0[i] = triangles[i].v[0];
-			//	trianglelist.v0v1[i] = triangles[i].v0v1;
-			//	trianglelist.v0v2[i] = triangles[i].v0v2;
-			//	trianglelist.mesh_idx[i] = triangles[i].mesh_idx;
-			//	trianglelist.tri_idx[i] = triangles[i].tri_idx;
-			//}
-		};
-#endif
-
 		if (scene.GetObjectCount() > UINT16_MAX)
 		{
 			TracyLog("Unable to represent mesh index\n");
@@ -499,26 +458,60 @@ struct CpuTrace::CpuTraceDetails
 				}
 			}
 
-#if USE_AOS
+			TracyLog("scene contains %d triangles\n", scene_tris.size());
+
 			SceneTree.SetAABB(scene_bbox);
 			SceneTree.GetElements().assign(scene_tris.begin(), scene_tris.end());
 		}
 		
 		accel::BuildTree<Triangle, std::vector>(&SceneTree, TriangleAABBTester);
-#else
-			accel::Node<Triangle> Scene(scene_bbox);
-			Scene.GetElements().assign(scene_tris.begin(), scene_tris.end());
-			accel::BuildTree<Triangle, std::vector>(&Scene, TriangleAABBTester);
 
-			VectorToSOA(SceneTree, Scene);
+#if SPARSEARRAY_EXPERIMENTAL
+		{
+			using TriangleNode = CustomNode<CustomTree, Triangle>;
+
+			vector<std::pair<unsigned int, accel::Node<Triangle>*>> build_queue;
+			OptimizedTree.nodes_.push_back(TriangleNode(&OptimizedTree));
+			
+			build_queue.push_back(std::pair(0, &SceneTree));
+			while (!build_queue.empty())
+			{
+				auto current_node = build_queue.back();
+				build_queue.pop_back();
+
+				if (current_node.second)
+				{
+					OptimizedTree.nodes_[current_node.first].aabb = current_node.second->GetAABB();
+
+					if (current_node.second->IsEmpty())
+					{
+						unsigned int right_children = OptimizedTree.nodes_.size();
+						OptimizedTree.nodes_[current_node.first].children[Child::Right] = right_children;
+						OptimizedTree.nodes_.push_back(TriangleNode(&OptimizedTree));
+						build_queue.push_back(std::pair(right_children, current_node.second->GetChild(accel::Child::Right)));
+
+						unsigned int left_children = OptimizedTree.nodes_.size();
+						OptimizedTree.nodes_[current_node.first].children[Child::Left] = left_children;
+						OptimizedTree.nodes_.push_back(TriangleNode(&OptimizedTree));
+						build_queue.push_back(std::pair(left_children, current_node.second->GetChild(accel::Child::Left)));
+					}
+					else
+					{
+						OptimizedTree.nodes_[current_node.first].first = OptimizedTree.triangles_.size();
+						OptimizedTree.triangles_.insert(OptimizedTree.triangles_.end(), current_node.second->GetElements().begin(), current_node.second->GetElements().end());
+						OptimizedTree.nodes_[current_node.first].last = OptimizedTree.triangles_.size();
+					}
+				}
+			}
 		}
+		TracyLog("built optimized tree with actual size of %d nodes and %d triangles\n", OptimizedTree.nodes_.size(), OptimizedTree.triangles_.size());
 #endif
 	}
 
-#if USE_AOS
 	accel::Node<Triangle> SceneTree;
-#else
-	OptimizedTree SceneTree;
+	
+#if SPARSEARRAY_EXPERIMENTAL
+	CustomTree OptimizedTree;
 #endif
 
 #else
