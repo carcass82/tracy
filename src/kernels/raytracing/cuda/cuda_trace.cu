@@ -103,7 +103,7 @@ __device__ bool ComputeIntersection(CUDAMesh* in_objects, int objectcount, const
 
 #if USE_KDTREE
 
-    auto TriangleRayTester = [](const auto* in_triangles, unsigned int in_first, unsigned int in_count, const Ray& in_ray, HitData& intersection_data)
+    auto TriangleRayTester = [&in_objects](const auto* in_triangles, unsigned int in_first, unsigned int in_count, const Ray& in_ray, HitData& intersection_data)
     {
         bool hit_triangle = false;
 
@@ -112,9 +112,16 @@ __device__ bool ComputeIntersection(CUDAMesh* in_objects, int objectcount, const
 
         for (size_t idx = in_first; idx < in_count; ++idx)
         {
-            const vec3 v0 = in_triangles[idx].v[0];
-            const vec3 v0v1 = in_triangles[idx].v0v1;
-            const vec3 v0v2 = in_triangles[idx].v0v2;
+            const uint32_t mesh_id = in_triangles[idx].GetMeshId();
+            const uint32_t triangle_id = in_triangles[idx].GetTriangleId() * 3;
+
+            const CUDAMesh& mesh = in_objects[mesh_id];
+
+            const vec3 v0 = mesh.vertices_[mesh.indices_[triangle_id + 0]].pos;
+            const vec3 v1 = mesh.vertices_[mesh.indices_[triangle_id + 1]].pos;
+            const vec3 v2 = mesh.vertices_[mesh.indices_[triangle_id + 2]].pos;
+            const vec3 v0v1 = v1 - v0;
+            const vec3 v0v2 = v2 - v0;
 
             vec3 pvec = cross(ray_direction, v0v2);
 
@@ -144,8 +151,8 @@ __device__ bool ComputeIntersection(CUDAMesh* in_objects, int objectcount, const
                 {
                     intersection_data.t = t;
                     intersection_data.uv = vec2{ u, v } *inv_det;
-                    intersection_data.triangle_index = in_triangles[idx].tri_idx;
-                    intersection_data.object_index = in_triangles[idx].mesh_idx;
+                    intersection_data.triangle_index = triangle_id;
+                    intersection_data.object_index = mesh_id;
                     hit_triangle = true;
                 }
             }
@@ -154,7 +161,7 @@ __device__ bool ComputeIntersection(CUDAMesh* in_objects, int objectcount, const
         return hit_triangle;
     };
 
-    hit_any_mesh = accel::IntersectsWithTree<Triangle>(in_scenetree->GetChild(0), ray, intersection_data, TriangleRayTester);
+    hit_any_mesh = accel::IntersectsWithTree<TriInfo>(in_scenetree->GetChild(0), ray, intersection_data, TriangleRayTester);
 
 #else
 
@@ -365,16 +372,16 @@ extern "C" void cuda_setup(const Scene& in_scene, CUDAScene* out_scene)
     helper.nodes_num_ = out_scene->h_scenetree.nodes_num_;
     helper.triangles_num_ = out_scene->h_scenetree.triangles_num_;
 
-    CUDAAssert(cudaMalloc(&helper.triangles_, helper.triangles_num_ * sizeof(Triangle)));
-    CUDAAssert(cudaMemcpy(helper.triangles_, out_scene->h_scenetree.triangles_, helper.triangles_num_ * sizeof(Triangle), cudaMemcpyHostToDevice));
+    CUDAAssert(cudaMalloc(&helper.triangles_, helper.triangles_num_ * sizeof(TriInfo)));
+    CUDAAssert(cudaMemcpy(helper.triangles_, out_scene->h_scenetree.triangles_, helper.triangles_num_ * sizeof(TriInfo), cudaMemcpyHostToDevice));
     
     CUDAAssert(cudaMalloc(&out_scene->d_scenetree, sizeof(CUDATree)));
     for (unsigned int i = 0; i < helper.nodes_num_; ++i)
     {
         out_scene->h_scenetree.nodes_[i].root = out_scene->d_scenetree;
     }
-    CUDAAssert(cudaMalloc(&helper.nodes_, helper.nodes_num_ * sizeof(CustomNode<CUDATree, Triangle>)));
-    CUDAAssert(cudaMemcpy(helper.nodes_, out_scene->h_scenetree.nodes_, helper.nodes_num_ * sizeof(CustomNode<CUDATree, Triangle>), cudaMemcpyHostToDevice));
+    CUDAAssert(cudaMalloc(&helper.nodes_, helper.nodes_num_ * sizeof(CustomNode<CUDATree, TriInfo>)));
+    CUDAAssert(cudaMemcpy(helper.nodes_, out_scene->h_scenetree.nodes_, helper.nodes_num_ * sizeof(CustomNode<CUDATree, TriInfo>), cudaMemcpyHostToDevice));
 
     CUDAAssert(cudaMemcpy(out_scene->d_scenetree, &helper, sizeof(CUDATree), cudaMemcpyHostToDevice));
 

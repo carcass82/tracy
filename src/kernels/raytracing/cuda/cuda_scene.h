@@ -21,6 +21,17 @@ using accel::Child;
 #include "triangle.h"
 #include "container.h"
 
+struct TriInfo
+{
+	CUDA_DEVICE_CALL constexpr TriInfo(uint32_t mesh_idx = 0, uint32_t triangle_idx = 0)
+		: packed((mesh_idx << 24) | triangle_idx)
+	{}
+
+	CUDA_DEVICE_CALL constexpr uint32_t GetMeshId() const { return packed >> 24; }
+	CUDA_DEVICE_CALL constexpr uint32_t GetTriangleId() const { return packed & 0xffffff; }
+
+	uint32_t packed;
+};
 
 template <typename Father, typename T>
 struct CustomNode
@@ -49,16 +60,16 @@ struct CustomNode
 
 struct CUDATree
 {
-    CUDA_DEVICE_CALL const CustomNode<CUDATree, Triangle>* GetChild(unsigned int idx) const
+    CUDA_DEVICE_CALL const CustomNode<CUDATree, TriInfo>* GetChild(unsigned int idx) const
 	{
 		return (idx < nodes_num_) ? &nodes_[idx] : nullptr;
 	}
 
     unsigned int nodes_num_;
-	CustomNode<CUDATree, Triangle>* nodes_;
+	CustomNode<CUDATree, TriInfo>* nodes_;
 
     unsigned int triangles_num_;
-	Triangle* triangles_;
+	TriInfo* triangles_;
 };
 #endif
 

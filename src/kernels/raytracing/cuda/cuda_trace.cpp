@@ -122,14 +122,19 @@ void CUDATrace::Initialize(Handle in_window, int in_width, int in_height, const 
     // pretend it's a function like PrepareScene()
     {
 		// Triangle-AABB intersection
-		auto TriangleAABBTester = [](const Triangle& triangle, const BBox& aabb)
+		auto TriangleAABBTester = [](const auto& in_triangle, const BBox& in_aabb)
 		{
 			// triangle - box test using separating axis theorem (https://fileadmin.cs.lth.se/cs/Personal/Tomas_Akenine-Moller/pubs/tribox.pdf)
 			// code adapted from http://fileadmin.cs.lth.se/cs/Personal/Tomas_Akenine-Moller/code/tribox3.txt
 
-			vec3 v0{ triangle.v[0] - aabb.GetCenter() };
-			vec3 v1{ triangle.v[1] - aabb.GetCenter() };
-			vec3 v2{ triangle.v[2] - aabb.GetCenter() };
+			uint32_t mesh_id = in_triangle.GetMeshId();
+			uint32_t triangle_id = in_triangle.GetTriangleId() * 3;
+
+			const Mesh& mesh = SceneManager::Get().GetScene().GetObject(mesh_id);
+
+			vec3 v0{ mesh.GetVertex(mesh.GetIndex(triangle_id + 0)).pos - in_aabb.GetCenter() };
+			vec3 v1{ mesh.GetVertex(mesh.GetIndex(triangle_id + 1)).pos - in_aabb.GetCenter() };
+			vec3 v2{ mesh.GetVertex(mesh.GetIndex(triangle_id + 2)).pos - in_aabb.GetCenter() };
 
 			vec3 e0{ v1 - v0 };
 			vec3 e1{ v2 - v1 };
@@ -139,7 +144,7 @@ void CUDATrace::Initialize(Handle in_window, int in_width, int in_height, const 
 			vec3 fe1{ abs(e1.x), abs(e1.y), abs(e1.z) };
 			vec3 fe2{ abs(e2.x), abs(e2.y), abs(e2.z) };
 
-			vec3 aabb_hsize = aabb.GetSize() / 2.f;
+			vec3 aabb_hsize = in_aabb.GetSize() / 2.f;
 
 			auto AxisTester = [](float a, float b, float fa, float fb, float v0_0, float v0_1, float v1_0, float v1_1, float hsize_0, float hsize_1)
 			{
@@ -197,49 +202,43 @@ void CUDATrace::Initialize(Handle in_window, int in_width, int in_height, const 
 			return true;
 		};
 
-		if (in_scene.GetObjectCount() > UINT16_MAX)
+		if (in_scene.GetObjectCount() > UINT8_MAX)
 		{
 			TracyLog("Unable to represent mesh index\n");
 			DEBUG_BREAK();
 		}
 
+		accel::Node<TriInfo> SceneTree;
+		SceneTree.GetElements().reserve(in_scene.GetTriCount());
+
 		BBox scene_bbox{ FLT_MAX, -FLT_MAX };
-		vector<Triangle> scene_tris;
-		for (uint16_t i = 0; i < in_scene.GetObjectCount(); ++i)
+		for (int i = 0; i < in_scene.GetObjectCount(); ++i)
 		{
 			const Mesh& mesh = in_scene.GetObject(i);
-			if (mesh.GetTriCount() * 3 > UINT16_MAX)
+			if (mesh.GetTriCount() * 3 > pow(2, 24) - 1)
 			{
 				TracyLog("Unable to represent triangle index\n");
 				DEBUG_BREAK();
 			}
 
-			for (uint16_t t = 0; t < mesh.GetTriCount(); ++t)
+			for (int t = 0; t < mesh.GetTriCount(); ++t)
 			{
-				uint16_t tri_idx = t * 3;
-
-				const vec3& v0 = mesh.GetVertex(mesh.GetIndex(tri_idx + 0)).pos;
-				const vec3& v1 = mesh.GetVertex(mesh.GetIndex(tri_idx + 1)).pos;
-				const vec3& v2 = mesh.GetVertex(mesh.GetIndex(tri_idx + 2)).pos;
-
-				scene_bbox.minbound = pmin(mesh.GetAABB().minbound, scene_bbox.minbound);
-				scene_bbox.maxbound = pmax(mesh.GetAABB().maxbound, scene_bbox.maxbound);
-
-				scene_tris.emplace_back(v0, v1, v2, i, tri_idx);
+				SceneTree.GetElements().emplace_back(i, t);
 			}
+
+			scene_bbox.minbound = pmin(mesh.GetAABB().minbound, scene_bbox.minbound);
+			scene_bbox.maxbound = pmax(mesh.GetAABB().maxbound, scene_bbox.maxbound);
 		}
-
-        accel::Node<Triangle> SceneTree;
 		SceneTree.SetAABB(scene_bbox);
-		SceneTree.GetElements().assign(scene_tris.begin(), scene_tris.end());
-        accel::BuildTree<Triangle, std::vector>(&SceneTree, TriangleAABBTester);
 
-		vector<CustomNode<CUDATree, Triangle>> nodes;
-		vector<Triangle> triangles;
+		accel::BuildTree<TriInfo>(&SceneTree, TriangleAABBTester);
+
+		vector<CustomNode<CUDATree, TriInfo>> nodes;
+		vector<TriInfo> triangles;
 		{
-			using TriangleNode = CustomNode<CUDATree, Triangle>;
+			using TriangleNode = CustomNode<CUDATree, TriInfo>;
 
-			vector<std::pair<unsigned int, accel::Node<Triangle>*>> build_queue;
+			vector<std::pair<unsigned int, accel::Node<TriInfo>*>> build_queue;
 			nodes.push_back(TriangleNode());
 
 			build_queue.push_back(std::pair(0, &SceneTree));
@@ -275,12 +274,12 @@ void CUDATrace::Initialize(Handle in_window, int in_width, int in_height, const 
 		}
 
 		details_->scene_.h_scenetree.nodes_num_ = (unsigned int)nodes.size();
-		details_->scene_.h_scenetree.nodes_ = new CustomNode<CUDATree, Triangle>[nodes.size()];
-		memcpy(details_->scene_.h_scenetree.nodes_, &nodes[0], nodes.size() * sizeof(CustomNode<CUDATree, Triangle>));
+		details_->scene_.h_scenetree.nodes_ = new CustomNode<CUDATree, TriInfo>[nodes.size()];
+		memcpy(details_->scene_.h_scenetree.nodes_, &nodes[0], nodes.size() * sizeof(CustomNode<CUDATree, TriInfo>));
 
 		details_->scene_.h_scenetree.triangles_num_ = (unsigned int)triangles.size();
-		details_->scene_.h_scenetree.triangles_ = new Triangle[triangles.size()];
-		memcpy(details_->scene_.h_scenetree.triangles_, &triangles[0], triangles.size() * sizeof(Triangle));
+		details_->scene_.h_scenetree.triangles_ = new TriInfo[triangles.size()];
+		memcpy(details_->scene_.h_scenetree.triangles_, &triangles[0], triangles.size() * sizeof(TriInfo));
     }
 
 #endif
