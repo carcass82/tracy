@@ -20,6 +20,7 @@
 #include "cuda_mesh.h"
 #include "scene.h"
 #include "cuda_scene.h"
+#include "collision.h"
 
 // static material map initialization
 unordered_map<const Material*, Material*> CUDAMaterial::device_materials_;
@@ -33,65 +34,6 @@ constexpr int MAX_DEPTH = 5;
 // max sample per kernel launch
 constexpr int MAX_SAMPLES = 1;
 
-__device__ bool IntersectsWithMesh(const CUDAMesh& mesh, const Ray& in_ray, HitData& inout_intersection)
-{
-    bool hit_triangle = false;
-
-    if (IntersectsWithBoundingBox(mesh.aabb_, in_ray, inout_intersection.t))
-    {
-        vec3 ray_direction = in_ray.GetDirection();
-        vec3 ray_origin = in_ray.GetOrigin();
-
-        int tris = mesh.indexcount_ / 3;
-        for (int i = 0; i < tris; ++i)
-        {
-            const Index i0 = mesh.indices_[i * 3 + 0];
-            const Index i1 = mesh.indices_[i * 3 + 1];
-            const Index i2 = mesh.indices_[i * 3 + 2];
-
-            const vec3 v0 = mesh.vertices_[i0].pos;
-            const vec3 v1 = mesh.vertices_[i1].pos;
-            const vec3 v2 = mesh.vertices_[i2].pos;
-
-            const vec3 v0v1 = v1 - v0;
-            const vec3 v0v2 = v2 - v0;
-
-            vec3 pvec = cross(ray_direction, v0v2);
-            float det = dot(v0v1, pvec);
-
-            // if the determinant is negative the triangle is backfacing
-            // if the determinant is close to 0, the ray misses the triangle
-            if (det > EPS)
-            {
-                vec3 tvec = ray_origin - v0;
-                float u = dot(tvec, pvec);
-                if (u < EPS || u > det)
-                {
-                    continue;
-                }
-
-                vec3 qvec = cross(tvec, v0v1);
-                float v = dot(ray_direction, qvec);
-                if (v < EPS || u + v > det)
-                {
-                    continue;
-                }
-
-                float invDet = rcp(det);
-                float t = dot(v0v2, qvec) * invDet;
-                if (t < inout_intersection.t && t > EPS)
-                {
-                    inout_intersection.t = t;
-                    inout_intersection.uv = vec2{ u, v } * invDet;
-                    inout_intersection.triangle_index = i * 3;
-                    hit_triangle = true;
-                }
-            }
-        }
-    }
-
-    return hit_triangle;
-}
 
 #if USE_KDTREE
 __device__ bool ComputeIntersection(CUDAMesh* in_objects, int objectcount, CUDATree* in_scenetree, const Ray& ray, HitData& intersection_data)
@@ -120,41 +62,15 @@ __device__ bool ComputeIntersection(CUDAMesh* in_objects, int objectcount, const
             const vec3 v0 = mesh.vertices_[mesh.indices_[triangle_id + 0]].pos;
             const vec3 v1 = mesh.vertices_[mesh.indices_[triangle_id + 1]].pos;
             const vec3 v2 = mesh.vertices_[mesh.indices_[triangle_id + 2]].pos;
-            const vec3 v0v1 = v1 - v0;
-            const vec3 v0v2 = v2 - v0;
 
-            vec3 pvec = cross(ray_direction, v0v2);
-
-            float det = dot(v0v1, pvec);
-
-            // if the determinant is negative the triangle is backfacing
-            // if the determinant is close to 0, the ray misses the triangle
-            if (det > EPS)
+            collision::TriangleHitData tri_hit_data(intersection_data.t);
+            if (collision::RayTriangle(in_ray, v0, v1, v2, tri_hit_data))
             {
-                vec3 tvec = ray_origin - v0;
-                float u = dot(tvec, pvec);
-                if (u < EPS || u > det)
-                {
-                    continue;
-                }
-
-                vec3 qvec = cross(tvec, v0v1);
-                float v = dot(ray_direction, qvec);
-                if (v < EPS || u + v > det)
-                {
-                    continue;
-                }
-
-                float inv_det = rcp(det);
-                float t = dot(v0v2, qvec) * inv_det;
-                if (t > EPS && t < intersection_data.t)
-                {
-                    intersection_data.t = t;
-                    intersection_data.uv = vec2{ u, v } *inv_det;
-                    intersection_data.triangle_index = triangle_id;
-                    intersection_data.object_index = mesh_id;
-                    hit_triangle = true;
-                }
+                intersection_data.t = tri_hit_data.RayT;
+                intersection_data.uv = tri_hit_data.TriangleUV;
+                intersection_data.triangle_index = triangle_id;
+                intersection_data.object_index = mesh_id;
+                hit_triangle = true;
             }
         }
 
@@ -167,10 +83,17 @@ __device__ bool ComputeIntersection(CUDAMesh* in_objects, int objectcount, const
 
     for (int i = 0; i < objectcount; ++i)
     {
-        if (IntersectsWithMesh(in_objects[i], ray, intersection_data))
+        if (collision::RayAABB(ray, in_objects[i].aabb_, intersection_data.t))
         {
-            intersection_data.object_index = i;
-            hit_any_mesh = true;
+            collision::MeshHitData mesh_hit(intersection_data.t);
+            if (collision::RayMesh(ray, in_objects[i], mesh_hit))
+            {
+                intersection_data.t = mesh_hit.RayT;
+                intersection_data.uv = mesh_hit.TriangleUV;
+                intersection_data.triangle_index = mesh_hit.TriangleIndex;
+                intersection_data.object_index = i;
+                hit_any_mesh = true;
+            }
         }
     }
 
@@ -359,7 +282,7 @@ extern "C" void cuda_setup(const Scene& in_scene, CUDAScene* out_scene)
     CUDAAssert(cudaSetDevice(CUDA_PREFERRED_DEVICE));
 
     CUDAAssert(cudaMalloc(&out_scene->d_objects_, in_scene.GetObjectCount() * sizeof(CUDAMesh)));
-    for (int i = 0; i < in_scene.GetObjectCount(); ++i)
+    for (unsigned int i = 0; i < in_scene.GetObjectCount(); ++i)
     {
         CUDAMesh cmesh(in_scene.GetObject(i), CUDAMaterial::Convert(in_scene.GetObject(i).GetMaterial()));
         CUDAAssert(cudaMemcpy(&out_scene->d_objects_[i], &cmesh, sizeof(CUDAMesh), cudaMemcpyHostToDevice));

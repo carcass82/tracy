@@ -44,9 +44,9 @@ public:
 
 	const string& GetName() const          { return scene_name_; }
 
-	int GetObjectCount() const             { return (int)objects_.size(); }
+	uint32_t int GetObjectCount() const    { return static_cast<uint32_t>(objects_.size()); }
 
-	int GetTriCount() const;
+	uint32_t GetTriCount() const;
 	
 	const Material* GetSkyMaterial() const { return &materials_.at(SKY_MATERIAL_NAME); }
 
@@ -63,9 +63,9 @@ private:
 // --------------------------------------------------------------------------
 //
 
-inline int Scene::GetTriCount() const
+inline uint32_t Scene::GetTriCount() const
 {
-	int res = 0;
+	uint32_t res = 0;
 	for (const auto& object : objects_)
 	{
 		res += object.GetTriCount();
@@ -73,30 +73,3 @@ inline int Scene::GetTriCount() const
 
 	return res;
 }
-
-//
-// --------------------------------------------------------------------------
-//
-
-class SceneManager
-{
-public:
-	static SceneManager& Get()
-	{
-		static SceneManager singleton_;
-		return singleton_;
-	}
-
-	SceneManager(const SceneManager&) = delete;	
-	SceneManager& operator=(const SceneManager&) = delete;
-
-	SceneManager(SceneManager&&) = delete;
-	SceneManager& operator=(SceneManager&&) = delete;
-
-	void SetScene(const Scene& in_scene) { scene_ = &in_scene; }
-	const Scene& GetScene() const        { return *scene_; }
-
-private:
-	SceneManager() : scene_(nullptr) {}
-	const Scene* scene_;
-};

@@ -6,16 +6,12 @@
  */
 #include "cpu_trace.h"
 #include "random.h"
+#include "collision.h"
 #include <cfloat>
 #include <ctime>
 
 #if USE_KDTREE
  #include "kdtree.h"
- #include "triangle.h"
-#endif
-
-#if USE_SIMD
- #include "simdhelper.h"
 #endif
 
 #if defined(_MSC_VER) && _MSC_VER < 1920
@@ -35,6 +31,7 @@ namespace
 		return vec3{ clamp(a.x, min, max), clamp(a.y, min, max), clamp(a.z, min, max) };
 	}
 
+#if USE_KDTREE
 	struct TriInfo
 	{
 		constexpr TriInfo(uint32_t mesh_idx, uint32_t triangle_idx)
@@ -46,6 +43,7 @@ namespace
 
 		uint32_t packed;
 	};
+#endif
 }
 
 //
@@ -53,75 +51,18 @@ namespace
 //
 struct CpuTrace::CpuTraceDetails
 {
-	bool IntersectsWithMesh(const Mesh& mesh, const Ray& in_ray, HitData& inout_intersection) const
-	{
-		bool hit_triangle = false;
-
-		vec3 ray_direction = in_ray.GetDirection();
-		vec3 ray_origin = in_ray.GetOrigin();
-
-		int tris = mesh.GetTriCount();
-		for (int i = 0; i < tris; ++i)
-		{
-			const Index i0 = mesh.GetIndex(i * 3);
-			const Index i1 = mesh.GetIndex(i * 3 + 1);
-			const Index i2 = mesh.GetIndex(i * 3 + 2);
-			
-			const vec3 v0 = mesh.GetVertex(i0).pos;
-			const vec3 v1 = mesh.GetVertex(i1).pos;
-			const vec3 v2 = mesh.GetVertex(i2).pos;
-
-			const vec3 v0v1 = v1 - v0;
-			const vec3 v0v2 = v2 - v0;
-
-			vec3 pvec = cross(ray_direction, v0v2);
-			vec3 tvec = ray_origin - v0;
-
-			float det = dot(v0v1, pvec);
-			
-			// if the determinant is negative the triangle is backfacing
-			// if the determinant is close to 0, the ray misses the triangle
-			if (det > EPS)
-			{
-				float u = dot(tvec, pvec);
-				if (u < EPS || u > det)
-				{
-					continue;
-				}
-
-				vec3 qvec = cross(tvec, v0v1);
-
-				float v = dot(ray_direction, qvec);
-				if (v < EPS || u + v > det)
-				{
-					continue;
-				}
-
-				float inv_det = rcp(det);
-				float t = dot(v0v2, qvec) * inv_det;
-				if (t < inout_intersection.t && t > EPS)
-				{
-					inout_intersection.t = t;
-					inout_intersection.uv = vec2{ u, v } * inv_det;
-					inout_intersection.triangle_index = i * 3;
-					hit_triangle = true;
-				}
-			}
-		}
-
-		return hit_triangle;
-	}
-
 	void FillTriangleIntersectionData(const Mesh& mesh, const Ray& in_ray, HitData& inout_intersection) const
 	{
 		const Vertex v0 = mesh.GetVertex(mesh.GetIndex(inout_intersection.triangle_index + 0));
 		const Vertex v1 = mesh.GetVertex(mesh.GetIndex(inout_intersection.triangle_index + 1));
 		const Vertex v2 = mesh.GetVertex(mesh.GetIndex(inout_intersection.triangle_index + 2));
+		const vec2 uv = inout_intersection.uv;
+		const Material* material = mesh.GetMaterial();
 
 		inout_intersection.point = in_ray.GetPoint(inout_intersection.t);
-		inout_intersection.normal = (1.f - inout_intersection.uv.x - inout_intersection.uv.y) * v0.normal + inout_intersection.uv.x * v1.normal + inout_intersection.uv.y * v2.normal;
-		inout_intersection.uv = (1.f - inout_intersection.uv.x - inout_intersection.uv.y) * v0.uv0 + inout_intersection.uv.x * v1.uv0 + inout_intersection.uv.y * v2.uv0;
-		inout_intersection.material = mesh.GetMaterial();
+		inout_intersection.normal = (1.f - uv.x - uv.y) * v0.normal + uv.x * v1.normal + uv.y * v2.normal;
+		inout_intersection.uv = (1.f - uv.x - uv.y) * v0.uv0 + uv.x * v1.uv0 + uv.y * v2.uv0;
+		inout_intersection.material = material;
 	}
 
 	bool ComputeIntersection(const Scene& scene, const Ray& ray, HitData& intersection_data) const
@@ -130,183 +71,66 @@ struct CpuTrace::CpuTraceDetails
 
 #if USE_KDTREE
 
-		auto TriangleRayTester = [](const auto& in_triangles, unsigned int in_first, unsigned int in_count, const Ray& in_ray, HitData& intersection_data)
+		auto TriangleRayTester = [&scene](const auto& in_triangles, unsigned int in_first, unsigned int in_count, const Ray& in_ray, HitData& intersection_data)
 		{
-#if USE_SIMD
 			bool hit_triangle = false;
-
-			simd_vec3 ray_direction = in_ray.GetDirection();
-			simd_vec3 ray_origin = in_ray.GetOrigin();
-
-			static const simd_float simd_EPS(EPS);
-			simd_float simd_nearest_t(intersection_data.t);
-
-			for (unsigned int idx = in_first; idx < in_count; idx += SIMD_WIDTH)
-			{
-				float valid_triangle[SIMD_WIDTH];
-                vec3 v0s[SIMD_WIDTH];
-                vec3 v0v1s[SIMD_WIDTH];
-                vec3 v0v2s[SIMD_WIDTH];
-                for (int i = 0; i < SIMD_WIDTH; ++i)
-                {
-					valid_triangle[i] = (idx + i < in_count);
-					if ((idx + i < in_count))
-					{
-						const uint32_t mesh_id = in_triangles[idx + i].GetMeshId();
-						const uint32_t triangle_id = in_triangles[idx + i].GetTriangleId() * 3;
-
-						const Mesh& mesh = SceneManager::Get().GetScene().GetObject(mesh_id);
-
-						const vec3 v0 = mesh.GetVertex(mesh.GetIndex(triangle_id + 0)).pos;
-						const vec3 v1 = mesh.GetVertex(mesh.GetIndex(triangle_id + 1)).pos;
-						const vec3 v2 = mesh.GetVertex(mesh.GetIndex(triangle_id + 2)).pos;
-						const vec3 v0v1 = v1 - v0;
-						const vec3 v0v2 = v2 - v0;
-
-						v0s[i] = v0;
-						v0v1s[i] = v0v1;
-						v0v2s[i] = v0v2;
-					}
-                }
-
-				const simd_vec3 v0(v0s);
-				const simd_vec3 v0v1(v0v1s);
-				const simd_vec3 v0v2(v0v2s);
-				const simd_float valid_condition = simd_float(valid_triangle) < simd_ONE;
-
-				simd_vec3 pvec = cross(ray_direction, v0v2);
-				
-				simd_float det = dot(v0v1, pvec);
-				simd_float simd_inv_det = rcp(det);
-				
-				// if the determinant is negative the triangle is backfacing
-				// if the determinant is close to 0, the ray misses the triangle
-				simd_float determinant_condition = (det < simd_EPS);
-				
-				simd_vec3 tvec = ray_origin - v0;
-				simd_float simd_u = dot(tvec, pvec);
-				simd_float u_condition = ((simd_u < simd_EPS) | (simd_u > det));
-
-				simd_vec3 qvec = cross(tvec, v0v1);
-				simd_float simd_v = dot(ray_direction, qvec);
-				simd_float v_condition = ((simd_v < simd_EPS) | (simd_u + simd_v > det));
-
-				simd_float t = dot(v0v2, qvec) * simd_inv_det;
-				simd_float t_condition = ((t < simd_EPS) | (t >= simd_nearest_t));
-				
-				simd_float mask = valid_condition | determinant_condition | u_condition | v_condition | t_condition;
-				simd_float simd_res = lerp(t, simd_MINUS_ONE, mask);
-					
-				float* res = simd_res.get_float();
-				for (int i = 0; i < SIMD_WIDTH; ++i)
-				{
-					if (res[i] > EPS && res[i] < intersection_data.t)
-					{
-						simd_nearest_t = res[i];
-
-						float* u = simd_u.get_float();
-                        float* v = simd_v.get_float();
-						float* inv_det = simd_inv_det.get_float();
-
-						intersection_data.t = res[i];
-						intersection_data.uv = vec2{ u[i], v[i] } * inv_det[i];
-						intersection_data.triangle_index = in_triangles[idx + i].GetTriangleId() * 3;
-						intersection_data.object_index = in_triangles[idx + i].GetMeshId();
-						hit_triangle = true;
-					}
-				}
-			}
-
-			return hit_triangle;
-
-#else // USE_SIMD
-
-			bool hit_triangle = false;
-
-			const vec3 ray_direction = in_ray.GetDirection();
-			const vec3 ray_origin = in_ray.GetOrigin();
 
 			for (unsigned int idx = in_first; idx < in_count; ++idx)
 			{
 				const uint32_t mesh_id = in_triangles[idx].GetMeshId();
 				const uint32_t triangle_id = in_triangles[idx].GetTriangleId() * 3;
 
-				const Mesh& mesh = SceneManager::Get().GetScene().GetObject(mesh_id);
+				const Mesh& mesh = scene.GetObject(mesh_id);
 
 				const vec3 v0 = mesh.GetVertex(mesh.GetIndex(triangle_id + 0)).pos;
 				const vec3 v1 = mesh.GetVertex(mesh.GetIndex(triangle_id + 1)).pos;
 				const vec3 v2 = mesh.GetVertex(mesh.GetIndex(triangle_id + 2)).pos;
-				const vec3 v0v1 = v1 - v0;
-				const vec3 v0v2 = v2 - v0;
 
-				vec3 pvec = cross(ray_direction, v0v2);
-
-				float det = dot(v0v1, pvec);
-
-				// if the determinant is negative the triangle is backfacing
-				// if the determinant is close to 0, the ray misses the triangle
-				if (det > EPS)
+				collision::TriangleHitData tri_hit_data(intersection_data.t);
+				if (collision::RayTriangle(in_ray, v0, v1, v2, tri_hit_data))
 				{
-					vec3 tvec = ray_origin - v0;
-					float u = dot(tvec, pvec);
-					if (u < EPS || u > det)
-					{
-						continue;
-					}
-
-					vec3 qvec = cross(tvec, v0v1);
-					float v = dot(ray_direction, qvec);
-					if (v < EPS || u + v > det)
-					{
-						continue;
-					}
-
-					float inv_det = rcp(det);
-					float t = dot(v0v2, qvec) * inv_det;
-					if (t > EPS && t < intersection_data.t)
-					{
-						intersection_data.t = t;
-						intersection_data.uv = vec2{ u, v } * inv_det;
-						intersection_data.triangle_index = triangle_id;
-						intersection_data.object_index = mesh_id;
-						hit_triangle = true;
-					}
+					intersection_data.t = tri_hit_data.RayT;
+					intersection_data.uv = tri_hit_data.TriangleUV;
+					intersection_data.triangle_index = triangle_id;
+					intersection_data.object_index = mesh_id;
+					hit_triangle = true;
 				}
 			}
 
 			return hit_triangle;
-
-#endif // USE_SIMD
 		};
+		
 
-
-
-
-#endif // USE_KDTREE
-
-		for (const Mesh& mesh : scene.GetObjects())
+		if (accel::IntersectsWithTree<TriInfo>(&SceneTree, ray, intersection_data, TriangleRayTester))
 		{
-			if (IntersectsWithBoundingBox(mesh.GetAABB(), ray, intersection_data.t))
+			hit_any_mesh = true;
+		}
+
+#else
+
+		for (unsigned int i = 0; i < scene.GetObjectCount(); ++i)
+		{
+			const Mesh& mesh = scene.GetObject(i);
+
+			if (collision::RayAABB(ray, mesh.GetAABB(), intersection_data.t))
 			{
-#if USE_KDTREE
-#if SPARSEARRAY_EXPERIMENTAL
-				if (accel::IntersectsWithTree<Triangle>(OptimizedTree.GetChild(0), ray, intersection_data, TriangleRayTester))
-#else
-				if (accel::IntersectsWithTree<TriInfo>(&SceneTree, ray, intersection_data, TriangleRayTester))
-#endif
+				collision::MeshHitData mesh_hit(intersection_data.t);
+				if (collision::RayMesh(ray, mesh, mesh_hit))
 				{
+					intersection_data.t = mesh_hit.RayT;
+					intersection_data.uv = mesh_hit.TriangleUV;
+					intersection_data.triangle_index = mesh_hit.TriangleIndex;
+					intersection_data.object_index = i;
 					hit_any_mesh = true;
-					FillTriangleIntersectionData(scene.GetObject(intersection_data.object_index), ray, intersection_data);
 				}
-				break;
-#else
-				if (IntersectsWithMesh(mesh, ray, intersection_data))
-				{
-					hit_any_mesh = true;
-					FillTriangleIntersectionData(mesh, ray, intersection_data);
-				}
-#endif
 			}
+		}
+
+#endif
+
+		if (hit_any_mesh)
+		{
+			FillTriangleIntersectionData(scene.GetObject(intersection_data.object_index), ray, intersection_data);
 		}
 
 		return hit_any_mesh;
@@ -315,85 +139,22 @@ struct CpuTrace::CpuTraceDetails
 	void BuildInternalScene(const Scene& scene)
 	{
 #if USE_KDTREE
+
 		// Triangle-AABB intersection
-		auto TriangleAABBTester = [](const auto& in_triangle, const BBox& in_aabb)
+		auto TriangleAABBTester = [&scene](const auto& in_triangle, const BBox& in_aabb)
 		{
-			// triangle - box test using separating axis theorem (https://fileadmin.cs.lth.se/cs/Personal/Tomas_Akenine-Moller/pubs/tribox.pdf)
-			// code adapted from http://fileadmin.cs.lth.se/cs/Personal/Tomas_Akenine-Moller/code/tribox3.txt
 			uint32_t mesh_id = in_triangle.GetMeshId();
 			uint32_t triangle_id = in_triangle.GetTriangleId() * 3;
 
-			const Mesh& mesh = SceneManager::Get().GetScene().GetObject(mesh_id);
+			const Mesh& mesh = scene.GetObject(mesh_id);
 
 			vec3 v0{ mesh.GetVertex(mesh.GetIndex(triangle_id + 0)).pos - in_aabb.GetCenter() };
 			vec3 v1{ mesh.GetVertex(mesh.GetIndex(triangle_id + 1)).pos - in_aabb.GetCenter() };
 			vec3 v2{ mesh.GetVertex(mesh.GetIndex(triangle_id + 2)).pos - in_aabb.GetCenter() };
 
-			vec3 e0{ v1 - v0 };
-			vec3 e1{ v2 - v1 };
-			vec3 e2{ v0 - v2 };
-
-			vec3 fe0{ abs(e0.x), abs(e0.y), abs(e0.z) };
-			vec3 fe1{ abs(e1.x), abs(e1.y), abs(e1.z) };
-			vec3 fe2{ abs(e2.x), abs(e2.y), abs(e2.z) };
-
-			vec3 aabb_hsize = in_aabb.GetSize() / 2.f;
-
-			auto AxisTester = [](float a, float b, float fa, float fb, float v0_0, float v0_1, float v1_0, float v1_1, float hsize_0, float hsize_1)
-			{
-				float p0 = a * v0_0 + b * v0_1;
-				float p1 = a * v1_0 + b * v1_1;
-				
-				float rad = fa * hsize_0 + fb * hsize_1;
-				return (min(p0, p1) > rad || max(p0, p1) < -rad);
-			};
-
-			if (AxisTester( e0.z, -e0.y, fe0.z, fe0.y, v0.y, v0.z, v2.y, v2.z, aabb_hsize.y, aabb_hsize.z) ||
-			    AxisTester(-e0.z,  e0.x, fe0.z, fe0.x, v0.x, v0.z, v2.x, v2.z, aabb_hsize.x, aabb_hsize.z) ||
-			    AxisTester( e0.y, -e0.x, fe0.y, fe0.x, v1.x, v1.y, v2.x, v2.y, aabb_hsize.x, aabb_hsize.y) ||
-			
-			    AxisTester( e1.z, -e1.y, fe1.z, fe1.y, v0.y, v0.z, v2.y, v2.z, aabb_hsize.y, aabb_hsize.z) ||
-			    AxisTester(-e1.z,  e1.x, fe1.z, fe1.x, v0.x, v0.z, v2.x, v2.z, aabb_hsize.x, aabb_hsize.z) ||
-			    AxisTester( e1.y, -e1.x, fe1.y, fe1.x, v0.x, v0.y, v1.x, v1.y, aabb_hsize.x, aabb_hsize.y) ||
-			
-			    AxisTester( e2.z, -e2.y, fe2.z, fe2.y, v0.y, v0.z, v1.y, v1.z, aabb_hsize.y, aabb_hsize.z) ||
-			    AxisTester(-e2.z,  e2.x, fe2.z, fe2.x, v0.x, v0.z, v1.x, v1.z, aabb_hsize.x, aabb_hsize.z) ||
-			    AxisTester( e2.y, -e2.x, fe2.y, fe2.x, v1.x, v1.y, v2.x, v2.y, aabb_hsize.x, aabb_hsize.y))
-			{
-				return false;
-			}
-
-			vec3 trimin = pmin(v0, pmin(v1, v2));
-			vec3 trimax = pmax(v0, pmax(v1, v2));
-			if ((trimin.x > aabb_hsize.x || trimax.x < -aabb_hsize.x) ||
-			    (trimin.y > aabb_hsize.y || trimax.y < -aabb_hsize.y) ||
-			    (trimin.z > aabb_hsize.z || trimax.z < -aabb_hsize.z))
-			{
-				return false;
-			}
-						
-			{
-				vec3 trinormal = cross(e0, e1);
-			
-				vec3 vmin, vmax;
-				
-				if (trinormal.x > .0f) { vmin.x = -aabb_hsize.x - v0.x; vmax.x =  aabb_hsize.x - v0.x; }
-				else                   { vmin.x =  aabb_hsize.x - v0.x; vmax.x = -aabb_hsize.x - v0.x; }
-			
-				if (trinormal.y > .0f) { vmin.y = -aabb_hsize.y - v0.y; vmax.y =  aabb_hsize.y - v0.y; }
-				else                   { vmin.y =  aabb_hsize.y - v0.y; vmax.y = -aabb_hsize.y - v0.y; }
-			
-				if (trinormal.z > .0f) { vmin.z = -aabb_hsize.z - v0.z; vmax.z =  aabb_hsize.z - v0.z; }
-				else                   { vmin.z =  aabb_hsize.z - v0.z; vmax.z = -aabb_hsize.z - v0.z; }
-			
-				if (dot(trinormal, vmin) > .0f || dot(trinormal, vmax) < .0f)
-				{
-					return false;
-				}
-			}
-			
-			return true;
+			return collision::TriangleAABB(v0, v1, v2, in_aabb);
 		};
+
 
 		if (scene.GetObjectCount() > UINT8_MAX)
 		{
@@ -402,38 +163,31 @@ struct CpuTrace::CpuTraceDetails
 		}
 
 		SceneTree.GetElements().reserve(scene.GetTriCount());
+		
+		BBox scene_bbox{ FLT_MAX, -FLT_MAX };
+		for (uint16_t i = 0; i < scene.GetObjectCount(); ++i)
 		{
-			BBox scene_bbox{ FLT_MAX, -FLT_MAX };
-			for (uint16_t i = 0; i < scene.GetObjectCount(); ++i)
+			const Mesh& mesh = scene.GetObject(i);
+			if (mesh.GetTriCount() > pow(2, 24) - 1)
 			{
-				const Mesh& mesh = scene.GetObject(i);
-				if (mesh.GetTriCount() > pow(2, 24) - 1)
-				{
-					TracyLog("Unable to represent triangle index (%d triangles while UINT24_MAX is %d)\n", mesh.GetTriCount(), pow(2, 24) - 1);
-					DEBUG_BREAK();
-				}
-
-				for (int t = 0; t < mesh.GetTriCount(); ++t)
-				{
-					SceneTree.GetElements().emplace_back(i, t);
-				}
-
-				scene_bbox.minbound = pmin(mesh.GetAABB().minbound, scene_bbox.minbound);
-				scene_bbox.maxbound = pmax(mesh.GetAABB().maxbound, scene_bbox.maxbound);
+				TracyLog("Unable to represent triangle index (%d triangles while UINT24_MAX is %d)\n", mesh.GetTriCount(), pow(2, 24) - 1);
+				DEBUG_BREAK();
 			}
 
-			SceneTree.SetAABB(scene_bbox);
+			for (uint32_t t = 0; t < mesh.GetTriCount(); ++t)
+			{
+				SceneTree.GetElements().emplace_back(i, t);
+			}
+
+			scene_bbox.minbound = pmin(mesh.GetAABB().minbound, scene_bbox.minbound);
+			scene_bbox.maxbound = pmax(mesh.GetAABB().maxbound, scene_bbox.maxbound);
 		}
+		SceneTree.SetAABB(scene_bbox);
 		
 		accel::BuildTree<TriInfo>(&SceneTree, TriangleAABBTester);
 	}
 
 	accel::Node<TriInfo> SceneTree;
-	
-#if SPARSEARRAY_EXPERIMENTAL
-	CustomTree OptimizedTree;
-#endif
-
 #else
 	}
 #endif

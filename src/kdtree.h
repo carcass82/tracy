@@ -10,6 +10,7 @@
 #include "common.h"
 #include "ray.h"
 #include "aabb.h"
+#include "collision.h"
 
 namespace accel
 {
@@ -221,7 +222,7 @@ CUDA_DEVICE_CALL bool IntersectsWithTree(const NodeType* tree, const Ray& ray, H
 	const NodeType* current = tree;
 	while (current || !traversal_helper.IsEmpty())
 	{
-		while (current && IntersectsWithBoundingBox(current->GetAABB(), ray))
+		while (current && collision::RayAABB(ray, current->GetAABB()))
 		{
 			traversal_helper.Push(current);
 			current = current->GetChild(Child::Left);

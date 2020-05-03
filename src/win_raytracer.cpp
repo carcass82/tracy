@@ -338,8 +338,6 @@ int main(int argc, char** argv)
 	Scene world;
 	if (world.Init(SCENE_PATH, WIDTH, HEIGHT))
 	{
-		SceneManager::Get().SetScene(world);
-
 		Handle win_handle = TracyCreateWindow(WIDTH, HEIGHT);
 		if (IsValidHandle(win_handle))
 		{

@@ -47,11 +47,11 @@ public:
 
 	Mesh& ComputeBoundingBox();
 
-	int GetVertexCount() const                    { return static_cast<int>(vertices_.size()); }
+	uint32_t GetVertexCount() const               { return static_cast<uint32_t>(vertices_.size()); }
 
-	int GetTriCount() const                       { return static_cast<int>(indices_.size()) / 3; }
+	uint32_t GetTriCount() const                  { return static_cast<uint32_t>(indices_.size()) / 3; }
 
-	int GetIndexCount() const                     { return static_cast<int>(indices_.size()); }
+	uint32_t GetIndexCount() const                { return static_cast<uint32_t>(indices_.size()); }
 
 	const vector<Vertex>& GetVertices() const     { return vertices_; }
 

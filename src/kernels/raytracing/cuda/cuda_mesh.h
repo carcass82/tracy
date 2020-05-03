@@ -34,6 +34,16 @@ public:
 		CUDAAssert(cudaMemcpy(indices_, &cpu_mesh.GetIndices()[0], indexcount_* sizeof(Index), cudaMemcpyHostToDevice));
 	}
 
+	__device__ const Vertex& GetVertex(int i) const { return vertices_[i]; }
+
+	__device__ const Index& GetIndex(int i) const { return indices_[i]; }
+
+	__device__ uint32_t GetTriCount() const { return indexcount_ / 3; }
+
+	//
+	// --- 
+	//
+
 	Vertex* vertices_;
 	int vertexcount_;
 	Index* indices_;

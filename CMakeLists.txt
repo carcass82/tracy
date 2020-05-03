@@ -105,6 +105,7 @@ set(main_includes "./src/mesh.h"
 				  "./src/triangle.h"
 				  "./src/container.h"
 				  "./src/aabb.h"
+				  "./src/collision.h"
 				  "./src/kdtree.h"
 				  "./src/log.h"
 				  "./src/input.h")
@@ -137,23 +138,6 @@ if(TRACY_RENDER_MODULE STREQUAL "CPU (RayTracing)")
 
 	set(cpu_includes "./src/kernels/raytracing/software/cpu_trace.h"
 	                 "./src/kernels/raytracing/software/cpu_specific.h")
-
-	if (NOT CPU_USE_SIMD STREQUAL "Off")
-		add_definitions(-DUSE_SIMD=1)
-		list(APPEND cpu_includes "./src/kernels/raytracing/software/simdhelper.h")
-		source_group("kernel\\cpu\\include" FILES ${cpu_includes})
-
-		if (CPU_USE_SIMD STREQUAL "SSE")
-			add_definitions(-DSIMD_SSE=1)
-		elseif(CPU_USE_SIMD STREQUAL "AVX")
-			add_definitions(-DSIMD_AVX=1)
-		#TODO: Autodetect
-		endif()
-	endif()
-
-	if (CPU_DATA_LAYOUT STREQUAL "AoS")
-		add_definitions(-DUSE_AOS=1)
-	endif()
 
 	source_group("kernel\\cpu\\include" FILES ${cpu_includes})
 	list(APPEND tracy_includes ${cpu_includes})
