@@ -149,8 +149,6 @@ Mesh& Scene::AddBox(const vec3& bottom, const vec3& top)
 		vec3{  0.0f,  0.0f, -1.0f } 
 	};
 
-	Mesh m;
-	
 	vector<Vertex> boxvertices;
 	vector<Index> boxindices;
 

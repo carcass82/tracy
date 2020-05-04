@@ -294,10 +294,10 @@ extern "C" void cuda_setup(const Scene& in_scene, CUDAScene* out_scene)
 		CUDAAssert(cudaMalloc(&indices, indexcount * sizeof(Index)));
 		CUDAAssert(cudaMemcpy(indices, &cpumesh.GetIndices()[0], indexcount* sizeof(Index), cudaMemcpyHostToDevice));
 
-        Mesh cudamesh(vertices, vertexcount, indices, indexcount, CUDAScene::ConvertMaterial(cpumesh.GetMaterial()));
-        cudamesh.SetAABB(cpumesh.GetAABB());
+        Mesh* cudamesh = new Mesh(vertices, vertexcount, indices, indexcount, CUDAScene::ConvertMaterial(cpumesh.GetMaterial()));
+        cudamesh->SetAABB(cpumesh.GetAABB());
 
-        CUDAAssert(cudaMemcpy(&out_scene->d_objects_[i], &cudamesh, sizeof(Mesh), cudaMemcpyHostToDevice));
+        CUDAAssert(cudaMemcpy(&out_scene->d_objects_[i], cudamesh, sizeof(Mesh), cudaMemcpyHostToDevice));
     }
     out_scene->objectcount_ = in_scene.GetObjectCount();
 

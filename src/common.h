@@ -8,6 +8,7 @@
 #include <cstdint>
 #include <cfloat>
 #include <climits>
+#include <cassert>
 
 #if !defined(CUDA_CALL) 
 #define CUDA_CALL
@@ -115,6 +116,12 @@ struct HitData
 
  #include <functional>
  using std::function;
+#endif
+
+#if defined(_DEBUG)
+ #define DEBUG_ASSERT(x) assert(x)
+#else
+ #define DEBUG_ASSERT(x)
 #endif
 
 #if defined(_WIN32)

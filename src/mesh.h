@@ -29,16 +29,19 @@ class Mesh
 {
 public:
 	Mesh()
+		: Mesh(nullptr, 0, nullptr, 0)
 	{}
 
 	Mesh(const vector<Vertex>& in_vertices, const vector<Index>& in_indices, const Material* in_material = nullptr)
 		: material_(in_material)
 	{
-		vertexcount_ = in_vertices.size();
+		DEBUG_ASSERT(in_vertices.size() < UINT32_MAX && in_indices.size() < UINT32_MAX);
+
+		vertexcount_ = static_cast<uint32_t>(in_vertices.size());
 		vertices_ = new Vertex[vertexcount_];
 		memcpy(vertices_, &in_vertices[0], vertexcount_ * sizeof(Vertex));
 
-		indexcount_ = in_indices.size();
+		indexcount_ = static_cast<uint32_t>(in_indices.size());
 		indices_ = new Index[indexcount_];
 		memcpy(indices_, &in_indices[0], indexcount_ * sizeof(Index));
 	}
@@ -54,11 +57,8 @@ public:
 
 	~Mesh()
 	{
-		if (false) // FIXME: CUDA will crash with invalid pointers, debug!!!
-		{
-			delete [] vertices_;
-			delete [] indices_;
-		}
+		delete [] vertices_;
+		delete [] indices_;
 	}
 
 	Mesh(const Mesh& other) = delete;
