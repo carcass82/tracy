@@ -16,14 +16,12 @@
 #include "ray.h"
 #include "camera.h"
 #include "material.h"
-#include "cuda_material.h"
-#include "cuda_mesh.h"
 #include "scene.h"
 #include "cuda_scene.h"
 #include "collision.h"
 
 // static material map initialization
-unordered_map<const Material*, Material*> CUDAMaterial::device_materials_;
+unordered_map<const Material*, Material*> CUDAScene::device_materials_;
 
 // max gpu supported
 constexpr int MAX_GPU = 32;
@@ -36,9 +34,9 @@ constexpr int MAX_SAMPLES = 1;
 
 
 #if USE_KDTREE
-__device__ bool ComputeIntersection(CUDAMesh* in_objects, int objectcount, CUDATree* in_scenetree, const Ray& ray, HitData& intersection_data)
+__device__ bool ComputeIntersection(Mesh* in_objects, int objectcount, CUDATree* in_scenetree, const Ray& ray, HitData& intersection_data)
 #else
-__device__ bool ComputeIntersection(CUDAMesh* in_objects, int objectcount, const Ray& ray, HitData& intersection_data)
+__device__ bool ComputeIntersection(Mesh* in_objects, int objectcount, const Ray& ray, HitData& intersection_data)
 #endif
 {
     bool hit_any_mesh = false;
@@ -57,11 +55,11 @@ __device__ bool ComputeIntersection(CUDAMesh* in_objects, int objectcount, const
             const uint32_t mesh_id = in_triangles[idx].GetMeshId();
             const uint32_t triangle_id = in_triangles[idx].GetTriangleId() * 3;
 
-            const CUDAMesh& mesh = in_objects[mesh_id];
+            const auto& mesh = in_objects[mesh_id];
 
-            const vec3 v0 = mesh.vertices_[mesh.indices_[triangle_id + 0]].pos;
-            const vec3 v1 = mesh.vertices_[mesh.indices_[triangle_id + 1]].pos;
-            const vec3 v2 = mesh.vertices_[mesh.indices_[triangle_id + 2]].pos;
+            const vec3 v0 = mesh.GetVertex(mesh.GetIndex(triangle_id + 0)).pos;
+            const vec3 v1 = mesh.GetVertex(mesh.GetIndex(triangle_id + 1)).pos;
+            const vec3 v2 = mesh.GetVertex(mesh.GetIndex(triangle_id + 2)).pos;
 
             collision::TriangleHitData tri_hit_data(intersection_data.t);
             if (collision::RayTriangle(in_ray, v0, v1, v2, tri_hit_data))
@@ -83,7 +81,7 @@ __device__ bool ComputeIntersection(CUDAMesh* in_objects, int objectcount, const
 
     for (int i = 0; i < objectcount; ++i)
     {
-        if (collision::RayAABB(ray, in_objects[i].aabb_, intersection_data.t))
+        if (collision::RayAABB(ray, in_objects[i].GetAABB(), intersection_data.t))
         {
             collision::MeshHitData mesh_hit(intersection_data.t);
             if (collision::RayMesh(ray, in_objects[i], mesh_hit))
@@ -101,20 +99,20 @@ __device__ bool ComputeIntersection(CUDAMesh* in_objects, int objectcount, const
 
     if (hit_any_mesh)
     {
-        const CUDAMesh& m = in_objects[intersection_data.object_index];
+        const auto& m = in_objects[intersection_data.object_index];
 
-        const Index i0 = m.indices_[intersection_data.triangle_index + 0];
-        const Index i1 = m.indices_[intersection_data.triangle_index + 1];
-        const Index i2 = m.indices_[intersection_data.triangle_index + 2];
+        const Index i0 = m.GetIndex(intersection_data.triangle_index + 0);
+        const Index i1 = m.GetIndex(intersection_data.triangle_index + 1);
+        const Index i2 = m.GetIndex(intersection_data.triangle_index + 2);
 
-        const Vertex v0 = m.vertices_[i0];
-        const Vertex v1 = m.vertices_[i1];
-        const Vertex v2 = m.vertices_[i2];
+        const Vertex v0 = m.GetVertex(i0);
+        const Vertex v1 = m.GetVertex(i1);
+        const Vertex v2 = m.GetVertex(i2);
 
         intersection_data.point = ray.GetPoint(intersection_data.t);
         intersection_data.normal = normalize((1.f - intersection_data.uv.x - intersection_data.uv.y) * v0.normal + intersection_data.uv.x * v1.normal + intersection_data.uv.y * v2.normal);
         intersection_data.uv = (1.f - intersection_data.uv.x - intersection_data.uv.y) * v0.uv0 + intersection_data.uv.x * v1.uv0 + intersection_data.uv.y * v2.uv0;
-        intersection_data.material = m.material_;
+        intersection_data.material = m.GetMaterial();
     }
 
     return hit_any_mesh;
@@ -122,7 +120,7 @@ __device__ bool ComputeIntersection(CUDAMesh* in_objects, int objectcount, const
 
 __device__ inline vec3 TraceInternal(const Camera& in_camera,
                                      const Ray& in_ray,
-                                     CUDAMesh* in_objects,
+                                     Mesh* in_objects,
                                      int objectcount,
 #if USE_KDTREE
                                      CUDATree* in_scenetree,
@@ -184,7 +182,7 @@ __device__ inline vec3 TraceInternal(const Camera& in_camera,
 }
 
 __global__ void Trace(Camera* in_camera,
-                      CUDAMesh* in_objects,
+                      Mesh* in_objects,
                       int in_objectcount,
 #if USE_KDTREE
                       CUDATree* in_scenetree,
@@ -281,11 +279,25 @@ extern "C" void cuda_setup(const Scene& in_scene, CUDAScene* out_scene)
 
     CUDAAssert(cudaSetDevice(CUDA_PREFERRED_DEVICE));
 
-    CUDAAssert(cudaMalloc(&out_scene->d_objects_, in_scene.GetObjectCount() * sizeof(CUDAMesh)));
+    CUDAAssert(cudaMalloc(&out_scene->d_objects_, in_scene.GetObjectCount() * sizeof(Mesh)));
     for (unsigned int i = 0; i < in_scene.GetObjectCount(); ++i)
     {
-        CUDAMesh cmesh(in_scene.GetObject(i), CUDAMaterial::Convert(in_scene.GetObject(i).GetMaterial()));
-        CUDAAssert(cudaMemcpy(&out_scene->d_objects_[i], &cmesh, sizeof(CUDAMesh), cudaMemcpyHostToDevice));
+        const Mesh& cpumesh = in_scene.GetObject(i);
+
+        uint32_t vertexcount = cpumesh.GetVertexCount();
+        Vertex* vertices;
+		CUDAAssert(cudaMalloc(&vertices, vertexcount * sizeof(Vertex)));
+		CUDAAssert(cudaMemcpy(vertices, &cpumesh.GetVertices()[0], vertexcount * sizeof(Vertex), cudaMemcpyHostToDevice));
+
+        uint32_t indexcount = cpumesh.GetIndexCount();
+        Index* indices;
+		CUDAAssert(cudaMalloc(&indices, indexcount * sizeof(Index)));
+		CUDAAssert(cudaMemcpy(indices, &cpumesh.GetIndices()[0], indexcount* sizeof(Index), cudaMemcpyHostToDevice));
+
+        Mesh cudamesh(vertices, vertexcount, indices, indexcount, CUDAScene::ConvertMaterial(cpumesh.GetMaterial()));
+        cudamesh.SetAABB(cpumesh.GetAABB());
+
+        CUDAAssert(cudaMemcpy(&out_scene->d_objects_[i], &cudamesh, sizeof(Mesh), cudaMemcpyHostToDevice));
     }
     out_scene->objectcount_ = in_scene.GetObjectCount();
 
@@ -308,12 +320,9 @@ extern "C" void cuda_setup(const Scene& in_scene, CUDAScene* out_scene)
 
     CUDAAssert(cudaMemcpy(out_scene->d_scenetree, &helper, sizeof(CUDATree), cudaMemcpyHostToDevice));
 
-    delete[] out_scene->h_scenetree.nodes_;
-    delete[] out_scene->h_scenetree.triangles_;
-
 #endif
 
-    out_scene->d_sky_ = CUDAMaterial::Convert(in_scene.GetSkyMaterial());
+    out_scene->d_sky_ = CUDAScene::ConvertMaterial(in_scene.GetSkyMaterial());
     
     CUDAAssert(cudaMalloc(&out_scene->d_camera_, sizeof(Camera)));
     CUDAAssert(cudaMemcpy(out_scene->d_camera_, &in_scene.GetCamera(), sizeof(Camera), cudaMemcpyHostToDevice));

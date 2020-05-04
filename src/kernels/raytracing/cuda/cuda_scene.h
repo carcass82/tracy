@@ -7,8 +7,8 @@
 #pragma once
 #include <curand_kernel.h>
 
+#include "cuda_log.h"
 #include "camera.h"
-#include "cuda_mesh.h"
 
 #if !defined(CUDA_PREFERRED_DEVICE)
  #define CUDA_PREFERRED_DEVICE 0
@@ -80,7 +80,7 @@ struct CUDAScene
 
     vec4* d_output_;
 
-	CUDAMesh* d_objects_;
+	Mesh* d_objects_;
 	int objectcount_;
 
 #if USE_KDTREE
@@ -109,4 +109,20 @@ struct CUDAScene
         CUDAAssert(cudaMemset(d_raycount, 0, sizeof(int)));
         h_raycount = 0;
     }
+
+	static Material* ConvertMaterial(const Material* in_host_material)
+	{
+		if (device_materials_.count(in_host_material) == 0)
+		{
+			Material* d_material;
+			CUDAAssert(cudaMalloc(&d_material, sizeof(Material)));
+			CUDAAssert(cudaMemcpy(d_material, in_host_material, sizeof(Material), cudaMemcpyHostToDevice));
+
+			device_materials_[in_host_material] = d_material;
+		}
+
+		return device_materials_[in_host_material];
+	}
+
+	static unordered_map<const Material*, Material*> device_materials_;
 };

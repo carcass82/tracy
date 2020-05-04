@@ -30,7 +30,7 @@ public:
 
 	Mesh& AddTriangle(const vec3& v1, const vec3& v2, const vec3& v3);
 
-	Mesh& AddMesh(const Mesh& mesh, bool compute_normals = false);
+	Mesh& AddMesh(Mesh&& mesh, bool compute_normals = false);
 
 	bool Init(const char* scene_path, int& width, int& height);
 
@@ -44,7 +44,7 @@ public:
 
 	const string& GetName() const          { return scene_name_; }
 
-	uint32_t int GetObjectCount() const    { return static_cast<uint32_t>(objects_.size()); }
+	uint32_t GetObjectCount() const        { return static_cast<uint32_t>(objects_.size()); }
 
 	uint32_t GetTriCount() const;
 	

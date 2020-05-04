@@ -10,7 +10,6 @@
 #include <cuda_runtime.h>
 #include <cuda_gl_interop.h>
 #include "log.h"
-#include "cuda_mesh.h"
 #include "cuda_scene.h"
 #include "collision.h"
 

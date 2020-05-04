@@ -16,7 +16,8 @@ constexpr inline uint32_t make_id(char a, char b, char c = '\0', char d = '\0')
 
 Mesh& Scene::AddSphere(const vec3& in_center, float in_radius, int steps /* = 32 */)
 {
-	Mesh m;
+	vector<Vertex> vertices;
+	vector<Index> indices;
 
 	for (int lon = 0; lon < steps; ++lon)
 	{
@@ -49,7 +50,7 @@ Mesh& Scene::AddSphere(const vec3& in_center, float in_radius, int steps /* = 32
 			v1.pos = in_center + pos * in_radius;
 			v1.normal = pos;
 			v1.uv0 = uv;
-			m.vertices_.push_back(v1);
+			vertices.push_back(v1);
 
 			//vertex2 = vertex on a sphere of radius r at spherical coords theta1, phi2
 			pos = vec3{ sinf(theta1) * cosf(phi2), sinf(theta1) * sinf(phi2), cosf(theta1) };
@@ -59,7 +60,7 @@ Mesh& Scene::AddSphere(const vec3& in_center, float in_radius, int steps /* = 32
 			v2.pos = in_center + pos * in_radius;
 			v2.normal = pos;
 			v2.uv0 = uv;
-			m.vertices_.push_back(v2);
+			vertices.push_back(v2);
 
 			//vertex3 = vertex on a sphere of radius r at spherical coords theta2, phi2
 			pos = vec3{ sinf(theta2) * cosf(phi2), sinf(theta2) * sinf(phi2), cosf(theta2) };
@@ -69,7 +70,7 @@ Mesh& Scene::AddSphere(const vec3& in_center, float in_radius, int steps /* = 32
 			v3.pos = in_center + pos * in_radius;
 			v3.normal = pos;
 			v3.uv0 = uv;
-			m.vertices_.push_back(v3);
+			vertices.push_back(v3);
 
 			//vertex4 = vertex on a sphere of radius r at spherical coords theta2, phi1
 			pos = vec3{ sinf(theta2) * cosf(phi1), sinf(theta2) * sinf(phi1), cosf(theta2) };
@@ -79,41 +80,41 @@ Mesh& Scene::AddSphere(const vec3& in_center, float in_radius, int steps /* = 32
 			v4.pos = in_center + pos * in_radius;
 			v4.normal = pos;
 			v4.uv0 = uv;
-			m.vertices_.push_back(v4);
+			vertices.push_back(v4);
 
-			uint32_t baseidx = static_cast<uint32_t>(m.vertices_.size()) - 4;
+			uint32_t baseidx = static_cast<uint32_t>(vertices.size()) - 4;
 
 			if (lon == 0) // top cap
 			{
-				m.indices_.push_back(baseidx + 0);
-				m.indices_.push_back(baseidx + 3);
-				m.indices_.push_back(baseidx + 2);
+				indices.push_back(baseidx + 0);
+				indices.push_back(baseidx + 3);
+				indices.push_back(baseidx + 2);
 			}
 			else if (lon + 1 == steps) //end cap
 			{
-				m.indices_.push_back(baseidx + 2);
-				m.indices_.push_back(baseidx + 1);
-				m.indices_.push_back(baseidx + 0);
+				indices.push_back(baseidx + 2);
+				indices.push_back(baseidx + 1);
+				indices.push_back(baseidx + 0);
 			}
 			else
 			{
-				m.indices_.push_back(baseidx + 0);
-				m.indices_.push_back(baseidx + 3);
-				m.indices_.push_back(baseidx + 1);
+				indices.push_back(baseidx + 0);
+				indices.push_back(baseidx + 3);
+				indices.push_back(baseidx + 1);
 
-				m.indices_.push_back(baseidx + 1);
-				m.indices_.push_back(baseidx + 3);
-				m.indices_.push_back(baseidx + 2);
+				indices.push_back(baseidx + 1);
+				indices.push_back(baseidx + 3);
+				indices.push_back(baseidx + 2);
 			}
 		}
 	}
 
-	for (Vertex& v : m.vertices_)
+	for (uint32_t i = 0; i < vertices.size(); ++i)
 	{
-		v.normal = normalize(v.normal);
+		vertices[i].normal = normalize(vertices[i].normal);
 	}
 
-	return objects_.emplace_back(m.ComputeBoundingBox().ComputeTangentsAndBitangents());
+	return objects_.emplace_back(vertices, indices).ComputeBoundingBox().ComputeTangentsAndBitangents();
 }
 
 Mesh& Scene::AddBox(const vec3& bottom, const vec3& top)
@@ -149,79 +150,79 @@ Mesh& Scene::AddBox(const vec3& bottom, const vec3& top)
 	};
 
 	Mesh m;
-	m.vertices_.emplace_back(vertices[4], normals[0]); // 0
-	m.vertices_.emplace_back(vertices[2], normals[0]); // 1
-	m.vertices_.emplace_back(vertices[0], normals[0]); // 2
-	m.indices_.push_back(0); m.indices_.push_back(1); m.indices_.push_back(2);
+	
+	vector<Vertex> boxvertices;
+	vector<Index> boxindices;
 
-	m.vertices_.emplace_back(vertices[2], normals[1]); // 3
-	m.vertices_.emplace_back(vertices[7], normals[1]); // 4
-	m.vertices_.emplace_back(vertices[3], normals[1]); // 5
-	m.indices_.push_back(3); m.indices_.push_back(4); m.indices_.push_back(5);
+	boxvertices.emplace_back(vertices[4], normals[0]); // 0
+	boxvertices.emplace_back(vertices[2], normals[0]); // 1
+	boxvertices.emplace_back(vertices[0], normals[0]); // 2
+	boxindices.push_back(0); boxindices.push_back(1); boxindices.push_back(2);
 
-	m.vertices_.emplace_back(vertices[6], normals[2]); // 6
-	m.vertices_.emplace_back(vertices[5], normals[2]); // 7
-	m.vertices_.emplace_back(vertices[7], normals[2]); // 8
-	m.indices_.push_back(6); m.indices_.push_back(7); m.indices_.push_back(8);
+	boxvertices.emplace_back(vertices[2], normals[1]); // 3
+	boxvertices.emplace_back(vertices[7], normals[1]); // 4
+	boxvertices.emplace_back(vertices[3], normals[1]); // 5
+	boxindices.push_back(3); boxindices.push_back(4); boxindices.push_back(5);
 
-	m.vertices_.emplace_back(vertices[1], normals[3]); // 9
-	m.vertices_.emplace_back(vertices[7], normals[3]); // 10
-	m.vertices_.emplace_back(vertices[5], normals[3]); // 11
-	m.indices_.push_back(9); m.indices_.push_back(10); m.indices_.push_back(11);
+	boxvertices.emplace_back(vertices[6], normals[2]); // 6
+	boxvertices.emplace_back(vertices[5], normals[2]); // 7
+	boxvertices.emplace_back(vertices[7], normals[2]); // 8
+	boxindices.push_back(6); boxindices.push_back(7); boxindices.push_back(8);
 
-	m.vertices_.emplace_back(vertices[0], normals[4]); // 12
-	m.vertices_.emplace_back(vertices[3], normals[4]); // 13
-	m.vertices_.emplace_back(vertices[1], normals[4]); // 14
-	m.indices_.push_back(12); m.indices_.push_back(13); m.indices_.push_back(14);
+	boxvertices.emplace_back(vertices[1], normals[3]); // 9
+	boxvertices.emplace_back(vertices[7], normals[3]); // 10
+	boxvertices.emplace_back(vertices[5], normals[3]); // 11
+	boxindices.push_back(9); boxindices.push_back(10); boxindices.push_back(11);
 
-	m.vertices_.emplace_back(vertices[4], normals[5]); // 15
-	m.vertices_.emplace_back(vertices[1], normals[5]); // 16
-	m.vertices_.emplace_back(vertices[5], normals[5]); // 17
-	m.indices_.push_back(15); m.indices_.push_back(16); m.indices_.push_back(17);
+	boxvertices.emplace_back(vertices[0], normals[4]); // 12
+	boxvertices.emplace_back(vertices[3], normals[4]); // 13
+	boxvertices.emplace_back(vertices[1], normals[4]); // 14
+	boxindices.push_back(12); boxindices.push_back(13); boxindices.push_back(14);
 
-	m.vertices_.emplace_back(vertices[6], normals[0]); // 18
-	m.indices_.push_back(0); m.indices_.push_back(18); m.indices_.push_back(1);
+	boxvertices.emplace_back(vertices[4], normals[5]); // 15
+	boxvertices.emplace_back(vertices[1], normals[5]); // 16
+	boxvertices.emplace_back(vertices[5], normals[5]); // 17
+	boxindices.push_back(15); boxindices.push_back(16); boxindices.push_back(17);
 
-	m.vertices_.emplace_back(vertices[6], normals[1]); // 19
-	m.indices_.push_back(3); m.indices_.push_back(19); m.indices_.push_back(4);
+	boxvertices.emplace_back(vertices[6], normals[0]); // 18
+	boxindices.push_back(0); boxindices.push_back(18); boxindices.push_back(1);
 
-	m.vertices_.emplace_back(vertices[4], normals[2]); // 20
-	m.indices_.push_back(6); m.indices_.push_back(20); m.indices_.push_back(7);
+	boxvertices.emplace_back(vertices[6], normals[1]); // 19
+	boxindices.push_back(3); boxindices.push_back(19); boxindices.push_back(4);
 
-	m.vertices_.emplace_back(vertices[3], normals[3]); // 21
-	m.indices_.push_back(9); m.indices_.push_back(21); m.indices_.push_back(10);
+	boxvertices.emplace_back(vertices[4], normals[2]); // 20
+	boxindices.push_back(6); boxindices.push_back(20); boxindices.push_back(7);
 
-	m.vertices_.emplace_back(vertices[2], normals[4]); // 22
-	m.indices_.push_back(12); m.indices_.push_back(22); m.indices_.push_back(13);
+	boxvertices.emplace_back(vertices[3], normals[3]); // 21
+	boxindices.push_back(9); boxindices.push_back(21); boxindices.push_back(10);
 
-	m.vertices_.emplace_back(vertices[0], normals[5]); // 23
-	m.indices_.push_back(15); m.indices_.push_back(23); m.indices_.push_back(16);
+	boxvertices.emplace_back(vertices[2], normals[4]); // 22
+	boxindices.push_back(12); boxindices.push_back(22); boxindices.push_back(13);
 
-	return objects_.emplace_back(m.ComputeBoundingBox().ComputeTangentsAndBitangents());
+	boxvertices.emplace_back(vertices[0], normals[5]); // 23
+	boxindices.push_back(15); boxindices.push_back(23); boxindices.push_back(16);
+
+	return objects_.emplace_back(boxvertices, boxindices).ComputeBoundingBox().ComputeTangentsAndBitangents();
 }
 
 Mesh& Scene::AddTriangle(const vec3& v1, const vec3& v2, const vec3& v3)
 {
-	Mesh m;
-
-	m.vertices_.emplace_back(v1);
-	m.vertices_.emplace_back(v2);
-	m.vertices_.emplace_back(v3);
-	m.indices_.emplace_back(0); m.indices_.emplace_back(1); m.indices_.emplace_back(2);
-
-	return objects_.emplace_back(m.ComputeBoundingBox().ComputeNormals().ComputeTangentsAndBitangents());
+	vector<Vertex> v{ v1, v2, v3 };
+	vector<Index> i{ 0, 1, 2 };
+	
+	return objects_.emplace_back(v, i).ComputeBoundingBox().ComputeNormals().ComputeTangentsAndBitangents();
 }
 
-Mesh& Scene::AddMesh(const Mesh& mesh, bool compute_normals /* = false */)
+Mesh& Scene::AddMesh(Mesh&& mesh, bool compute_normals /* = false */)
 {
-	Mesh m{ mesh };
-
 	if (compute_normals)
 	{
-		m.ComputeNormals();
+		return objects_.emplace_back(std::move(mesh)).ComputeBoundingBox().ComputeNormals().ComputeTangentsAndBitangents();
 	}
-
-	return objects_.emplace_back(m.ComputeBoundingBox().ComputeTangentsAndBitangents());
+	else
+	{
+		return objects_.emplace_back(std::move(mesh)).ComputeBoundingBox().ComputeTangentsAndBitangents();
+	}
 }
 
 bool Scene::Init(const char* scene_path, int& inout_width, int& inout_height)
@@ -452,7 +453,7 @@ bool Scene::Init(const char* scene_path, int& inout_width, int& inout_height)
 										indices_remap[index.vertex_index] = last_inserted;
 									}
 
-									AddMesh(Mesh{ m_Vertices, m_Indices }, recompute_normals).SetMaterial(&materials_[mat_name]);
+									AddMesh({m_Vertices, m_Indices}, recompute_normals).SetMaterial(&materials_[mat_name]);
 								}
 							}
 						}

@@ -32,10 +32,59 @@ public:
 	{}
 
 	Mesh(const vector<Vertex>& in_vertices, const vector<Index>& in_indices, const Material* in_material = nullptr)
+		: material_(in_material)
+	{
+		vertexcount_ = in_vertices.size();
+		vertices_ = new Vertex[vertexcount_];
+		memcpy(vertices_, &in_vertices[0], vertexcount_ * sizeof(Vertex));
+
+		indexcount_ = in_indices.size();
+		indices_ = new Index[indexcount_];
+		memcpy(indices_, &in_indices[0], indexcount_ * sizeof(Index));
+	}
+
+	Mesh(Vertex* in_vertices, uint32_t in_vertexcount, Index* in_indices, uint32_t in_indexcount, Material* in_material = nullptr)
 		: vertices_(in_vertices)
+		, vertexcount_(in_vertexcount)
 		, indices_(in_indices)
+		, indexcount_(in_indexcount)
 		, material_(in_material)
-	{}
+	{
+	}
+
+	~Mesh()
+	{
+		if (false) // FIXME: CUDA will crash with invalid pointers, debug!!!
+		{
+			delete [] vertices_;
+			delete [] indices_;
+		}
+	}
+
+	Mesh(const Mesh& other) = delete;
+
+	Mesh& operator=(Mesh& other) = delete;
+
+    Mesh(Mesh&& other) noexcept 
+		: vertices_(std::exchange(other.vertices_, nullptr))
+		, vertexcount_(std::exchange(other.vertexcount_, 0))
+		, indices_(std::exchange(other.indices_, nullptr))
+		, indexcount_(std::exchange(other.indexcount_, 0))
+		, material_(std::exchange(other.material_, nullptr))
+		, aabb_(std::move(other.aabb_))
+    {
+    }
+
+    Mesh& operator=(Mesh&& other) noexcept
+    {
+        vertices_ = std::exchange(other.vertices_, nullptr);
+		vertexcount_ = std::exchange(other.vertexcount_, 0);
+		indices_ = std::exchange(other.indices_, nullptr);
+		indexcount_ = std::exchange(other.indexcount_, 0);
+		material_ = std::exchange(other.material_, nullptr);
+		aabb_ = std::move(other.aabb_);
+        return *this;
+    }
 
 	Mesh& ComputeNormals();
 	
@@ -47,41 +96,65 @@ public:
 
 	Mesh& ComputeBoundingBox();
 
-	uint32_t GetVertexCount() const               { return static_cast<uint32_t>(vertices_.size()); }
+	CUDA_CALL uint32_t GetVertexCount() const               { return vertexcount_; }
 
-	uint32_t GetTriCount() const                  { return static_cast<uint32_t>(indices_.size()) / 3; }
+	CUDA_CALL uint32_t GetTriCount() const                  { return indexcount_ / 3; }
 
-	uint32_t GetIndexCount() const                { return static_cast<uint32_t>(indices_.size()); }
+	CUDA_CALL uint32_t GetIndexCount() const                { return indexcount_; }
 
-	const vector<Vertex>& GetVertices() const     { return vertices_; }
+	CUDA_CALL const Vertex* GetVertices() const             { return vertices_; }
 
-	const Vertex& GetVertex(int i) const          { return vertices_[i]; }
+	CUDA_CALL Vertex& GetVertex(int i) const                { return vertices_[i]; }
 
-	const vector<Index>& GetIndices() const       { return indices_; }
+	CUDA_CALL const Index* GetIndices() const               { return indices_; }
 
-	const Index& GetIndex(int i) const            { return indices_[i]; }
+	CUDA_CALL Index& GetIndex(int i) const                  { return indices_[i]; }
 
-	void SetMaterial(const Material* in_material) { material_ = in_material; }
+	CUDA_CALL void SetMaterial(const Material* in_material) { material_ = in_material; }
 
-	const Material* GetMaterial() const           { return material_; }
+	CUDA_CALL const Material* GetMaterial() const           { return material_; }
 
-	const vec3& GetCenter() const                 { return center_; }
+	CUDA_CALL const BBox& GetAABB() const                   { return aabb_; }
 
-	const vec3& GetSize() const                   { return size_; }
-
-	const BBox& GetAABB() const                   { return aabb_; }
+	CUDA_CALL void SetAABB(const BBox& in_box)              { aabb_ = in_box; }
 	
 
 private:
-	vector<Vertex> vertices_;
-	vector<Index> indices_;
+	Vertex* vertices_;
+	uint32_t vertexcount_;
+	Index* indices_;
+	uint32_t indexcount_;
 	const Material* material_;
-	vec3 center_;
-	vec3 size_;
 	BBox aabb_;
-
-	friend class Scene;
 };
+
+
+inline Mesh& Mesh::ComputeNormals()
+{
+	for (uint32_t i = 0; i < indexcount_; i += 3)
+	{
+		Vertex& v1 = vertices_[indices_[i + 0]];
+		Vertex& v2 = vertices_[indices_[i + 1]];
+		Vertex& v3 = vertices_[indices_[i + 2]];
+
+		vec3 normal = normalize(cross(v2.pos - v1.pos, v3.pos - v1.pos));
+		v1.normal = v2.normal = v3.normal = normal;
+	}
+
+	return *this;
+}
+
+inline Mesh& Mesh::ComputeBoundingBox()
+{
+	aabb_ = { FLT_MAX, -FLT_MAX };
+	for (uint32_t i = 0; i < vertexcount_; ++i)
+	{
+		aabb_.minbound = pmin(aabb_.minbound, vertices_[i].pos);
+		aabb_.maxbound = pmax(aabb_.maxbound, vertices_[i].pos);
+	}
+
+	return *this;
+}
 
 template<typename VertexType, bool enabled>
 inline typename std::enable_if<enabled, Mesh&>::type Mesh::ComputeTangentsAndBitangents()
@@ -89,7 +162,7 @@ inline typename std::enable_if<enabled, Mesh&>::type Mesh::ComputeTangentsAndBit
 	// Lengyel, Eric. "Computing Tangent Space Basis Vectors for an Arbitrary Mesh"
 	// http://www.terathon.com/code/tangent.html
 
-	for (int i = 0; i < static_cast<int>(indices_.size()); i += 3)
+	for (uint32_t i = 0; i < indexcount_; i += 3)
 	{
 		VertexType& v1 = vertices_[indices_[i + 0]];
 		VertexType& v2 = vertices_[indices_[i + 1]];
@@ -111,8 +184,10 @@ inline typename std::enable_if<enabled, Mesh&>::type Mesh::ComputeTangentsAndBit
 		v1.bitangent += v2.bitangent = v3.bitangent = bitangent;
 	}
 
-	for (VertexType& v : vertices_)
+	for (uint32_t i = 0; i < vertexcount_; ++i)
 	{
+		VertexType& v = vertices_[i];
+
 		// orthonormalize tangent
 		v.tangent = normalize(v.tangent - v.normal * dot(v.normal, v.tangent));
 

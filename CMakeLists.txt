@@ -84,7 +84,6 @@ source_group("ext\\" FILES ${ext_includes})
 list(APPEND tracy_includes ${ext_includes})
 
 set(main_sources "./src/win_raytracer.cpp"
-                 "./src/mesh.cpp"
                  "./src/scene.cpp"
                  "./src/material.cpp")
 
@@ -197,8 +196,6 @@ elseif(TRACY_RENDER_MODULE STREQUAL "CUDA (RayTracing)")
 	list(APPEND tracy_sources ${cuda_sources})
 
 	set(cuda_includes "./src/kernels/raytracing/cuda/cuda_trace.h"
-					  "./src/kernels/raytracing/cuda/cuda_material.h"
-	                  "./src/kernels/raytracing/cuda/cuda_mesh.h"
 					  "./src/kernels/raytracing/cuda/cuda_scene.h"
 	                  "./src/kernels/raytracing/cuda/cuda_log.h"
 					  "./src/kernels/raytracing/cuda/cuda_specific.h")

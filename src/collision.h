@@ -73,16 +73,9 @@ struct MeshHitData
 	uint32_t TriangleIndex;
 };
 
-#if defined(__CUDACC__) // TODO: CUDAMesh and Mesh should be merged
-CUDA_DEVICE_CALL inline bool RayMesh(const Ray& in_ray, const CUDAMesh& in_mesh, MeshHitData& inout_hit)
-#else
 CUDA_DEVICE_CALL inline bool RayMesh(const Ray& in_ray, const Mesh& in_mesh, MeshHitData& inout_hit)
-#endif
 {
 	bool result = false;
-
-	vec3 ray_direction = in_ray.GetDirection();
-	vec3 ray_origin = in_ray.GetOrigin();
 
 	for (uint32_t i = 0; i < in_mesh.GetTriCount(); ++i)
 	{
