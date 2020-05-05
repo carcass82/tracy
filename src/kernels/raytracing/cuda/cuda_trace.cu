@@ -23,9 +23,6 @@
 // static material map initialization
 unordered_map<const Material*, Material*> CUDAScene::device_materials_;
 
-// max gpu supported
-constexpr int MAX_GPU = 32;
-
 // max depth for ray bounces
 constexpr int MAX_DEPTH = 5;
 
@@ -188,33 +185,32 @@ __global__ void Trace(Camera* in_camera,
                       CUDATree* in_scenetree,
 #endif
                       Material* in_skymaterial,
-                      vec4* output_float,
-                      int width,
-                      int height,
-                      curandState* rand_state,
-                      int* raycount,
-                      int framecount)
+                      vec4* out_tempresult,
+                      int in_width,
+                      int in_height,
+                      curandState* inout_rand_state,
+                      int* inout_raycount,
+                      int in_framecount)
 {
     const int i = (blockIdx.x * blockDim.x) + threadIdx.x;
     const int j = (blockIdx.y * blockDim.y) + threadIdx.y;
 
-    if (i >= width || j >= height)
+    const int idx = j * in_width + i;
+
+    if (i >= in_width || j >= in_height)
     {
         return;
     }
 
-    const float f_width = static_cast<float>(width);
-    const float f_height = static_cast<float>(height);
-
-    curandState curand_ctx = rand_state[j * width + i];
+    curandState curand_ctx = inout_rand_state[idx];
     
     int cur_raycount = 0;
 
     vec3 cur_color{};
     for (int sample = 0; sample < MAX_SAMPLES; ++sample)
     {
-        float s = ((i + fastrand(&curand_ctx)) / f_width);
-        float t = ((j + fastrand(&curand_ctx)) / f_height);
+        float s = ((i + fastrand(&curand_ctx)) / (float)in_width);
+        float t = ((j + fastrand(&curand_ctx)) / (float)in_height);
     
         Ray r = in_camera->GetRayFrom(s, t);
 
@@ -226,22 +222,18 @@ __global__ void Trace(Camera* in_camera,
     }
     cur_color /= MAX_SAMPLES;
     
-    rand_state[j * width + i] = curand_ctx;    
-    atomicAdd(raycount, cur_raycount);
+    // update random seed
+    inout_rand_state[idx] = curand_ctx;
 
+    // update raycount
+    atomicAdd(inout_raycount, cur_raycount);
 
-	float blend_factor = framecount / float(framecount + 1);
-    
-    vec3 old_color = output_float[j * width + i].rgb;
-    
-    // "unroll" to use lerp version with cuda intrinsics
-    output_float[j * width + i] = vec4(lerp(cur_color.r, old_color.r, blend_factor),
-                                       lerp(cur_color.g, old_color.g, blend_factor),
-                                       lerp(cur_color.b, old_color.b, blend_factor),
-                                       1.f);
+	float blend_factor = in_framecount / float(in_framecount + 1);
+    vec3 old_color = out_tempresult[idx].rgb;
+    out_tempresult[idx] = vec4(lerp(cur_color, old_color, blend_factor), 1.f);
 }
 
-__global__ void InitRandom(curandState* rand_state, int width, int height)
+__global__ void InitRandom(int device, curandState* rand_state, int width, int height)
 {
     const int i = (blockIdx.x * blockDim.x) + threadIdx.x;
     const int j = (blockIdx.y * blockDim.y) + threadIdx.y;
@@ -251,7 +243,7 @@ __global__ void InitRandom(curandState* rand_state, int width, int height)
         return;
     }
 
-    curand_init(clock64(), i, j, &rand_state[j * width + i]);
+    curand_init(clock64() * device, i, j, &rand_state[j * width + i]);
 }
 
 extern "C" void cuda_setup(const Scene& in_scene, CUDAScene* out_scene)
@@ -277,8 +269,7 @@ extern "C" void cuda_setup(const Scene& in_scene, CUDAScene* out_scene)
                 gpu_properties[i].maxGridSize[0], gpu_properties[i].maxGridSize[1], gpu_properties[i].maxGridSize[2]);
     }
 
-    CUDAAssert(cudaSetDevice(CUDA_PREFERRED_DEVICE));
-
+    CUDAAssert(cudaSetDevice(0));
     CUDAAssert(cudaMalloc(&out_scene->d_objects_, in_scene.GetObjectCount() * sizeof(Mesh)));
     for (unsigned int i = 0; i < in_scene.GetObjectCount(); ++i)
     {
@@ -329,9 +320,9 @@ extern "C" void cuda_setup(const Scene& in_scene, CUDAScene* out_scene)
 
     CUDAAssert(cudaMalloc(&out_scene->d_rand_state, out_scene->width * out_scene->height * sizeof(curandState)));
 
-    dim3 block(16, 16, 1);
+    dim3 block(8, 8, 1);
     dim3 grid(out_scene->width / block.x + 1, out_scene->height / block.y + 1, 1);
-    InitRandom<<<grid, block>>> (out_scene->d_rand_state, out_scene->width, out_scene->height);
+    InitRandom<<<grid, block>>>(0x12345 + 0, out_scene->d_rand_state, out_scene->width, out_scene->height);
 
     CUDAAssert(cudaGetLastError());
 
@@ -341,11 +332,10 @@ extern "C" void cuda_setup(const Scene& in_scene, CUDAScene* out_scene)
 
 extern "C" void cuda_trace(CUDAScene* scene, int framecount)
 {
-    CUDAAssert(cudaSetDevice(CUDA_PREFERRED_DEVICE));
-
-    dim3 block(16, 16, 1);
+    dim3 block(8, 8, 1);
     dim3 grid(scene->width / block.x + 1, scene->height / block.y + 1, 1);
 
+    CUDAAssert(cudaSetDevice(0));
     Trace<<<grid, block>>>(scene->d_camera_,
                            scene->d_objects_,
                            scene->objectcount_,
@@ -361,4 +351,9 @@ extern "C" void cuda_trace(CUDAScene* scene, int framecount)
                            framecount);
     
     CUDAAssert(cudaGetLastError());
+}
+
+extern "C" void cuda_shutdown(CUDAScene* scene)
+{
+
 }

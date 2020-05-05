@@ -10,9 +10,8 @@
 #include "cuda_log.h"
 #include "camera.h"
 
-#if !defined(CUDA_PREFERRED_DEVICE)
- #define CUDA_PREFERRED_DEVICE 0
-#endif
+// max gpu supported
+constexpr int MAX_GPU = 32;
 
 #if USE_KDTREE
 #include "kdtree.h"
@@ -77,6 +76,8 @@ struct CUDAScene
 {
     int width;
     int height;
+
+	int num_gpus;
 
     vec4* d_output_;
 

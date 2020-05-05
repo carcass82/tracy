@@ -13,6 +13,7 @@
 
 namespace cuda
 {
+
 //
 // from helper_cuda.h
 // NVidia CUDA samples
@@ -26,4 +27,5 @@ inline void ensure(cudaError_t val, const char* file, int line)
         exit(EXIT_FAILURE);
     }
 }
+
 }

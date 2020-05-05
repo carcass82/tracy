@@ -36,7 +36,9 @@ namespace
 	{
 		constexpr TriInfo(uint32_t mesh_idx, uint32_t triangle_idx)
 			: packed((mesh_idx << 24) | triangle_idx)
-		{}
+		{
+			DEBUG_ASSERT(mesh_idx < UINT8_MAX && triangle_idx < pow(2, 24) - 1);
+		}
 
 		constexpr uint32_t GetMeshId() const { return packed >> 24; }
 		constexpr uint32_t GetTriangleId() const { return packed & 0xffffff; }
@@ -156,24 +158,12 @@ struct CpuTrace::CpuTraceDetails
 		};
 
 
-		if (scene.GetObjectCount() > UINT8_MAX)
-		{
-			TracyLog("Unable to represent mesh index (%d meshes while UINT8_MAX is %d)\n", scene.GetObjectCount(), UINT8_MAX);
-			DEBUG_BREAK();
-		}
-
 		SceneTree.GetElements().reserve(scene.GetTriCount());
 		
 		BBox scene_bbox{ FLT_MAX, -FLT_MAX };
 		for (uint16_t i = 0; i < scene.GetObjectCount(); ++i)
 		{
 			const Mesh& mesh = scene.GetObject(i);
-			if (mesh.GetTriCount() > pow(2, 24) - 1)
-			{
-				TracyLog("Unable to represent triangle index (%d triangles while UINT24_MAX is %d)\n", mesh.GetTriCount(), pow(2, 24) - 1);
-				DEBUG_BREAK();
-			}
-
 			for (uint32_t t = 0; t < mesh.GetTriCount(); ++t)
 			{
 				SceneTree.GetElements().emplace_back(i, t);

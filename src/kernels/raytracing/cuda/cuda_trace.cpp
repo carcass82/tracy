@@ -19,6 +19,7 @@
 
 extern "C" void cuda_setup(const Scene& in_scene, CUDAScene* out_scene);
 extern "C" void cuda_trace(CUDAScene* scene, int framecount);
+extern "C" void cuda_shutdown(CUDAScene* out_scene);
 
 
 struct CUDATrace::CUDATraceDetails
@@ -27,6 +28,7 @@ struct CUDATrace::CUDATraceDetails
 
     GLuint texture;
     cudaGraphicsResource* mapped_texture;
+    cudaArray* texture_content;
 };
 
 CUDATrace::CUDATrace()
@@ -105,8 +107,7 @@ void CUDATrace::Initialize(Handle in_window, int in_width, int in_height, const 
         glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_NEAREST);
         glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_NEAREST);
 
-        CUDAAssert(cudaSetDevice(CUDA_PREFERRED_DEVICE));
-        
+        CUDAAssert(cudaSetDevice(0));
         CUDAAssert(cudaGraphicsGLRegisterImage(&details_->mapped_texture, details_->texture, GL_TEXTURE_2D, cudaGraphicsMapFlagsWriteDiscard));
         CUDAAssert(cudaMalloc(&details_->scene_.d_output_, win_width_ * win_height_ * sizeof(vec4)));
         CUDAAssert(cudaMemset(details_->scene_.d_output_, 0, win_width_ * win_height_ * sizeof(vec4)));
@@ -233,10 +234,10 @@ void CUDATrace::UpdateScene()
     cuda_trace(&details_->scene_, frame_counter);
     camera_->EndFrame();
 
-    cudaArray* texture_ptr;
+    CUDAAssert(cudaSetDevice(0));
     CUDAAssert(cudaGraphicsMapResources(1, &details_->mapped_texture, 0));
-    CUDAAssert(cudaGraphicsSubResourceGetMappedArray(&texture_ptr, details_->mapped_texture, 0, 0));
-    CUDAAssert(cudaMemcpyToArray(texture_ptr, 0, 0, details_->scene_.d_output_, win_width_ * win_height_ * sizeof(vec4), cudaMemcpyDeviceToDevice));
+    CUDAAssert(cudaGraphicsSubResourceGetMappedArray(&details_->texture_content, details_->mapped_texture, 0, 0));
+    CUDAAssert(cudaMemcpy2DToArray(details_->texture_content, 0, 0, details_->scene_.d_output_, win_width_ * sizeof(vec4), win_width_ * sizeof(vec4), win_height_, cudaMemcpyDeviceToDevice));
     CUDAAssert(cudaGraphicsUnmapResources(1, &details_->mapped_texture, 0));
 }
 
@@ -259,4 +260,9 @@ void CUDATrace::RenderScene()
 #else
     glXSwapBuffers(win_handle_->dpy, win_handle_->win);
 #endif
+}
+
+void CUDATrace::Shutdown()
+{
+    cuda_shutdown(&details_->scene_);
 }
