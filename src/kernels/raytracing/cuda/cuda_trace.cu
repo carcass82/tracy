@@ -328,6 +328,9 @@ extern "C" void cuda_setup(const Scene& in_scene, CUDAScene* out_scene)
 
     CUDAAssert(cudaMalloc(&out_scene->d_raycount, sizeof(int)));
     CUDAAssert(cudaMemset(out_scene->d_raycount, 0, sizeof(int)));
+
+    CUDAAssert(cudaMalloc(&out_scene->d_output_, out_scene->width * out_scene->height * sizeof(vec4)));
+    CUDAAssert(cudaMemset(out_scene->d_output_, 0, out_scene->width * out_scene->height * sizeof(vec4)));
 }
 
 extern "C" void cuda_trace(CUDAScene* scene, int framecount)

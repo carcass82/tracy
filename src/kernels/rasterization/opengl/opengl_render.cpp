@@ -112,7 +112,7 @@ void OpenGLRender::Initialize(Handle in_window, int in_width, int in_height, con
 			if (mesh.GetMaterial()->GetType() == Material::MaterialID::eEMISSIVE)
 			{
 				// consider emissive objects as lights
-				details_->lights.emplace_back(mesh.GetCenter(), mesh.GetMaterial()->GetAlbedo());
+				details_->lights.emplace_back(mesh.GetAABB().GetCenter(), mesh.GetMaterial()->GetAlbedo());
 			}
 		}
 
