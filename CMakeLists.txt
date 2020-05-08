@@ -41,7 +41,7 @@ if(TRACY_ACCELERATION_STRUCTURE)
 	add_definitions(-DUSE_KDTREE)
 endif()
 
-option(DEBUG_KDTREE_DISABLE_SAH "Disable SAH (Surface Area Heuristic) when building Kd-Tree" OFF)
+option(DEBUG_KDTREE_DISABLE_SAH "Disable SAH (Surface Area Heuristic) when building Kd-Tree" ON)
 if(DEBUG_KDTREE_DISABLE_SAH)
 	add_definitions(-DDISABLE_SAH)
 endif()

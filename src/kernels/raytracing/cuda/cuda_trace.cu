@@ -248,11 +248,20 @@ __global__ void InitRandom(int device, curandState* rand_state, int width, int h
 
 extern "C" void cuda_setup(const Scene& in_scene, CUDAScene* out_scene)
 {
-    int num_gpus = 0;
-    CUDAAssert(cudaGetDeviceCount(&num_gpus));
+    int gpucount;
+    CUDAAssert(cudaGetDeviceCount(&gpucount));
+
+#if CUDA_FORCE_SINGLE_DEVICE
+    out_scene->num_gpus = 1;
+#else
+    out_scene->num_gpus = min(gpucount, MAX_GPU);
+#endif
+
+    TracyLog("Found %d %s, %d will be used\n\n", gpucount, ((gpucount > 1) ? "devices" : "device"), out_scene->num_gpus);
+
     
     cudaDeviceProp gpu_properties[MAX_GPU];
-    for (int i = 0; i < num_gpus; i++)
+    for (int i = 0; i < out_scene->num_gpus; i++)
     {
         CUDAAssert(cudaGetDeviceProperties(&gpu_properties[i], i));
 
@@ -260,74 +269,107 @@ extern "C" void cuda_setup(const Scene& in_scene, CUDAScene* out_scene)
                 "\t%d threads\n"
                 "\tblocksize: %dx%dx%d\n"
                 "\tshmem per block: %dKb\n"
-                "\tgridsize: %dx%dx%d\n\n",
+                "\tgridsize: %dx%dx%d\n",
                 i,
                 gpu_properties[i].name,
                 gpu_properties[i].maxThreadsPerBlock,
                 gpu_properties[i].maxThreadsDim[0], gpu_properties[i].maxThreadsDim[1], gpu_properties[i].maxThreadsDim[2],
                 gpu_properties[i].sharedMemPerBlock / 1024,
                 gpu_properties[i].maxGridSize[0], gpu_properties[i].maxGridSize[1], gpu_properties[i].maxGridSize[2]);
+
+        for (int j = 0; j < out_scene->num_gpus; j++)
+        {
+            if (i != j)
+            {
+                CUDAAssert(cudaSetDevice(i));
+
+                int result = -1;
+                cudaDeviceCanAccessPeer(&result, i, j);
+
+                CUDAAssert(cudaDeviceEnablePeerAccess(j, 0));
+
+                TracyLog("\t* enabled p2p access to Device %d\n", i, j);
+            }
+        }
+
+        TracyLog("\n\n");
     }
 
     CUDAAssert(cudaSetDevice(0));
-    CUDAAssert(cudaMalloc(&out_scene->d_objects_, in_scene.GetObjectCount() * sizeof(Mesh)));
-    for (unsigned int i = 0; i < in_scene.GetObjectCount(); ++i)
+
+    // copy camera to device
     {
-        const Mesh& cpumesh = in_scene.GetObject(i);
-
-        uint32_t vertexcount = cpumesh.GetVertexCount();
-        Vertex* vertices;
-		CUDAAssert(cudaMalloc(&vertices, vertexcount * sizeof(Vertex)));
-		CUDAAssert(cudaMemcpy(vertices, &cpumesh.GetVertices()[0], vertexcount * sizeof(Vertex), cudaMemcpyHostToDevice));
-
-        uint32_t indexcount = cpumesh.GetIndexCount();
-        Index* indices;
-		CUDAAssert(cudaMalloc(&indices, indexcount * sizeof(Index)));
-		CUDAAssert(cudaMemcpy(indices, &cpumesh.GetIndices()[0], indexcount* sizeof(Index), cudaMemcpyHostToDevice));
-
-        Mesh* cudamesh = new Mesh(vertices, vertexcount, indices, indexcount, CUDAScene::ConvertMaterial(cpumesh.GetMaterial()));
-        cudamesh->SetAABB(cpumesh.GetAABB());
-
-        CUDAAssert(cudaMemcpy(&out_scene->d_objects_[i], cudamesh, sizeof(Mesh), cudaMemcpyHostToDevice));
+        CUDAAssert(cudaMalloc(&out_scene->d_camera_, sizeof(Camera)));
+        CUDAAssert(cudaMemcpy(out_scene->d_camera_, &in_scene.GetCamera(), sizeof(Camera), cudaMemcpyHostToDevice));
     }
-    out_scene->objectcount_ = in_scene.GetObjectCount();
+    
+    // copy all meshes and materials to device
+    {
+        out_scene->objectcount_ = in_scene.GetObjectCount();
+        CUDAAssert(cudaMalloc(&out_scene->d_objects_, out_scene->objectcount_ * sizeof(Mesh)));
+        for (int i = 0; i < out_scene->objectcount_; ++i)
+        {
+            const Mesh& cpumesh = in_scene.GetObject(i);
+
+            uint32_t vertexcount = cpumesh.GetVertexCount();
+            Vertex* vertices;
+            CUDAAssert(cudaMalloc(&vertices, vertexcount * sizeof(Vertex)));
+            CUDAAssert(cudaMemcpy(vertices, &cpumesh.GetVertices()[0], vertexcount * sizeof(Vertex), cudaMemcpyHostToDevice));
+
+            uint32_t indexcount = cpumesh.GetIndexCount();
+            Index* indices;
+            CUDAAssert(cudaMalloc(&indices, indexcount * sizeof(Index)));
+            CUDAAssert(cudaMemcpy(indices, &cpumesh.GetIndices()[0], indexcount * sizeof(Index), cudaMemcpyHostToDevice));
+
+            Mesh* cudamesh = new Mesh(vertices, vertexcount, indices, indexcount, CUDAScene::ConvertMaterial(cpumesh.GetMaterial()));
+            cudamesh->SetAABB(cpumesh.GetAABB());
+
+            CUDAAssert(cudaMemcpy(&out_scene->d_objects_[i], cudamesh, sizeof(Mesh), cudaMemcpyHostToDevice));
+        }
+
+        out_scene->d_sky_ = CUDAScene::ConvertMaterial(in_scene.GetSkyMaterial());
+    }
 
 #if USE_KDTREE
 
-    CUDATree helper;
-    helper.nodes_num_ = out_scene->h_scenetree.nodes_num_;
-    helper.triangles_num_ = out_scene->h_scenetree.triangles_num_;
-
-    CUDAAssert(cudaMalloc(&helper.triangles_, helper.triangles_num_ * sizeof(TriInfo)));
-    CUDAAssert(cudaMemcpy(helper.triangles_, out_scene->h_scenetree.triangles_, helper.triangles_num_ * sizeof(TriInfo), cudaMemcpyHostToDevice));
-    
-    CUDAAssert(cudaMalloc(&out_scene->d_scenetree, sizeof(CUDATree)));
-    for (unsigned int i = 0; i < helper.nodes_num_; ++i)
+    // copy the tree to the device
     {
-        out_scene->h_scenetree.nodes_[i].root = out_scene->d_scenetree;
-    }
-    CUDAAssert(cudaMalloc(&helper.nodes_, helper.nodes_num_ * sizeof(CustomNode<CUDATree, TriInfo>)));
-    CUDAAssert(cudaMemcpy(helper.nodes_, out_scene->h_scenetree.nodes_, helper.nodes_num_ * sizeof(CustomNode<CUDATree, TriInfo>), cudaMemcpyHostToDevice));
+        CUDATree helper;
+        helper.nodes_num_ = out_scene->h_scenetree.nodes_num_;
+        helper.triangles_num_ = out_scene->h_scenetree.triangles_num_;
 
-    CUDAAssert(cudaMemcpy(out_scene->d_scenetree, &helper, sizeof(CUDATree), cudaMemcpyHostToDevice));
+        CUDAAssert(cudaMalloc(&helper.triangles_, helper.triangles_num_ * sizeof(TriInfo)));
+        CUDAAssert(cudaMemcpy(helper.triangles_, out_scene->h_scenetree.triangles_, helper.triangles_num_ * sizeof(TriInfo), cudaMemcpyHostToDevice));
+
+        CUDAAssert(cudaMalloc(&out_scene->d_scenetree, sizeof(CUDATree)));
+        for (unsigned int i = 0; i < helper.nodes_num_; ++i)
+        {
+            out_scene->h_scenetree.nodes_[i].root = out_scene->d_scenetree;
+        }
+        CUDAAssert(cudaMalloc(&helper.nodes_, helper.nodes_num_ * sizeof(CustomNode<CUDATree, TriInfo>)));
+        CUDAAssert(cudaMemcpy(helper.nodes_, out_scene->h_scenetree.nodes_, helper.nodes_num_ * sizeof(CustomNode<CUDATree, TriInfo>), cudaMemcpyHostToDevice));
+
+        CUDAAssert(cudaMemcpy(out_scene->d_scenetree, &helper, sizeof(CUDATree), cudaMemcpyHostToDevice));
+    }
 
 #endif
 
-    out_scene->d_sky_ = CUDAScene::ConvertMaterial(in_scene.GetSkyMaterial());
-    
-    CUDAAssert(cudaMalloc(&out_scene->d_camera_, sizeof(Camera)));
-    CUDAAssert(cudaMemcpy(out_scene->d_camera_, &in_scene.GetCamera(), sizeof(Camera), cudaMemcpyHostToDevice));
+    // rand seed generation on device
+    {
+        CUDAAssert(cudaMalloc(&out_scene->d_rand_state, out_scene->width * out_scene->height * sizeof(curandState)));
 
-    CUDAAssert(cudaMalloc(&out_scene->d_rand_state, out_scene->width * out_scene->height * sizeof(curandState)));
+        dim3 block(8, 8, 1);
+        dim3 grid(out_scene->width / block.x + 1, out_scene->height / block.y + 1, 1);
+        InitRandom<<<grid, block>>> (0x12345 + 0, out_scene->d_rand_state, out_scene->width, out_scene->height);
 
-    dim3 block(8, 8, 1);
-    dim3 grid(out_scene->width / block.x + 1, out_scene->height / block.y + 1, 1);
-    InitRandom<<<grid, block>>>(0x12345 + 0, out_scene->d_rand_state, out_scene->width, out_scene->height);
+        CUDAAssert(cudaGetLastError());
+    }
 
-    CUDAAssert(cudaGetLastError());
-
-    CUDAAssert(cudaMalloc(&out_scene->d_raycount, sizeof(int)));
-    CUDAAssert(cudaMemset(out_scene->d_raycount, 0, sizeof(int)));
+    // prepare raycount
+    {
+        CUDAAssert(cudaMalloc(&out_scene->d_raycount, sizeof(int)));
+        CUDAAssert(cudaMemset(out_scene->d_raycount, 0, sizeof(int)));
+    }
 }
 
 extern "C" void cuda_trace(CUDAScene* scene, int framecount)
@@ -355,5 +397,19 @@ extern "C" void cuda_trace(CUDAScene* scene, int framecount)
 
 extern "C" void cuda_shutdown(CUDAScene* scene)
 {
+    for (int i = 0; i < scene->num_gpus; i++)
+    {
+        for (int j = 0; j < scene->num_gpus; j++)
+        {
+            if (i != j)
+            {
+                CUDAAssert(cudaSetDevice(i));
 
+                int result = -1;
+                cudaDeviceCanAccessPeer(&result, i, j);
+
+                CUDAAssert(cudaDeviceDisablePeerAccess(j));
+            }
+        }
+    }
 }

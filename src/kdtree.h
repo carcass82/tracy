@@ -112,40 +112,38 @@ inline unsigned int SplitAndGetDuplicationPercentage(const NodeType& current_nod
 
 #else
 
+	constexpr float TRAVERSAL_COST = 1.f;
+	constexpr float TRIINTERSECTION_COST = 2.f;
+
+	float no_split_cost = TRAVERSAL_COST + TRIINTERSECTION_COST * current_node.GetSize();
+	
 	float best_cost = FLT_MAX;
 	unsigned int best_axis = current_node.GetDepth() % 3;
 	unsigned int best_split = 5;
 
-	//for (int axis = 0; axis < 3; ++axis)
-	int axis = best_axis;
+	for (int axis = 0; axis < 3; ++axis)
 	{
 		for (int i = 1; i < 10; ++i)
 		{
 			unsigned int right_count = 0;
 			unsigned int left_count = 0;
 
-			vec3 split_unit = current_node.GetAABB().GetSize() / 10.f;
-
+			float left_factor = i / 10.f;
 			BBox left_bbox(current_node.GetAABB());
-			left_bbox.maxbound[axis] -= ((split_unit[axis] * i) + ROUND);
+			left_bbox.maxbound[axis] -= ((current_node.GetAABB().GetSize()[axis] * left_factor) + ROUND);
 
+			float right_factor = (10 - i) / 10.f;
 			BBox right_bbox(current_node.GetAABB());
-			right_bbox.minbound[axis] += (split_unit[axis] * (10 - i)) + ROUND;
+			right_bbox.minbound[axis] += ((current_node.GetAABB().GetSize()[axis] * right_factor) + ROUND);
 
 			for (const T& object : current_node.GetElements())
 			{
-				if (ObjectBoxTester(object, right_bbox))
-				{
-					++right_count;
-				}
-				if (ObjectBoxTester(object, left_bbox))
-				{
-					++left_count;
-				}
+				right_count += (ObjectBoxTester(object, right_bbox))? 1 : 0;
+				left_count  += (ObjectBoxTester(object, left_bbox ))? 1 : 0;
 			}
 
-			float cost = (i / 10.f) * (2 * right_count) + ((10 - i) / 10.f) * (2 * left_count);
-			if (cost < best_cost)
+			float cost = TRAVERSAL_COST * 2 + left_factor * (TRIINTERSECTION_COST * right_count) + right_factor * (TRIINTERSECTION_COST * left_count);
+			if (cost < best_cost && cost < no_split_cost)
 			{
 				best_cost = cost;
 				best_axis = axis;

@@ -350,10 +350,9 @@ int main(int argc, char** argv)
 			Timer frame_timer;
 			Timer run_timer;
 
-			int max_raycount = INT_MIN;
-			int min_raycount = INT_MAX;
 			int avg_raycount = 0;
-			int avg_samples = 0;
+			float avg_fps = .0f;
+			int samples = 0;
 
 			run_timer.Begin();
 
@@ -383,14 +382,14 @@ int main(int argc, char** argv)
 				if (trace_timer.GetDuration() > 1.f || frame_count > 100)
 				{
 					int raycount = g_kernel.GetRayCount();
-					bool has_ray_count = raycount > 0;
+					float fps = frame_count / (float)trace_timer.GetDuration();
 
 					run_timer.End();
 
 					static char window_title[MAX_PATH] = {};
 					snprintf(window_title,
 					         MAX_PATH,
-					         ".:: Tracy 2.0 (%s) ::. '%s' :: %dx%d :: Elapsed: %s :: [%d objs] [%d tris] [%.2f %s]",
+					         ".:: Tracy 2.0 (%s) ::. '%s' :: %dx%d :: Elapsed: %s :: [%d objs] [%d tris] [%.2f MRays/s] [%.2f fps]",
 					         g_kernel.GetName(),
 					         world.GetName().c_str(),
 					         WIDTH,
@@ -398,14 +397,14 @@ int main(int argc, char** argv)
 					         TracySecondsToString(run_timer.GetDuration()),
 					         world.GetObjectCount(),
 					         world.GetTriCount(),
-					         (has_ray_count ? (raycount * 1e-6f) / trace_timer.GetDuration() : frame_count / trace_timer.GetDuration()),
-					         (has_ray_count ? "MRays/s" : "fps"));
+					         raycount * 1e-6f / trace_timer.GetDuration(),
+					         fps);
 
 					UpdateWindowText(win_handle, window_title);
 
-					min_raycount = min(min_raycount, raycount);
-					max_raycount = max(max_raycount, raycount);
-					avg_raycount = avg_raycount + (raycount - avg_raycount) / ++avg_samples;
+					++samples;
+					avg_raycount = avg_raycount + (raycount - avg_raycount) / samples;
+					avg_fps      = avg_fps + (fps - avg_fps) / samples;
 
 					g_kernel.ResetRayCount();
 					trace_timer.Reset();
@@ -422,7 +421,10 @@ int main(int argc, char** argv)
 			if (avg_raycount > 0)
 			{
 				run_timer.End();
-				TracyLog("\n*** Performance: %.2f MRays/s on average (min: %.2f, max: %.2f) - Run time: %s ***\n\n", avg_raycount * 1e-6f, min_raycount * 1e-6f, max_raycount * 1e-6f, TracySecondsToString(run_timer.GetDuration()));
+				TracyLog("\n*** Performance: %.2f MRays/s and %.2f fps on average - Run time: %s ***\n\n",
+				         avg_raycount * 1e-6f,
+				         avg_fps,
+				         TracySecondsToString(run_timer.GetDuration()));
 			}
 		}
 		else

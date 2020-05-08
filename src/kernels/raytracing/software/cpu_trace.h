@@ -35,6 +35,7 @@ public:
 
 private:
 	CpuTrace();
+	void RenderTile(int tile_x, int tile_y, int tile_size, int w, int h);
 	vec3 Trace(const Ray& ray, uint32_t rand_ctx);
 
 	const int bounces_{ 5 };
@@ -49,4 +50,6 @@ private:
 
 	struct CpuTraceDetails;
 	CpuTraceDetails* details_{};
+
+	const int tile_size_{ 16 };
 };

@@ -186,8 +186,11 @@ struct CpuTrace::CpuTraceDetails
 	// -- platform data for rendering --
 	//
 	vector<vec3> output;
+	vector<vec3> traceresult;
 	uint32_t* bitmap_bytes;
-	
+
+	int tile_count_ = 0;
+
 #if defined(WIN32)
 	HBITMAP bitmap{};
 #else
@@ -218,6 +221,9 @@ void CpuTrace::Initialize(Handle in_window, int in_width, int in_height, const S
 	camera_ = &in_scene.GetCamera();
 	scene_ = &in_scene;
 
+	details_->tile_count_ = max(win_width_, win_height_) / tile_size_;
+
+	details_->traceresult.resize(in_width * in_height);
 	details_->output.resize(in_width * in_height);
 #if defined(WIN32)
 	BITMAPINFO bmi;
@@ -245,37 +251,6 @@ void CpuTrace::Initialize(Handle in_window, int in_width, int in_height, const S
 #endif
 
 	details_->BuildInternalScene(in_scene);
-}
-
-void CpuTrace::UpdateScene()
-{
-	// copy last frame result to bitmap for displaying
-	#pragma omp parallel for collapse(2)
-	for (int j = 0; j < win_height_; ++j)
-	{
-		for (int i = 0; i < win_width_; ++i)
-		{
-			const vec3 float_col = details_->output[j * win_width_ + i];
-			const vec3 bitmap_col = clamp3(255.99f * sqrtf3(float_col), .0f, 255.f);
-			const uint32_t dst =  (uint8_t)bitmap_col.b       |
-			                     ((uint8_t)bitmap_col.g << 8) |
-			                     ((uint8_t)bitmap_col.r << 16);
-
-#if defined(WIN32)
-			details_->bitmap_bytes[j * win_width_ + i] = dst;
-		}
-	}
-	InvalidateRect(win_handle_, nullptr, FALSE);
-	UpdateWindow(win_handle_);
-
-#else
-
-			XPutPixel(details_->bitmap, i, win_height_ - j, dst);
-		}
-	}
-	XPutImage(win_handle_->dpy, win_handle_->win, DefaultGC(win_handle_->dpy, win_handle_->ds), details_->bitmap, 0, 0, 0, 0, win_width_, win_height_);
-	XFlush(win_handle_->dpy);
-#endif
 }
 
 vec3 CpuTrace::Trace(const Ray& ray, uint32_t random_ctx)
@@ -325,29 +300,77 @@ vec3 CpuTrace::Trace(const Ray& ray, uint32_t random_ctx)
 	return {};
 }
 
-void CpuTrace::RenderScene()
+void CpuTrace::UpdateScene()
 {
-	float frame_counter = (float)camera_->BeginFrame();
-	float blend_factor = frame_counter / float(frame_counter + 1);
+	static float counter = .0f;
+	float blend_factor = counter / (counter + 1);
 
-	#pragma omp parallel for collapse(2) schedule(dynamic, 2)
+	// copy last frame result to bitmap for displaying
+	#pragma omp parallel for collapse(2)
 	for (int j = 0; j < win_height_; ++j)
 	{
 		for (int i = 0; i < win_width_; ++i)
 		{
-			static uint32_t random_ctx = 0x12345;
-			
-			float u = (i + fastrand(random_ctx)) / float(win_width_);
-			float v = (j + fastrand(random_ctx)) / float(win_height_);
+			int idx = j * win_width_ + i;
 
-			vec3* pixel = &details_->output[j * win_width_ + i];
+			details_->output[idx] = lerp(details_->traceresult[idx], details_->output[idx], blend_factor);
+			vec3 bitmap_col = clamp3(255.99f * srgb(details_->output[idx]), .0f, 255.f);
+			uint32_t dst = (uint8_t)bitmap_col.b |
+				           ((uint8_t)bitmap_col.g << 8) |
+				           ((uint8_t)bitmap_col.r << 16);
 
-			vec3 current_color = *pixel;
-			vec3 traced_color = Trace(camera_->GetRayFrom(u, v), random_ctx);
-
-			*pixel = lerp(traced_color, current_color, blend_factor);
+#if defined(WIN32)
+			details_->bitmap_bytes[idx] = dst;
 		}
 	}
+	InvalidateRect(win_handle_, nullptr, FALSE);
+	UpdateWindow(win_handle_);
+
+#else
+
+			XPutPixel(details_->bitmap, i, win_height_ - j, dst);
+		}
+	}
+	XPutImage(win_handle_->dpy, win_handle_->win, DefaultGC(win_handle_->dpy, win_handle_->ds), details_->bitmap, 0, 0, 0, 0, win_width_, win_height_);
+	XFlush(win_handle_->dpy);
+#endif
+
+	++counter;
+}
+
+void CpuTrace::RenderTile(int tile_x, int tile_y, int tile_size, int w, int h)
+{
+	for (int j = tile_x * tile_size; j < (tile_x + 1) * tile_size; ++j)
+	{
+		for (int i = tile_y * tile_size; i < (tile_y + 1) * tile_size; ++i)
+		{
+			int idx = j * w + i;
+			if (idx < w * h)
+			{
+				static uint32_t random_ctx = 0x12345;
+
+				float u = (i + fastrand(random_ctx)) / float(w);
+				float v = (j + fastrand(random_ctx)) / float(h);
+
+				details_->traceresult[idx] = Trace(camera_->GetRayFrom(u, v), random_ctx);
+			}
+		}
+	}
+}
+
+void CpuTrace::RenderScene()
+{
+	camera_->BeginFrame();
+	
+	#pragma omp parallel for collapse(2) schedule(dynamic)
+	for (int tile_x = 0; tile_x < details_->tile_count_; ++tile_x)
+	{
+		for (int tile_y = 0; tile_y < details_->tile_count_; ++tile_y)
+		{
+			RenderTile(tile_x, tile_y, tile_size_, win_width_, win_height_);
+		}
+	}
+
 	camera_->EndFrame();
 }
 

@@ -10,12 +10,33 @@
 #include <climits>
 #include <cassert>
 
+#if defined(_DEBUG)
+ #define DEBUG_ASSERT(x) assert(x)
+#else
+ #define DEBUG_ASSERT(x)
+#endif
+
+#define LIKELY(x)   (x) /* placeholders, replace with proper impl (perhaps [[likely]]?) */
+#define UNLIKELY(x) (x) /* placeholders, replace with proper impl (perhaps [[unlikely]]?) */
+
 #if !defined(CUDA_CALL) 
-#define CUDA_CALL
+ #define CUDA_CALL
 #endif
 
 #if !defined(CUDA_DEVICE_CALL)
-#define CUDA_DEVICE_CALL
+ #define CUDA_DEVICE_CALL
+#endif
+
+#if defined(_DEBUG)
+ #if defined(_MSC_VER)
+  #define DEBUG_BREAK() __debugbreak()
+ #elif defined(__GNUC__) || defined(__clang__)
+  #define DEBUG_BREAK() __builtin_trap()
+ #else
+  #define DEBUG_BREAK() { /* don't know how to break with this compiler */ }
+ #endif
+#else
+ #define DEBUG_BREAK() {}
 #endif
 
 
@@ -30,7 +51,6 @@
 #define GLM_ENABLE_EXPERIMENTAL
 #define GLM_FORCE_PRECISION_MEDIUMP_FLOAT
 #define GLM_FORCE_SWIZZLE
-#define GLM_FORCE_INTRINSICS
 
 #include <glm/vec2.hpp>
 #include <glm/vec3.hpp>
@@ -40,6 +60,7 @@
 #include <glm/ext/matrix_transform.hpp>
 #include <glm/gtx/fast_trigonometry.hpp>
 #include <glm/gtx/compatibility.hpp>
+#include <glm/gtc/color_space.hpp>
 using glm::mat4;
 using glm::mat3;
 using glm::vec4;
@@ -54,14 +75,14 @@ using glm::perspective;
 using glm::lookAt;
 #define cosf(x) glm::fastCos(x)
 #define sinf(x) glm::fastSin(x)
-CUDA_DEVICE_CALL inline void sincosf(float x, float* s, float* c) { *s = sinf(x); *c = cosf(x); }
-CUDA_DEVICE_CALL inline vec3 pmin(const vec3& a, const vec3& b) { return { min(a.x, b.x), min(a.y, b.y), min(a.z, b.z) }; }
-CUDA_DEVICE_CALL inline vec3 pmax(const vec3& a, const vec3& b) { return { max(a.x, b.x), max(a.y, b.y), max(a.z, b.z) }; }
+CUDA_CALL inline void sincosf(float x, float* s, float* c) { *s = sinf(x); *c = cosf(x); }
+CUDA_CALL inline vec3 pmin(const vec3& a, const vec3& b) { return { min(a.x, b.x), min(a.y, b.y), min(a.z, b.z) }; }
+CUDA_CALL inline vec3 pmax(const vec3& a, const vec3& b) { return { max(a.x, b.x), max(a.y, b.y), max(a.z, b.z) }; }
 constexpr float PI = 3.1415926535897932f;
 constexpr float EPS = 1.e-8f;
 template<typename T, size_t N> constexpr inline uint32_t array_size(const T(&)[N]) { return N; }
 constexpr inline float rcp(float x) { return 1.f / x; }
-#define CC_CONSTEXPR
+#define srgb(x) convertLinearToSRGB(x)
 #else
 #include "cclib/cclib.h"
 using cc::math::mat4;
@@ -85,7 +106,7 @@ using cc::math::inverse;
 using cc::math::PI;
 using cc::math::EPS;
 using cc::array_size;
-#define CC_CONSTEXPR constexpr
+using cc::gfx::srgb;
 #endif
 
 //
@@ -118,12 +139,6 @@ struct HitData
  using std::function;
 #endif
 
-#if defined(_DEBUG)
- #define DEBUG_ASSERT(x) assert(x)
-#else
- #define DEBUG_ASSERT(x)
-#endif
-
 #if defined(_WIN32)
 
 #define WIN32_LEAN_AND_MEAN
@@ -153,12 +168,6 @@ using Handle = struct handle_t*;
 
 #if !defined(MAX_PATH)
  #define MAX_PATH 260
-#endif
-
-#if defined(_DEBUG)
- #define DEBUG_BREAK() __builtin_trap()
-#else
- #define DEBUG_BREAK() {}
 #endif
 
 #else

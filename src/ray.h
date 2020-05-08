@@ -21,10 +21,10 @@ public:
 		, inv_direction_(1.f / direction_)
     {}
 
-    CUDA_DEVICE_CALL constexpr    const vec3& GetOrigin() const            { return origin_; }
-    CUDA_DEVICE_CALL constexpr    const vec3& GetDirection() const         { return direction_; }
-	CUDA_DEVICE_CALL constexpr    const vec3& GetDirectionInverse() const  { return inv_direction_; }
-    CUDA_DEVICE_CALL CC_CONSTEXPR const vec3  GetPoint(float t) const      { return origin_ + t * direction_; }
+    CUDA_DEVICE_CALL constexpr const vec3& GetOrigin() const            { return origin_; }
+    CUDA_DEVICE_CALL constexpr const vec3& GetDirection() const         { return direction_; }
+	CUDA_DEVICE_CALL constexpr const vec3& GetDirectionInverse() const  { return inv_direction_; }
+    CUDA_DEVICE_CALL constexpr const vec3  GetPoint(float t) const      { return origin_ + t * direction_; }
 
 private:
     vec3 origin_;

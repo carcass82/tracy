@@ -48,12 +48,21 @@ public:
 
 	uint32_t GetTriCount() const;
 	
-	const Material* GetSkyMaterial() const { return &materials_.at(SKY_MATERIAL_NAME); }
+	const Material* GetSkyMaterial() const
+	{
+		if (UNLIKELY(!sky_material_))
+		{
+			sky_material_ = &materials_.at(SKY_MATERIAL_NAME);
+		}
+
+		return sky_material_;
+	}
 
 private:
 	Camera camera_;
 	vector<Mesh> objects_;
 	unordered_map<string, Material> materials_;
+	mutable const Material* sky_material_ = {};
 	string scene_name_;
 
 	const char* SKY_MATERIAL_NAME = "__sky__";
