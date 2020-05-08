@@ -109,8 +109,6 @@ void CUDATrace::Initialize(Handle in_window, int in_width, int in_height, const 
 
         CUDAAssert(cudaSetDevice(0));
         CUDAAssert(cudaGraphicsGLRegisterImage(&details_->mapped_texture, details_->texture, GL_TEXTURE_2D, cudaGraphicsMapFlagsWriteDiscard));
-        CUDAAssert(cudaMalloc(&details_->scene_.d_output_, win_width_ * win_height_ * sizeof(vec4)));
-        CUDAAssert(cudaMemset(details_->scene_.d_output_, 0, win_width_ * win_height_ * sizeof(vec4)));
     }
 
     camera_ = &in_scene.GetCamera();

@@ -132,9 +132,6 @@ if(TRACY_RENDER_MODULE STREQUAL "CPU (RayTracing)")
 	
 	option(CPU_NO_OPENMP "Disable OpenMP in CPU Trace loop" OFF)
 	
-	set(CPU_USE_SIMD "Off" CACHE STRING "Use SIMD in triangle-ray test function")
-	set_property(CACHE CPU_USE_SIMD PROPERTY STRINGS "Off" "SSE" "AVX")
-
 	set(cpu_includes "./src/kernels/raytracing/software/cpu_trace.h"
 	                 "./src/kernels/raytracing/software/cpu_specific.h")
 

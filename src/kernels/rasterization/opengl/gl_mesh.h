@@ -74,7 +74,7 @@ struct GLMesh
     }
 
     GLuint vao;
-    uint32_t indexcount;
     uint32_t vertexcount;
+    uint32_t indexcount;
     GLMaterial material;
 };
