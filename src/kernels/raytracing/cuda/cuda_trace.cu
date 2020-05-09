@@ -336,18 +336,18 @@ extern "C" void cuda_setup(const Scene& in_scene, CUDAScene* out_scene)
     {
         CUDATree helper;
         helper.nodes_num_ = out_scene->h_scenetree.nodes_num_;
-        helper.triangles_num_ = out_scene->h_scenetree.triangles_num_;
+        helper.elements_num_ = out_scene->h_scenetree.elements_num_;
 
-        CUDAAssert(cudaMalloc(&helper.triangles_, helper.triangles_num_ * sizeof(TriInfo)));
-        CUDAAssert(cudaMemcpy(helper.triangles_, out_scene->h_scenetree.triangles_, helper.triangles_num_ * sizeof(TriInfo), cudaMemcpyHostToDevice));
+        CUDAAssert(cudaMalloc(&helper.elements_, helper.elements_num_ * sizeof(TriInfo)));
+        CUDAAssert(cudaMemcpy(helper.elements_, out_scene->h_scenetree.elements_, helper.elements_num_ * sizeof(TriInfo), cudaMemcpyHostToDevice));
 
         CUDAAssert(cudaMalloc(&out_scene->d_scenetree, sizeof(CUDATree)));
         for (unsigned int i = 0; i < helper.nodes_num_; ++i)
         {
             out_scene->h_scenetree.nodes_[i].root = out_scene->d_scenetree;
         }
-        CUDAAssert(cudaMalloc(&helper.nodes_, helper.nodes_num_ * sizeof(CustomNode<CUDATree, TriInfo>)));
-        CUDAAssert(cudaMemcpy(helper.nodes_, out_scene->h_scenetree.nodes_, helper.nodes_num_ * sizeof(CustomNode<CUDATree, TriInfo>), cudaMemcpyHostToDevice));
+        CUDAAssert(cudaMalloc(&helper.nodes_, helper.nodes_num_ * sizeof(CUDANode)));
+        CUDAAssert(cudaMemcpy(helper.nodes_, out_scene->h_scenetree.nodes_, helper.nodes_num_ * sizeof(CUDANode), cudaMemcpyHostToDevice));
 
         CUDAAssert(cudaMemcpy(out_scene->d_scenetree, &helper, sizeof(CUDATree), cudaMemcpyHostToDevice));
     }

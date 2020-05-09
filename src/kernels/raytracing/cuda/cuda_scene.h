@@ -32,44 +32,9 @@ struct TriInfo
 	uint32_t packed;
 };
 
-template <typename Father, typename T>
-struct CustomNode
-{
-	CUDA_DEVICE_CALL bool IsEmpty() const                          { return first == last; }
-	CUDA_DEVICE_CALL const T* GetData() const                      { return &root->triangles_[0]; }
-	CUDA_DEVICE_CALL unsigned int Begin() const                    { return first; }
-	CUDA_DEVICE_CALL unsigned int End() const                      { return last; }
-	CUDA_DEVICE_CALL const BBox& GetAABB() const                   { return aabb; }
-	CUDA_DEVICE_CALL const CustomNode* GetChild(Child child) const { return root->GetChild(children[child]); }
-	CUDA_DEVICE_CALL CustomNode* GetChild(Child child)             { return root->GetChild(children[child]); }
+using CUDATree = accel::FlatTree<TriInfo>;
+using CUDANode = accel::FlatNode<CUDATree, TriInfo>;
 
-
-	/* __host__ */ CustomNode(const Father* in_root = nullptr)
-		: first(0), last(0), children{ UINT32_MAX, UINT32_MAX }, root(in_root)
-	{}
-
-	BBox aabb;                           // 12
-
-	unsigned int first;                  // 4
-	unsigned int last;                   // 4
-	unsigned int children[Child::Count]; // 8
-
-	const Father* root;                  // 4
-};
-
-struct CUDATree
-{
-    CUDA_DEVICE_CALL const CustomNode<CUDATree, TriInfo>* GetChild(unsigned int idx) const
-	{
-		return (idx < nodes_num_) ? &nodes_[idx] : nullptr;
-	}
-
-    unsigned int nodes_num_;
-	CustomNode<CUDATree, TriInfo>* nodes_;
-
-    unsigned int triangles_num_;
-	TriInfo* triangles_;
-};
 #endif
 
 struct CUDAScene

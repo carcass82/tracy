@@ -29,6 +29,52 @@ struct CUDATrace::CUDATraceDetails
     GLuint texture;
     cudaGraphicsResource* mapped_texture;
     cudaArray* texture_content;
+
+    void PrepareSceneTree(const Scene& in_scene)
+    {
+        // fill a tree with just one node containing all elements in the scene
+        accel::Node<TriInfo> SceneTree;
+        SceneTree.GetElements().reserve(in_scene.GetTriCount());
+        {
+            BBox scene_bbox{ FLT_MAX, -FLT_MAX };
+            for (unsigned int i = 0; i < in_scene.GetObjectCount(); ++i)
+            {
+                const Mesh& mesh = in_scene.GetObject(i);
+                if (mesh.GetTriCount() * 3 > pow(2, 24) - 1)
+                {
+                    TracyLog("Unable to represent triangle index\n");
+                    DEBUG_BREAK();
+                }
+
+                for (unsigned int t = 0; t < mesh.GetTriCount(); ++t)
+                {
+                    SceneTree.GetElements().emplace_back(i, t);
+                }
+
+                scene_bbox.minbound = pmin(mesh.GetAABB().minbound, scene_bbox.minbound);
+                scene_bbox.maxbound = pmax(mesh.GetAABB().maxbound, scene_bbox.maxbound);
+            }
+            SceneTree.SetAABB(scene_bbox);
+        }
+
+        // process tree
+        accel::BuildTree<TriInfo>(&SceneTree, [&in_scene](const auto& in_triangle, const BBox& in_aabb)
+            {
+                // Triangle-AABB intersection test for tree building
+                uint32_t mesh_id = in_triangle.GetMeshId();
+                uint32_t triangle_id = in_triangle.GetTriangleId() * 3;
+                const Mesh& mesh = in_scene.GetObject(mesh_id);
+                vec3 v0{ mesh.GetVertex(mesh.GetIndex(triangle_id + 0)).pos - in_aabb.GetCenter() };
+                vec3 v1{ mesh.GetVertex(mesh.GetIndex(triangle_id + 1)).pos - in_aabb.GetCenter() };
+                vec3 v2{ mesh.GetVertex(mesh.GetIndex(triangle_id + 2)).pos - in_aabb.GetCenter() };
+
+                return collision::TriangleAABB(v0, v1, v2, in_aabb);
+            }
+        );
+
+        // flatten tree to ease upload on device
+        accel::FlattenTree<TriInfo>(SceneTree, scene_.h_scenetree);
+    }
 };
 
 CUDATrace::CUDATrace()
@@ -117,105 +163,7 @@ void CUDATrace::Initialize(Handle in_window, int in_width, int in_height, const 
     details_->scene_.height = win_height_;
 
 #if USE_KDTREE
-
-    // pretend it's a function like PrepareScene()
-    {
-		// Triangle-AABB intersection
-		auto TriangleAABBTester = [&in_scene](const auto& in_triangle, const BBox& in_aabb)
-		{
-			uint32_t mesh_id = in_triangle.GetMeshId();
-			uint32_t triangle_id = in_triangle.GetTriangleId() * 3;
-
-			const Mesh& mesh = in_scene.GetObject(mesh_id);
-
-			vec3 v0{ mesh.GetVertex(mesh.GetIndex(triangle_id + 0)).pos - in_aabb.GetCenter() };
-			vec3 v1{ mesh.GetVertex(mesh.GetIndex(triangle_id + 1)).pos - in_aabb.GetCenter() };
-			vec3 v2{ mesh.GetVertex(mesh.GetIndex(triangle_id + 2)).pos - in_aabb.GetCenter() };
-
-			return collision::TriangleAABB(v0, v1, v2, in_aabb);
-		};
-
-		if (in_scene.GetObjectCount() > UINT8_MAX)
-		{
-			TracyLog("Unable to represent mesh index\n");
-			DEBUG_BREAK();
-		}
-
-		accel::Node<TriInfo> SceneTree;
-		SceneTree.GetElements().reserve(in_scene.GetTriCount());
-        {
-            BBox scene_bbox{ FLT_MAX, -FLT_MAX };
-            for (unsigned int i = 0; i < in_scene.GetObjectCount(); ++i)
-            {
-                const Mesh& mesh = in_scene.GetObject(i);
-                if (mesh.GetTriCount() * 3 > pow(2, 24) - 1)
-                {
-                    TracyLog("Unable to represent triangle index\n");
-                    DEBUG_BREAK();
-                }
-
-                for (unsigned int t = 0; t < mesh.GetTriCount(); ++t)
-                {
-                    SceneTree.GetElements().emplace_back(i, t);
-                }
-
-                scene_bbox.minbound = pmin(mesh.GetAABB().minbound, scene_bbox.minbound);
-                scene_bbox.maxbound = pmax(mesh.GetAABB().maxbound, scene_bbox.maxbound);
-            }
-            SceneTree.SetAABB(scene_bbox);
-        }
-		accel::BuildTree<TriInfo>(&SceneTree, TriangleAABBTester);
-
-        // "flatten" the tree to an easily device-uploadable array
-		vector<CustomNode<CUDATree, TriInfo>> nodes;
-		vector<TriInfo> triangles;
-		{
-			using TriangleNode = CustomNode<CUDATree, TriInfo>;
-
-			vector<std::pair<unsigned int, accel::Node<TriInfo>*>> build_queue;
-			nodes.push_back(TriangleNode());
-
-			build_queue.push_back(std::pair(0, &SceneTree));
-			while (!build_queue.empty())
-			{
-				auto current_node = build_queue.back();
-				build_queue.pop_back();
-
-				if (current_node.second)
-				{
-					nodes[current_node.first].aabb = current_node.second->GetAABB();
-
-					if (current_node.second->IsEmpty())
-					{
-						unsigned int right_children = (unsigned int)nodes.size();
-						nodes[current_node.first].children[Child::Right] = right_children;
-						nodes.push_back(TriangleNode());
-						build_queue.push_back(std::pair(right_children, current_node.second->GetChild(accel::Child::Right)));
-
-						unsigned int left_children = (unsigned int)nodes.size();
-						nodes[current_node.first].children[Child::Left] = left_children;
-						nodes.push_back(TriangleNode());
-						build_queue.push_back(std::pair(left_children, current_node.second->GetChild(accel::Child::Left)));
-					}
-					else
-					{
-						nodes[current_node.first].first = (unsigned int)triangles.size();
-						triangles.insert(triangles.end(), current_node.second->GetElements().begin(), current_node.second->GetElements().end());
-						nodes[current_node.first].last = (unsigned int)triangles.size();
-					}
-				}
-			}
-		}
-
-		details_->scene_.h_scenetree.nodes_num_ = (unsigned int)nodes.size();
-		details_->scene_.h_scenetree.nodes_ = new CustomNode<CUDATree, TriInfo>[nodes.size()];
-		memcpy(details_->scene_.h_scenetree.nodes_, &nodes[0], nodes.size() * sizeof(CustomNode<CUDATree, TriInfo>));
-
-		details_->scene_.h_scenetree.triangles_num_ = (unsigned int)triangles.size();
-		details_->scene_.h_scenetree.triangles_ = new TriInfo[triangles.size()];
-		memcpy(details_->scene_.h_scenetree.triangles_, &triangles[0], triangles.size() * sizeof(TriInfo));
-    }
-
+    details_->PrepareSceneTree(in_scene);
 #endif
 
     cuda_setup(in_scene, &details_->scene_);

@@ -74,6 +74,44 @@ private:
 	unsigned int depth = 0;
 };
 
+template <typename NodeRoot, typename T>
+struct FlatNode
+{
+	CUDA_CALL bool IsEmpty() const                        { return first == last; }
+	CUDA_CALL const T* GetData() const                    { return &root->elements_[0]; }
+	CUDA_CALL unsigned int Begin() const                  { return first; }
+	CUDA_CALL unsigned int End() const                    { return last; }
+	CUDA_CALL const BBox& GetAABB() const                 { return aabb; }
+	CUDA_CALL const FlatNode* GetChild(Child child) const { return root->GetChild(children[child]); }
+	CUDA_CALL FlatNode* GetChild(Child child)             { return root->GetChild(children[child]); }
+
+
+	FlatNode(const NodeRoot* in_root = nullptr)
+		: first(0)
+		, last(0)
+		, children{ UINT32_MAX, UINT32_MAX }
+		, root(in_root)
+	{}
+
+	BBox aabb;
+	unsigned int first;
+	unsigned int last;
+	unsigned int children[Child::Count];
+	const NodeRoot* root;
+};
+
+template<typename T>
+struct FlatTree
+{
+	CUDA_CALL const FlatNode<FlatTree, T>* GetChild(unsigned int idx) const { return (idx < nodes_num_) ? &nodes_[idx] : nullptr; }
+
+	unsigned int nodes_num_;
+	FlatNode<FlatTree, T>* nodes_;
+
+	unsigned int elements_num_;
+	T* elements_;
+};
+
 template <typename T>
 using ObjectAABBTesterFunction = function<bool(const T&, const BBox&)>;
 
@@ -208,6 +246,64 @@ inline void BuildTree(NodeType* tree, const ObjectAABBTesterFunction<ElemType>& 
 			}
 		}
 	}
+}
+
+template<typename NodeElementType,
+         typename FlatNodeElementType = NodeElementType,
+         template<class...> class Container = std::vector,
+         typename NodeType = Node<NodeElementType, Container>,
+         typename FlatTreeType = FlatTree<FlatNodeElementType>,
+         typename FlatNodeType = FlatNode<FlatTreeType, FlatNodeElementType>>
+inline void FlattenTree(NodeType& in_SrcTree, FlatTreeType& out_FlatTree)
+{
+	Container<FlatNodeType> nodes;
+	Container<FlatNodeElementType> elements;
+
+	using accel::Child;
+	using BuildIdx = std::pair<unsigned int /* array_pos */, NodeType* /* srctree_node */>;
+
+	Container<BuildIdx> build_queue;
+
+	nodes.push_back(FlatNodeType());
+	build_queue.push_back(BuildIdx(0, &in_SrcTree));
+
+	while (!build_queue.empty())
+	{
+		auto current_node = build_queue.back();
+		build_queue.pop_back();
+
+		if (current_node.second)
+		{
+			nodes[current_node.first].aabb = current_node.second->GetAABB();
+
+			if (current_node.second->IsEmpty())
+			{
+				unsigned int right_child = (unsigned int)nodes.size();
+				nodes[current_node.first].children[Child::Right] = right_child;
+				nodes.push_back(FlatNodeType());
+				build_queue.push_back(BuildIdx(right_child, current_node.second->GetChild(Child::Right)));
+
+				unsigned int left_child = (unsigned int)nodes.size();
+				nodes[current_node.first].children[Child::Left] = left_child;
+				nodes.push_back(FlatNodeType());
+				build_queue.push_back(BuildIdx(left_child, current_node.second->GetChild(Child::Left)));
+			}
+			else
+			{
+				nodes[current_node.first].first = (unsigned int)elements.size();
+				elements.insert(elements.end(), current_node.second->GetElements().begin(), current_node.second->GetElements().end());
+				nodes[current_node.first].last = (unsigned int)elements.size();
+			}
+		}
+	}
+
+	out_FlatTree.nodes_num_ = (unsigned int)nodes.size();
+	out_FlatTree.nodes_ = new FlatNodeType[nodes.size()];
+	memcpy(out_FlatTree.nodes_, &nodes[0], nodes.size() * sizeof(FlatNodeType));
+
+	out_FlatTree.elements_num_ = (unsigned int)elements.size();
+	out_FlatTree.elements_ = new FlatNodeElementType[elements.size()];
+	memcpy(out_FlatTree.elements_, &elements[0], elements.size() * sizeof(FlatNodeElementType));
 }
 
 template <typename ElemType, template<class...> class Container = std::vector, typename NodeType = Node<ElemType, Container>, unsigned int STACK_SIZE = TREE_MAXDEPTH + 1>
