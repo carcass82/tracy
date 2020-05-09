@@ -33,7 +33,7 @@ struct TriInfo
 };
 
 using CUDATree = accel::FlatTree<TriInfo>;
-using CUDANode = accel::FlatNode<CUDATree, TriInfo>;
+using CUDANode = accel::FlatNode<TriInfo, CUDATree>;
 
 #endif
 

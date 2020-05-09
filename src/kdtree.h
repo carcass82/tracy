@@ -74,7 +74,7 @@ private:
 	unsigned int depth = 0;
 };
 
-template <typename NodeRoot, typename T>
+template <typename T, typename NodeRoot>
 struct FlatNode
 {
 	CUDA_CALL bool IsEmpty() const                        { return first == last; }
@@ -100,13 +100,13 @@ struct FlatNode
 	const NodeRoot* root;
 };
 
-template<typename T>
+template <typename T>
 struct FlatTree
 {
-	CUDA_CALL const FlatNode<FlatTree, T>* GetChild(unsigned int idx) const { return (idx < nodes_num_) ? &nodes_[idx] : nullptr; }
+	CUDA_CALL const FlatNode<T, FlatTree>* GetChild(unsigned int idx) const { return (idx < nodes_num_) ? &nodes_[idx] : nullptr; }
 
 	unsigned int nodes_num_;
-	FlatNode<FlatTree, T>* nodes_;
+	FlatNode<T, FlatTree>* nodes_;
 
 	unsigned int elements_num_;
 	T* elements_;
@@ -253,7 +253,7 @@ template<typename NodeElementType,
          template<class...> class Container = std::vector,
          typename NodeType = Node<NodeElementType, Container>,
          typename FlatTreeType = FlatTree<FlatNodeElementType>,
-         typename FlatNodeType = FlatNode<FlatTreeType, FlatNodeElementType>>
+         typename FlatNodeType = FlatNode<FlatNodeElementType, FlatTreeType>>
 inline void FlattenTree(NodeType& in_SrcTree, FlatTreeType& out_FlatTree)
 {
 	Container<FlatNodeType> nodes;
@@ -271,6 +271,8 @@ inline void FlattenTree(NodeType& in_SrcTree, FlatTreeType& out_FlatTree)
 	{
 		auto current_node = build_queue.back();
 		build_queue.pop_back();
+
+		nodes[current_node.first].root = &out_FlatTree;
 
 		if (current_node.second)
 		{

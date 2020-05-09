@@ -21,29 +21,22 @@
 
 namespace
 {
-	vec3 sqrtf3(const vec3& a)
-	{
-		return vec3{ sqrtf(a.x), sqrtf(a.y), sqrtf(a.z) };
-	}
-
-	vec3 clamp3(const vec3& a, float min, float max)
-	{
-		return vec3{ clamp(a.x, min, max), clamp(a.y, min, max), clamp(a.z, min, max) };
-	}
-
 #if USE_KDTREE
-	struct TriInfo
+	struct Tri
 	{
-		constexpr TriInfo(uint32_t mesh_idx, uint32_t triangle_idx)
-			: packed((mesh_idx << 24) | triangle_idx)
-		{
-			DEBUG_ASSERT(mesh_idx < UINT8_MAX && triangle_idx < pow(2, 24) - 1);
-		}
+		constexpr Tri()
+			: packed_tri_info(0)
+		{}
 
-		constexpr uint32_t GetMeshId() const { return packed >> 24; }
-		constexpr uint32_t GetTriangleId() const { return packed & 0xffffff; }
+		constexpr Tri(uint32_t mesh_idx, uint32_t triangle_idx, const vec3& v0, const vec3& v1, const vec3& v2)
+			: packed_tri_info((mesh_idx << 24) | triangle_idx), vertices{v0, v1, v2}
+		{}
 
-		uint32_t packed;
+		constexpr uint32_t GetMeshId() const     { return packed_tri_info >> 24; }
+		constexpr uint32_t GetTriangleId() const { return packed_tri_info & 0xffffff; }
+
+		uint32_t packed_tri_info;
+		vec3 vertices[3];
 	};
 #endif
 }
@@ -82,11 +75,9 @@ struct CpuTrace::CpuTraceDetails
 				const uint32_t mesh_id = in_triangles[idx].GetMeshId();
 				const uint32_t triangle_id = in_triangles[idx].GetTriangleId() * 3;
 
-				const Mesh& mesh = scene.GetObject(mesh_id);
-
-				const vec3 v0 = mesh.GetVertex(mesh.GetIndex(triangle_id + 0)).pos;
-				const vec3 v1 = mesh.GetVertex(mesh.GetIndex(triangle_id + 1)).pos;
-				const vec3 v2 = mesh.GetVertex(mesh.GetIndex(triangle_id + 2)).pos;
+				const vec3 v0 = in_triangles[idx].vertices[0];
+				const vec3 v1 = in_triangles[idx].vertices[1];
+				const vec3 v2 = in_triangles[idx].vertices[2];
 
 				collision::TriangleHitData tri_hit_data(intersection_data.t);
 				if (collision::RayTriangle(in_ray, v0, v1, v2, tri_hit_data))
@@ -103,7 +94,7 @@ struct CpuTrace::CpuTraceDetails
 		};
 		
 
-		if (accel::IntersectsWithTree<TriInfo>(&SceneTree, ray, intersection_data, TriangleRayTester))
+		if (accel::IntersectsWithTree<Tri>(SceneTree.GetChild(0), ray, intersection_data, TriangleRayTester))
 		{
 			hit_any_mesh = true;
 		}
@@ -150,15 +141,15 @@ struct CpuTrace::CpuTraceDetails
 
 			const Mesh& mesh = scene.GetObject(mesh_id);
 
-			vec3 v0{ mesh.GetVertex(mesh.GetIndex(triangle_id + 0)).pos - in_aabb.GetCenter() };
-			vec3 v1{ mesh.GetVertex(mesh.GetIndex(triangle_id + 1)).pos - in_aabb.GetCenter() };
-			vec3 v2{ mesh.GetVertex(mesh.GetIndex(triangle_id + 2)).pos - in_aabb.GetCenter() };
+			vec3 v0{ in_triangle.vertices[0] - in_aabb.GetCenter() };
+			vec3 v1{ in_triangle.vertices[1] - in_aabb.GetCenter() };
+			vec3 v2{ in_triangle.vertices[2] - in_aabb.GetCenter() };
 
 			return collision::TriangleAABB(v0, v1, v2, in_aabb);
 		};
 
-
-		SceneTree.GetElements().reserve(scene.GetTriCount());
+		accel::Node<Tri> TempTree;
+		TempTree.GetElements().reserve(scene.GetTriCount());
 		
 		BBox scene_bbox{ FLT_MAX, -FLT_MAX };
 		for (uint16_t i = 0; i < scene.GetObjectCount(); ++i)
@@ -166,20 +157,27 @@ struct CpuTrace::CpuTraceDetails
 			const Mesh& mesh = scene.GetObject(i);
 			for (uint32_t t = 0; t < mesh.GetTriCount(); ++t)
 			{
-				SceneTree.GetElements().emplace_back(i, t);
+				vec3 v0{ mesh.GetVertex(mesh.GetIndex(t * 3 + 0)).pos };
+				vec3 v1{ mesh.GetVertex(mesh.GetIndex(t * 3 + 1)).pos };
+				vec3 v2{ mesh.GetVertex(mesh.GetIndex(t * 3 + 2)).pos };
+
+				TempTree.GetElements().emplace_back(i, t, v0, v1, v2);
 			}
 
 			scene_bbox.minbound = pmin(mesh.GetAABB().minbound, scene_bbox.minbound);
 			scene_bbox.maxbound = pmax(mesh.GetAABB().maxbound, scene_bbox.maxbound);
 		}
-		SceneTree.SetAABB(scene_bbox);
+		TempTree.SetAABB(scene_bbox);
 		
-		accel::BuildTree<TriInfo>(&SceneTree, TriangleAABBTester);
-	}
+		accel::BuildTree<Tri>(&TempTree, TriangleAABBTester);
 
-	accel::Node<TriInfo> SceneTree;
+		accel::FlattenTree<Tri>(TempTree, SceneTree);
+	}
+	accel::FlatTree<Tri> SceneTree;
+
 #else
 	}
+
 #endif
 
 	//
@@ -314,7 +312,7 @@ void CpuTrace::UpdateScene()
 			int idx = j * win_width_ + i;
 
 			details_->output[idx] = lerp(details_->traceresult[idx], details_->output[idx], blend_factor);
-			vec3 bitmap_col = clamp3(255.99f * srgb(details_->output[idx]), .0f, 255.f);
+			vec3 bitmap_col = clamp(255.99f * srgb(details_->output[idx]), vec3(.0f), vec3(255.f));
 			uint32_t dst = (uint8_t)bitmap_col.b |
 				           ((uint8_t)bitmap_col.g << 8) |
 				           ((uint8_t)bitmap_col.r << 16);
