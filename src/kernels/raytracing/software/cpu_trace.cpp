@@ -66,7 +66,7 @@ struct CpuTrace::CpuTraceDetails
 
 #if USE_KDTREE
 
-		auto TriangleRayTester = [&scene](const auto& in_triangles, unsigned int in_first, unsigned int in_count, const Ray& in_ray, HitData& intersection_data)
+		auto TriangleRayTester = [](const auto& in_triangles, unsigned int in_first, unsigned int in_count, const Ray& in_ray, HitData& intersection_data)
 		{
 			bool hit_triangle = false;
 
@@ -136,10 +136,7 @@ struct CpuTrace::CpuTraceDetails
 		// Triangle-AABB intersection
 		auto TriangleAABBTester = [&scene](const auto& in_triangle, const BBox& in_aabb)
 		{
-			uint32_t mesh_id = in_triangle.GetMeshId();
-			uint32_t triangle_id = in_triangle.GetTriangleId() * 3;
-
-			const Mesh& mesh = scene.GetObject(mesh_id);
+			const Mesh& mesh = scene.GetObject(in_triangle.GetMeshId());
 
 			vec3 v0{ in_triangle.vertices[0] - in_aabb.GetCenter() };
 			vec3 v1{ in_triangle.vertices[1] - in_aabb.GetCenter() };

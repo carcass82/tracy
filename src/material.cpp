@@ -14,14 +14,15 @@ namespace
 {
     CUDA_DEVICE_CALL inline vec3 random_on_unit_sphere(RandomCtx random_ctx)
     {
-        float z = fastrand(random_ctx) * 2.f - 1.f;
+        float z = 1.f - fastrand(random_ctx) * 2.f;
+        float r = sqrtf(1.f - z * z);
+
         float a = fastrand(random_ctx) * 2.f * PI;
-        float r = sqrtf(max(.0f, 1.f - z * z));
 
-        float sa, ca;
-        sincosf(a, &sa, &ca);
+        float sin_a, cos_a;
+        sincosf(a, &sin_a, &cos_a);
 
-        return vec3{ r * ca, r * sa, z };
+        return vec3(r * cos_a, r * sin_a, z);
     }
 
     CUDA_DEVICE_CALL constexpr inline float pow2(float x)

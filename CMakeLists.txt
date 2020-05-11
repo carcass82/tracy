@@ -183,9 +183,9 @@ elseif(TRACY_RENDER_MODULE STREQUAL "CUDA (RayTracing)")
 	string (REPLACE ";" " " CUDA_COMPUTE_ARCH_FLAGS_STRING "${CUDA_COMPUTE_ARCH_FLAGS}")
 	message(STATUS "CUDA architecture Compile Flags: ${CUDA_COMPUTE_ARCH_FLAGS_STRING}")
 	
-	set(CMAKE_CUDA_FLAGS "--extended-lambda -DCUDA_CALL=\"__host__ __device__\" -DCUDA_DEVICE_CALL=__device__ -D_FORCE_INLINES ${CUDA_COMPUTE_ARCH_FLAGS_STRING}")
-	set(CMAKE_CUDA_FLAGS_DEBUG "-G -D_DEBUG")
-	set(CMAKE_CUDA_FLAGS_RELEASE "--use_fast_math -O2 -g -lineinfo -DNDEBUG")
+	set(CMAKE_CUDA_FLAGS "-lineinfo -DCUDA_CALL=\"__host__ __device__\" -DCUDA_DEVICE_CALL=__device__ -D_FORCE_INLINES ${CUDA_COMPUTE_ARCH_FLAGS_STRING}")
+	set(CMAKE_CUDA_FLAGS_DEBUG "-g -G -D_DEBUG")
+	set(CMAKE_CUDA_FLAGS_RELEASE "-O3 --use_fast_math -DNDEBUG")
 
 	set(cuda_sources "./src/kernels/raytracing/cuda/cuda_trace.cpp"
 	                 "./src/kernels/raytracing/cuda/cuda_trace.cu")
