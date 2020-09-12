@@ -317,7 +317,7 @@ const char* TracySecondsToString(double in_seconds)
 }
 
 #if defined(WIN32) && !defined(FORCE_CONSOLE)
-int WINAPI WinMain(HINSTANCE /* hInstance */, HINSTANCE /* hPrevInstance */, LPSTR /* lpCmdLine */, int /* nCmdShow */)
+int WINAPI WinMain(_In_ HINSTANCE /* hInstance */, _In_opt_ HINSTANCE /* hPrevInstance */, _In_ LPSTR /* lpCmdLine */, _In_ int /* nShowCmd */)
 {
 	int argc = __argc;
 	char** argv = __argv;
@@ -397,7 +397,7 @@ int main(int argc, char** argv)
 					         TracySecondsToString(run_timer.GetDuration()),
 					         world.GetObjectCount(),
 					         world.GetTriCount(),
-					         raycount * 1e-6f / trace_timer.GetDuration(),
+					         raycount * 1e-6 / trace_timer.GetDuration(),
 					         fps);
 
 					UpdateWindowText(win_handle, window_title);
@@ -422,7 +422,7 @@ int main(int argc, char** argv)
 			{
 				run_timer.End();
 				TracyLog("\n*** Performance: %.2f MRays/s and %.2f fps on average - Run time: %s ***\n\n",
-				         avg_raycount * 1e-6f,
+				         avg_raycount * 1e-6,
 				         avg_fps,
 				         TracySecondsToString(run_timer.GetDuration()));
 			}

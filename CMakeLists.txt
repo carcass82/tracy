@@ -119,7 +119,7 @@ list(APPEND tracy_includes ${main_includes})
 # Kernel selection                                                            #
 ###############################################################################
 set(TRACY_RENDER_MODULE "CPU (RayTracing)" CACHE STRING "Render Module")
-set_property(CACHE TRACY_RENDER_MODULE PROPERTY STRINGS "CPU (RayTracing)" "CUDA (RayTracing)" "OpenGL (Raster)")
+set_property(CACHE TRACY_RENDER_MODULE PROPERTY STRINGS "CPU (RayTracing)" "CUDA (RayTracing)" "OpenGL (Raster)" "DX12 + DXR (RayTracing)")
 
 if(TRACY_RENDER_MODULE STREQUAL "CPU (RayTracing)")
 
@@ -228,6 +228,26 @@ elseif(TRACY_RENDER_MODULE STREQUAL "OpenGL (Raster)")
 						"./src/kernels/rasterization/opengl/opengl_specific.h")
 	source_group("kernel\\opengl\\include" FILES ${opengl_includes})
 	list(APPEND tracy_includes ${opengl_includes})
+
+elseif(TRACY_RENDER_MODULE STREQUAL "DX12 + DXR (RayTracing)")
+
+	add_definitions(-DDXR_KERNEL=1)
+
+	# TEMP: do proper cmake find
+	set(dx_libraries "d3d12.lib;dxgi.lib;d3dcompiler.lib")
+	list(APPEND tracy_libraries ${dx_libraries})
+
+	include_directories(./src/kernels/raytracing/dxr)
+
+	set(dxr_sources "./src/kernels/raytracing/dxr/dxr_trace.cpp")
+	source_group("kernel\\dxr\\src" FILES ${dxr_sources})
+	list(APPEND tracy_sources ${dxr_sources})
+
+	set(dxr_includes "./src/kernels/raytracing/dxr/d3dx12.h"
+	                 "./src/kernels/raytracing/dxr/dxr_trace.h"
+	                 "./src/kernels/raytracing/dxr/dxr_specific.h")
+	source_group("kernel\\dxr\\include" FILES ${dxr_includes})
+	list(APPEND tracy_includes ${dxr_includes})
 
 endif()
 

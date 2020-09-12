@@ -147,13 +147,9 @@ struct HitData
 #define NOMCX
 #include <Windows.h>
 using Handle = HWND;
-#if defined(_DEBUG)
- #define DEBUG_BREAK() __debugbreak()
-#else
- #define DEBUG_BREAK() {}
-#endif
 
 #elif defined(__linux__)
+
 #include <cstring>
 #include <X11/Xlib.h>
 #include <X11/Xutil.h>
