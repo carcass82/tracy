@@ -17,9 +17,9 @@ namespace accel
 //////////////////////////////////////////////////////////////////////////////
 // default tree configuration                                               //
 //////////////////////////////////////////////////////////////////////////////
-constexpr unsigned int TREE_MAXDEPTH = 32;                 // all nodes with a depth of 32 become a leaf
-constexpr unsigned int TREE_MINOBJECTS = 16;               // if after a split a node contains 16 objects or less it becomes a leaf
-constexpr unsigned int TREE_USELESS_SPLIT_THRESHOLD = 200; // if a split produces 200% of initial nodes we say it's useless and nodes become a leaf
+constexpr uint32_t TREE_MAXDEPTH = 32;                 // all nodes with a depth of 32 become a leaf
+constexpr uint32_t TREE_MINOBJECTS = 16;               // if after a split a node contains 16 objects or less it becomes a leaf
+constexpr uint32_t TREE_USELESS_SPLIT_THRESHOLD = 200; // if a split produces 200% of initial nodes we say it's useless and nodes become a leaf
 
 // signature for needed Element vs AABB tester function
 template <typename T>
@@ -27,7 +27,7 @@ using ObjectAABBTesterFunction = function<bool(const T&, const BBox&)>;
 
 // signature for needed Element vs Ray tester function
 template <typename T>
-using ObjectsRayTesterFunction = function<bool(const T* elems, unsigned int first, unsigned int last, const Ray&, HitData&)>;
+using ObjectsRayTesterFunction = function<bool(const T* elems, uint32_t first, uint32_t last, const Ray&, HitData&)>;
 
 
 //////////////////////////////////////////////////////////////////////////////
@@ -43,39 +43,39 @@ template <typename T, template<class...> class Container = std::vector>
 class Node
 {
 public:
-	Node(const BBox& in_aabb, unsigned int in_depth = 0)
-		: aabb(in_aabb)
-		, depth(in_depth)
+	Node(const BBox& in_aabb, uint32_t in_depth = 0)
+		: aabb_(in_aabb)
+		, depth_(in_depth)
 	{}
 
-	Node(unsigned int in_depth = 0)
+	Node(uint32_t in_depth = 0)
 		: Node({ FLT_MAX, -FLT_MAX }, in_depth)
 	{}
 
-	bool IsEmpty() const                       { return elems.empty(); }
-	unsigned int GetSize() const               { return End() - Begin(); }
-	unsigned int Begin() const                 { return 0; }
-	unsigned int End() const                   { return (unsigned int)elems.size(); }
-	const BBox& GetAABB() const                { return aabb; }
-	void SetAABB(const BBox& value)            { aabb = value; }
-	const Node* GetChild(Child child) const    { return children[child]; }
-	Node* GetChild(Child child)                { return children[child]; }
-	void SetChild(Child child, Node* value)    { children[child] = value; }
-	const T& GetElement(unsigned int i) const  { return elems[i]; }
-	T& GetElement(unsigned int i)              { return elems[i]; }
-	Container<T>& GetElements()                { return elems; }
-	const Container<T>& GetElements() const    { return elems; }
-	const T* GetData() const                   { return &elems[0]; }
-	void ClearChild(Child child)               { delete children[child]; children[child] = nullptr; }
+	bool IsEmpty() const                       { return elems_.empty(); }
+	uint32_t GetSize() const                   { return End() - Begin(); }
+	uint32_t Begin() const                     { return 0u; }
+	uint32_t End() const                       { return static_cast<uint32_t>(elems_.size()); }
+	const BBox& GetAABB() const                { return aabb_; }
+	void SetAABB(const BBox& value)            { aabb_ = value; }
+	const Node* GetChild(Child child) const    { return children_[child]; }
+	Node* GetChild(Child child)                { return children_[child]; }
+	void SetChild(Child child, Node* value)    { children_[child] = value; }
+	const T& GetElement(unsigned int i) const  { return elems_[i]; }
+	T& GetElement(unsigned int i)              { return elems_[i]; }
+	Container<T>& GetElements()                { return elems_; }
+	const Container<T>& GetElements() const    { return elems_; }
+	const T* GetData() const                   { return &elems_[0]; }
+	void ClearChild(Child child)               { SafeDelete(children_[child]); }
 	void ClearChildren()                       { ClearChild(Child::Right); ClearChild(Child::Left); }
-	void ClearElems()                          { Container<T>().swap(elems); }
-	unsigned int GetDepth() const              { return depth; }
+	void ClearElems()                          { Container<T>().swap(elems_); }
+	uint32_t GetDepth() const                  { return depth_; }
 
 private:
-	Node* children[Child::Count] = {};
-	BBox aabb = { FLT_MAX, -FLT_MAX };
-	Container<T> elems;
-	unsigned int depth = 0;
+	Node* children_[Child::Count]{};
+	BBox aabb_{ FLT_MAX, -FLT_MAX };
+	Container<T> elems_{};
+	unsigned int depth_{ 0 };
 };
 
 //
@@ -85,25 +85,24 @@ template <typename T, typename NodeRoot>
 struct FlatNode
 {
 	CUDA_CALL bool IsEmpty() const                        { return first == last; }
-	CUDA_CALL const T* GetData() const                    { return &root->elements_[0]; }
-	CUDA_CALL unsigned int Begin() const                  { return first; }
-	CUDA_CALL unsigned int End() const                    { return last; }
+	CUDA_CALL const T* GetData() const                    { return &root->elements[0]; }
+	CUDA_CALL uint32_t Begin() const                      { return first; }
+	CUDA_CALL uint32_t End() const                        { return last; }
 	CUDA_CALL const BBox& GetAABB() const                 { return aabb; }
 	CUDA_CALL const FlatNode* GetChild(Child child) const { return root->GetChild(children[child]); }
 	CUDA_CALL FlatNode* GetChild(Child child)             { return root->GetChild(children[child]); }
 
-
 	FlatNode(const NodeRoot* in_root = nullptr)
-		: first(0)
-		, last(0)
+		: first{ 0 }
+		, last{ 0 }
 		, children{ UINT32_MAX, UINT32_MAX }
-		, root(in_root)
+		, root{ in_root }
 	{}
 
 	BBox aabb;
-	unsigned int first;
-	unsigned int last;
-	unsigned int children[Child::Count];
+	uint32_t first;
+	uint32_t last;
+	uint32_t children[Child::Count];
 	const NodeRoot* root;
 };
 
@@ -113,13 +112,13 @@ struct FlatNode
 template <typename T>
 struct FlatTree
 {
-	CUDA_CALL const FlatNode<T, FlatTree>* GetChild(unsigned int idx) const { return (idx < nodes_num_) ? &nodes_[idx] : nullptr; }
+	CUDA_CALL const FlatNode<T, FlatTree>* GetChild(uint32_t idx) const { return (idx < nodes_num)? &nodes[idx] : nullptr; }
 
-	unsigned int nodes_num_;
-	FlatNode<T, FlatTree>* nodes_;
+	uint32_t nodes_num;
+	FlatNode<T, FlatTree>* nodes;
 
-	unsigned int elements_num_;
-	T* elements_;
+	uint32_t elements_num;
+	T* elements;
 };
 
 
@@ -134,7 +133,7 @@ struct FlatTree
 template<typename T, template<class...> class Container = std::vector, class Predicate>
 void CopyIf(const Container<T>& src, Container<T>& dest, Predicate Pred)
 {
-	for (auto& src_object : src)
+	for (const auto& src_object : src)
 	{
 		if (Pred(src_object))
 		{
@@ -153,7 +152,7 @@ inline unsigned int SplitAndGetDuplicationPercentage(const NodeType& current_nod
 
 #if defined(DISABLE_SAH)
 
-	unsigned int axis = current_node.GetDepth() % 3;
+	uint32_t axis = current_node.GetDepth() % 3;
 	float split = (current_node.GetAABB().GetSize()[axis] / 2.f) + ROUND;
 
 	BBox left_bbox(current_node.GetAABB());
@@ -172,15 +171,15 @@ inline unsigned int SplitAndGetDuplicationPercentage(const NodeType& current_nod
 	float no_split_cost = TRAVERSAL_COST + TRIINTERSECTION_COST * current_node.GetSize();
 	
 	float best_cost = FLT_MAX;
-	unsigned int best_axis = current_node.GetDepth() % 3;
-	unsigned int best_split = 5;
+	uint32_t best_axis = current_node.GetDepth() % 3;
+	uint32_t best_split = 5;
 
 	for (int axis = 0; axis < 3; ++axis)
 	{
 		for (int i = 1; i < 10; ++i)
 		{
-			unsigned int right_count = 0;
-			unsigned int left_count = 0;
+			uint32_t right_count = 0;
+			uint32_t left_count = 0;
 
 			float left_factor = i / 10.f;
 			BBox left_bbox(current_node.GetAABB());
@@ -232,9 +231,9 @@ inline unsigned int SplitAndGetDuplicationPercentage(const NodeType& current_nod
 template <typename ElemType,
           template<class...> class Container = std::vector,
           typename NodeType = Node<ElemType, Container>,
-          unsigned int MIN_OBJECTS = TREE_MINOBJECTS,
-          unsigned int MAX_DEPTH = TREE_MAXDEPTH,
-          unsigned int USELESS_SPLIT_THRESHOLD = TREE_USELESS_SPLIT_THRESHOLD>
+          uint32_t MIN_OBJECTS = TREE_MINOBJECTS,
+          uint32_t MAX_DEPTH = TREE_MAXDEPTH,
+          uint32_t USELESS_SPLIT_THRESHOLD = TREE_USELESS_SPLIT_THRESHOLD>
 inline void BuildTree(NodeType* tree, const ObjectAABBTesterFunction<ElemType>& ObjectBoxTester)
 {
 	if (!tree->IsEmpty())
@@ -252,7 +251,10 @@ inline void BuildTree(NodeType* tree, const ObjectAABBTesterFunction<ElemType>& 
 				current_node->SetChild(Child::Right, new NodeType(current_node->GetDepth() + 1));
 				current_node->SetChild(Child::Left, new NodeType(current_node->GetDepth() + 1));
 
-				if (SplitAndGetDuplicationPercentage(*current_node, *current_node->GetChild(Child::Right), *current_node->GetChild(Child::Left), ObjectBoxTester) < USELESS_SPLIT_THRESHOLD)
+				if (SplitAndGetDuplicationPercentage(*current_node,
+					                                 *current_node->GetChild(Child::Right),
+					                                 *current_node->GetChild(Child::Left),
+					                                 ObjectBoxTester) < USELESS_SPLIT_THRESHOLD)
 				{
 					build_queue.push_back(current_node->GetChild(Child::Right));
 					build_queue.push_back(current_node->GetChild(Child::Left));
@@ -283,7 +285,7 @@ inline void FlattenTree(NodeType& in_SrcTree, FlatTreeType& out_FlatTree)
 	Container<FlatNodeElementType> elements;
 
 	using accel::Child;
-	using BuildIdx = std::pair<unsigned int /* array_pos */, NodeType* /* srctree_node */>;
+	using BuildIdx = std::pair<uint32_t /* array_pos */, NodeType* /* srctree_node */>;
 
 	Container<BuildIdx> build_queue;
 
@@ -303,32 +305,32 @@ inline void FlattenTree(NodeType& in_SrcTree, FlatTreeType& out_FlatTree)
 
 			if (current_node.second->IsEmpty())
 			{
-				unsigned int right_child = (unsigned int)nodes.size();
+				uint32_t right_child = static_cast<uint32_t>(nodes.size());
 				nodes[current_node.first].children[Child::Right] = right_child;
 				nodes.push_back(FlatNodeType());
 				build_queue.push_back(BuildIdx(right_child, current_node.second->GetChild(Child::Right)));
 
-				unsigned int left_child = (unsigned int)nodes.size();
+				uint32_t left_child = static_cast<uint32_t>(nodes.size());
 				nodes[current_node.first].children[Child::Left] = left_child;
 				nodes.push_back(FlatNodeType());
 				build_queue.push_back(BuildIdx(left_child, current_node.second->GetChild(Child::Left)));
 			}
 			else
 			{
-				nodes[current_node.first].first = (unsigned int)elements.size();
+				nodes[current_node.first].first = static_cast<uint32_t>(elements.size());
 				elements.insert(elements.end(), current_node.second->GetElements().begin(), current_node.second->GetElements().end());
-				nodes[current_node.first].last = (unsigned int)elements.size();
+				nodes[current_node.first].last = static_cast<uint32_t>(elements.size());
 			}
 		}
 	}
 
-	out_FlatTree.nodes_num_ = (unsigned int)nodes.size();
-	out_FlatTree.nodes_ = new FlatNodeType[nodes.size()];
-	memcpy(out_FlatTree.nodes_, &nodes[0], nodes.size() * sizeof(FlatNodeType));
+	out_FlatTree.nodes_num = static_cast<uint32_t>(nodes.size());
+	out_FlatTree.nodes = new FlatNodeType[nodes.size()];
+	memcpy(out_FlatTree.nodes, &nodes[0], nodes.size() * sizeof(FlatNodeType));
 
-	out_FlatTree.elements_num_ = (unsigned int)elements.size();
-	out_FlatTree.elements_ = new FlatNodeElementType[elements.size()];
-	memcpy(out_FlatTree.elements_, &elements[0], elements.size() * sizeof(FlatNodeElementType));
+	out_FlatTree.elements_num = static_cast<uint32_t>(elements.size());
+	out_FlatTree.elements = new FlatNodeElementType[elements.size()];
+	memcpy(out_FlatTree.elements, &elements[0], elements.size() * sizeof(FlatNodeElementType));
 }
 
 
@@ -339,17 +341,17 @@ inline void FlattenTree(NodeType& in_SrcTree, FlatTreeType& out_FlatTree)
 //
 // quick and dirty stack
 //
-template <typename T, int FIXED_SIZE>
+template <typename T, int32_t FIXED_SIZE>
 class FixedSizeStack
 {
 public:
-	CUDA_DEVICE_CALL void Push(T item) { array_[++head_] = item; }
-	CUDA_DEVICE_CALL T    Pop() { return array_[head_--]; }
+	CUDA_DEVICE_CALL void Push(T item)    { array_[++head_] = item; }
+	CUDA_DEVICE_CALL T    Pop()           { return array_[head_--]; }
 	CUDA_DEVICE_CALL bool IsEmpty() const { return head_ == -1; }
-	CUDA_DEVICE_CALL bool IsFull() const { return head_ + 1 == FIXED_SIZE; }
+	CUDA_DEVICE_CALL bool IsFull() const  { return head_ + 1 == FIXED_SIZE; }
 
 private:
-	int head_ = -1;
+	int32_t head_ = -1;
 	T array_[FIXED_SIZE];
 };
 
@@ -359,7 +361,7 @@ private:
 template <typename ElemType,
           template<class...> class Container = std::vector,
           typename NodeType = Node<ElemType, Container>,
-          unsigned int STACK_SIZE = TREE_MAXDEPTH + 1>
+          uint32_t STACK_SIZE = TREE_MAXDEPTH + 1>
 CUDA_DEVICE_CALL bool IntersectsWithTree(const NodeType* tree, const Ray& ray, HitData& inout_intersection, const ObjectsRayTesterFunction<ElemType>& ObjectTester)
 {
 	FixedSizeStack<const NodeType*, STACK_SIZE> traversal_helper;

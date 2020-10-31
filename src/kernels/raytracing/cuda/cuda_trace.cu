@@ -233,7 +233,7 @@ __global__ void Trace(Camera* in_camera,
     out_tempresult[idx] = vec4(lerp(cur_color, old_color, blend_factor), 1.f);
 }
 
-__global__ void InitRandom(int device, curandState* rand_state, int width, int height)
+__global__ void InitRandom(curandState* rand_state, int width, int height)
 {
     const int i = (blockIdx.x * blockDim.x) + threadIdx.x;
     const int j = (blockIdx.y * blockDim.y) + threadIdx.y;
@@ -243,7 +243,7 @@ __global__ void InitRandom(int device, curandState* rand_state, int width, int h
         return;
     }
 
-    curand_init(clock64() * device, i, j, &rand_state[j * width + i]);
+    curand_init(0x12345, j * width + i, 0, &rand_state[j * width + i]);
 }
 
 extern "C" void cuda_setup(const Scene& in_scene, CUDAScene* out_scene)
@@ -335,19 +335,19 @@ extern "C" void cuda_setup(const Scene& in_scene, CUDAScene* out_scene)
     // copy the tree to the device
     {
         CUDATree helper;
-        helper.nodes_num_ = out_scene->h_scenetree.nodes_num_;
-        helper.elements_num_ = out_scene->h_scenetree.elements_num_;
+        helper.nodes_num = out_scene->h_scenetree.nodes_num;
+        helper.elements_num = out_scene->h_scenetree.elements_num;
 
-        CUDAAssert(cudaMalloc(&helper.elements_, helper.elements_num_ * sizeof(TriInfo)));
-        CUDAAssert(cudaMemcpy(helper.elements_, out_scene->h_scenetree.elements_, helper.elements_num_ * sizeof(TriInfo), cudaMemcpyHostToDevice));
+        CUDAAssert(cudaMalloc(&helper.elements, helper.elements_num * sizeof(TriInfo)));
+        CUDAAssert(cudaMemcpy(helper.elements, out_scene->h_scenetree.elements, helper.elements_num * sizeof(TriInfo), cudaMemcpyHostToDevice));
 
         CUDAAssert(cudaMalloc(&out_scene->d_scenetree, sizeof(CUDATree)));
-        for (unsigned int i = 0; i < helper.nodes_num_; ++i)
+        for (uint32_t i = 0; i < helper.nodes_num; ++i)
         {
-            out_scene->h_scenetree.nodes_[i].root = out_scene->d_scenetree;
+            out_scene->h_scenetree.nodes[i].root = out_scene->d_scenetree;
         }
-        CUDAAssert(cudaMalloc(&helper.nodes_, helper.nodes_num_ * sizeof(CUDANode)));
-        CUDAAssert(cudaMemcpy(helper.nodes_, out_scene->h_scenetree.nodes_, helper.nodes_num_ * sizeof(CUDANode), cudaMemcpyHostToDevice));
+        CUDAAssert(cudaMalloc(&helper.nodes, helper.nodes_num * sizeof(CUDANode)));
+        CUDAAssert(cudaMemcpy(helper.nodes, out_scene->h_scenetree.nodes, helper.nodes_num * sizeof(CUDANode), cudaMemcpyHostToDevice));
 
         CUDAAssert(cudaMemcpy(out_scene->d_scenetree, &helper, sizeof(CUDATree), cudaMemcpyHostToDevice));
     }
@@ -360,7 +360,7 @@ extern "C" void cuda_setup(const Scene& in_scene, CUDAScene* out_scene)
 
         dim3 block(8, 8, 1);
         dim3 grid(out_scene->width / block.x + 1, out_scene->height / block.y + 1, 1);
-        InitRandom<<<grid, block>>> (0x12345 + 0, out_scene->d_rand_state, out_scene->width, out_scene->height);
+        InitRandom<<<grid, block>>>(out_scene->d_rand_state, out_scene->width, out_scene->height);
 
         CUDAAssert(cudaGetLastError());
     }

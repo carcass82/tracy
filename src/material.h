@@ -15,10 +15,6 @@ public:
 	enum MaterialID { eINVALID, eLAMBERTIAN, eMETAL, eDIELECTRIC, eEMISSIVE };
 
     CUDA_DEVICE_CALL Material()
-        : material_type_(MaterialID::eINVALID)
-        , albedo_(vec3{})
-        , roughness_(.0f)
-        , ior_(1.f)
     {}
 
     CUDA_DEVICE_CALL Material(MaterialID in_type, const vec3& in_albedo, float in_roughness = .0f, float in_ior = 1.f)
@@ -39,8 +35,8 @@ public:
     float GetIOR() const { return ior_; }
 
 private:
-    MaterialID material_type_;
-    vec3 albedo_;
-    float roughness_;
-    float ior_;
+    MaterialID material_type_{ eINVALID };
+    vec3 albedo_{};
+    float roughness_{ .0f };
+    float ior_{ 1.f };
 };

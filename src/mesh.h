@@ -28,9 +28,7 @@ using std::vector;
 class Mesh
 {
 public:
-	Mesh()
-		: Mesh(nullptr, 0, nullptr, 0)
-	{}
+	Mesh() : Mesh(nullptr, 0, nullptr, 0) {}
 
 	Mesh(const vector<Vertex>& in_vertices, const vector<Index>& in_indices, const Material* in_material = nullptr)
 		: material_(in_material)
@@ -176,7 +174,7 @@ inline typename std::enable_if<enabled, Mesh&>::type Mesh::ComputeTangentsAndBit
 		vec2 delta_uv1 = v2.uv0 - v1.uv0;
 		vec2 delta_uv2 = v3.uv0 - v1.uv0;
 
-		float r = 1.f / (delta_uv1.x * delta_uv2.y - delta_uv1.y * delta_uv2.x);
+		float r = rcp(delta_uv1.x * delta_uv2.y - delta_uv1.y * delta_uv2.x);
 		vec3 tangent = (delta_pos1 * delta_uv2.y - delta_pos2 * delta_uv1.y) * r;
 		vec3 bitangent = (delta_pos2 * delta_uv1.x - delta_pos1 * delta_uv2.x) * r;
 

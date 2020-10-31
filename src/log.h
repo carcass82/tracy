@@ -10,11 +10,12 @@
 
 inline void TracyLog(const char* msg, ...)
 {
-    static char buffer[1024] = { 0 };
+    constexpr uint32_t MAX_BUFFER_SIZE{ 1024 };
+    static char buffer[MAX_BUFFER_SIZE]{};
 
     va_list args;
     va_start(args, msg);
-    vsnprintf(buffer, 1024, msg, args);
+    vsnprintf(buffer, MAX_BUFFER_SIZE, msg, args);
     va_end(args);
 
 #if defined(WIN32)

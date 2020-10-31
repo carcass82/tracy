@@ -24,7 +24,7 @@ class Scene
 {
 public:
 
-	Mesh& AddSphere(const vec3& in_center, float in_radius, int steps = 32);
+	Mesh& AddSphere(const vec3& in_center, float in_radius, uint32_t steps = 32);
 
 	Mesh& AddBox(const vec3& bottom, const vec3& top);
 
@@ -32,7 +32,7 @@ public:
 
 	Mesh& AddMesh(Mesh&& mesh, bool compute_normals = false);
 
-	bool Init(const char* scene_path, int& width, int& height);
+	bool Init(const char* scene_path, uint32_t& width, uint32_t& height);
 
 	Camera& GetCamera()                    { return camera_; }
 
@@ -59,13 +59,12 @@ public:
 	}
 
 private:
-	Camera camera_;
-	vector<Mesh> objects_;
-	unordered_map<string, Material> materials_;
-	mutable const Material* sky_material_ = {};
-	string scene_name_;
-
-	const char* SKY_MATERIAL_NAME = "__sky__";
+	Camera camera_{};
+	vector<Mesh> objects_{};
+	unordered_map<string, Material> materials_{};
+	mutable const Material* sky_material_{};
+	string scene_name_{};
+	static constexpr const char* SKY_MATERIAL_NAME{ "__sky__" };
 };
 
 //

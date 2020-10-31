@@ -301,7 +301,7 @@ bool ShouldQuit(Handle window_handle)
 
 const char* TracySecondsToString(double in_seconds)
 {
-	static char timestring[64] = {};
+	static char timestring[64]{};
 
 	uint32_t seconds = static_cast<uint32_t>(in_seconds);
 
@@ -326,8 +326,8 @@ int main(int argc, char** argv)
 {
 #endif
 
-	int WIDTH = 640;
-	int HEIGHT = 480;
+	uint32_t WIDTH = 640;
+	uint32_t HEIGHT = 480;
 	char SCENE_PATH[MAX_PATH] = "data/default.scn";
 	if (argc == 2)
 	{

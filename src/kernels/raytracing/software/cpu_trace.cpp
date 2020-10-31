@@ -25,7 +25,6 @@ namespace
 	struct Tri
 	{
 		constexpr Tri()
-			: packed_tri_info(0)
 		{}
 
 		constexpr Tri(uint32_t mesh_idx, uint32_t triangle_idx, const vec3& v0, const vec3& v1, const vec3& v2)
@@ -35,8 +34,8 @@ namespace
 		constexpr uint32_t GetMeshId() const     { return packed_tri_info >> 24; }
 		constexpr uint32_t GetTriangleId() const { return packed_tri_info & 0xffffff; }
 
-		uint32_t packed_tri_info;
-		vec3 vertices[3];
+		uint32_t packed_tri_info{ 0 };
+		vec3 vertices[3]{};
 	};
 #endif
 }

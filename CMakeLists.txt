@@ -22,6 +22,14 @@ if(POLICY CMP0072)
 endif()
 
 
+###############################################################################
+# CMP0104: Raise an error if CUDA_ARCHITECTURES is empty.                     #
+#          (OLD policy allows that)                                           #
+###############################################################################
+if(POLICY CMP0104)
+	cmake_policy(SET CMP0104 OLD)
+endif()
+
 
 ###############################################################################
 # Debug Options                                                               #
@@ -119,7 +127,11 @@ list(APPEND tracy_includes ${main_includes})
 # Kernel selection                                                            #
 ###############################################################################
 set(TRACY_RENDER_MODULE "CPU (RayTracing)" CACHE STRING "Render Module")
-set_property(CACHE TRACY_RENDER_MODULE PROPERTY STRINGS "CPU (RayTracing)" "CUDA (RayTracing)" "OpenGL (Raster)" "DX12 + DXR (RayTracing)")
+if(WIN32)
+	set_property(CACHE TRACY_RENDER_MODULE PROPERTY STRINGS "CPU (RayTracing)" "CUDA (RayTracing)" "OpenGL (Raster)" "D3D12 + DXR (RayTracing)")
+else()
+	set_property(CACHE TRACY_RENDER_MODULE PROPERTY STRINGS "CPU (RayTracing)" "CUDA (RayTracing)" "OpenGL (Raster)")
+endif()
 
 if(TRACY_RENDER_MODULE STREQUAL "CPU (RayTracing)")
 
@@ -229,12 +241,12 @@ elseif(TRACY_RENDER_MODULE STREQUAL "OpenGL (Raster)")
 	source_group("kernel\\opengl\\include" FILES ${opengl_includes})
 	list(APPEND tracy_includes ${opengl_includes})
 
-elseif(TRACY_RENDER_MODULE STREQUAL "DX12 + DXR (RayTracing)")
+elseif(TRACY_RENDER_MODULE STREQUAL "D3D12 + DXR (RayTracing)")
 
 	add_definitions(-DDXR_KERNEL=1)
 
 	# TEMP: do proper cmake find
-	set(dx_libraries "d3d12.lib;dxgi.lib;d3dcompiler.lib")
+	set(dx_libraries "d3d12.lib;dxgi.lib;d3dcompiler.lib;dxcompiler.lib")
 	list(APPEND tracy_libraries ${dx_libraries})
 
 	include_directories(./src/kernels/raytracing/dxr)
@@ -243,11 +255,34 @@ elseif(TRACY_RENDER_MODULE STREQUAL "DX12 + DXR (RayTracing)")
 	source_group("kernel\\dxr\\src" FILES ${dxr_sources})
 	list(APPEND tracy_sources ${dxr_sources})
 
-	set(dxr_includes "./src/kernels/raytracing/dxr/d3dx12.h"
-	                 "./src/kernels/raytracing/dxr/dxr_trace.h"
+	set(dxr_includes "./src/kernels/raytracing/dxr/dxr_trace.h"
 	                 "./src/kernels/raytracing/dxr/dxr_specific.h")
 	source_group("kernel\\dxr\\include" FILES ${dxr_includes})
 	list(APPEND tracy_includes ${dxr_includes})
+
+	set(dxr_shaders "./src/kernels/raytracing/dxr/shaders/Common.hlsl"
+	                "./src/kernels/raytracing/dxr/shaders/Hit.hlsl"
+	                "./src/kernels/raytracing/dxr/shaders/Miss.hlsl"
+	                "./src/kernels/raytracing/dxr/shaders/RayGen.hlsl")
+	source_group("kernel\\dxr\\shaders" FILES ${dxr_shaders})
+	
+	set(dxr_helper_source "./src/kernels/raytracing/dxr/nvidia/nv_helpers_dx12/BottomLevelASGenerator.cpp"
+					      "./src/kernels/raytracing/dxr/nvidia/nv_helpers_dx12/RaytracingPipelineGenerator.cpp"
+					      "./src/kernels/raytracing/dxr/nvidia/nv_helpers_dx12/RootSignatureGenerator.cpp"
+					      "./src/kernels/raytracing/dxr/nvidia/nv_helpers_dx12/ShaderBindingTableGenerator.cpp"
+					      "./src/kernels/raytracing/dxr/nvidia/nv_helpers_dx12/TopLevelASGenerator.cpp")
+	source_group("kernel\\dxr\\src\\helper" FILES ${dxr_helper_source})
+	list(APPEND tracy_sources ${dxr_helper_source})
+
+	set(dxr_helper_include "./src/kernels/raytracing/dxr/microsoft/d3dx12.h"
+	                       "./src/kernels/raytracing/dxr/nvidia/DXRHelper.h"
+					       "./src/kernels/raytracing/dxr/nvidia/nv_helpers_dx12/BottomLevelASGenerator.h"
+					       "./src/kernels/raytracing/dxr/nvidia/nv_helpers_dx12/RaytracingPipelineGenerator.h"
+					       "./src/kernels/raytracing/dxr/nvidia/nv_helpers_dx12/RootSignatureGenerator.h"
+					       "./src/kernels/raytracing/dxr/nvidia/nv_helpers_dx12/ShaderBindingTableGenerator.h"
+					       "./src/kernels/raytracing/dxr/nvidia/nv_helpers_dx12/TopLevelASGenerator.h")
+	source_group("kernel\\dxr\\include\\helper" FILES ${dxr_helper_include})
+	list(APPEND tracy_includes ${dxr_helper_include})
 
 endif()
 

@@ -14,19 +14,19 @@ constexpr inline uint32_t make_id(char a, char b, char c = '\0', char d = '\0')
 	return a | b << 8 | c << 16 | d << 24;
 }
 
-Mesh& Scene::AddSphere(const vec3& in_center, float in_radius, int steps /* = 32 */)
+Mesh& Scene::AddSphere(const vec3& in_center, float in_radius, uint32_t steps /* = 32 */)
 {
 	vector<Vertex> vertices;
 	vector<Index> indices;
 
-	for (int lon = 0; lon < steps; ++lon)
+	for (uint32_t lon = 0; lon < steps; ++lon)
 	{
 		float delta_theta1 = (float)lon / steps;
 		float delta_theta2 = (float)(lon + 1) / steps;
 		float theta1 = delta_theta1 * PI;
 		float theta2 = delta_theta2 * PI;
 
-		for (int lat = 0; lat < steps; ++lat)
+		for (uint32_t lat = 0; lat < steps; ++lat)
 		{
 			float delta_phi1 = (float)lat / steps;
 			float delta_phi2 = (float)(lat + 1) / steps;
@@ -45,42 +45,22 @@ Mesh& Scene::AddSphere(const vec3& in_center, float in_radius, int steps /* = 32
 			//vertex1 = vertex on a sphere of radius r at spherical coords theta1, phi1
 			vec3 pos = vec3{ sinf(theta1) * cosf(phi1), sinf(theta1) * sinf(phi1), cosf(theta1) };
 			vec2 uv = vec2{ delta_phi1, delta_theta1 };
-
-			Vertex v1;
-			v1.pos = in_center + pos * in_radius;
-			v1.normal = pos;
-			v1.uv0 = uv;
-			vertices.push_back(v1);
+			vertices.emplace_back(in_center + pos * in_radius, pos, uv);
 
 			//vertex2 = vertex on a sphere of radius r at spherical coords theta1, phi2
 			pos = vec3{ sinf(theta1) * cosf(phi2), sinf(theta1) * sinf(phi2), cosf(theta1) };
 			uv = vec2{ delta_phi2, delta_theta1 };
-
-			Vertex v2;
-			v2.pos = in_center + pos * in_radius;
-			v2.normal = pos;
-			v2.uv0 = uv;
-			vertices.push_back(v2);
+			vertices.emplace_back(in_center + pos * in_radius, pos, uv);
 
 			//vertex3 = vertex on a sphere of radius r at spherical coords theta2, phi2
 			pos = vec3{ sinf(theta2) * cosf(phi2), sinf(theta2) * sinf(phi2), cosf(theta2) };
 			uv = vec2{ delta_phi2, delta_theta2 };
-
-			Vertex v3;
-			v3.pos = in_center + pos * in_radius;
-			v3.normal = pos;
-			v3.uv0 = uv;
-			vertices.push_back(v3);
+			vertices.emplace_back(in_center + pos * in_radius, pos, uv);
 
 			//vertex4 = vertex on a sphere of radius r at spherical coords theta2, phi1
 			pos = vec3{ sinf(theta2) * cosf(phi1), sinf(theta2) * sinf(phi1), cosf(theta2) };
 			uv = vec2{ delta_phi1, delta_theta2 };
-
-			Vertex v4;
-			v4.pos = in_center + pos * in_radius;
-			v4.normal = pos;
-			v4.uv0 = uv;
-			vertices.push_back(v4);
+			vertices.emplace_back(in_center + pos * in_radius, pos, uv);
 
 			uint32_t baseidx = static_cast<uint32_t>(vertices.size()) - 4;
 
@@ -223,7 +203,7 @@ Mesh& Scene::AddMesh(Mesh&& mesh, bool compute_normals /* = false */)
 	}
 }
 
-bool Scene::Init(const char* scene_path, int& inout_width, int& inout_height)
+bool Scene::Init(const char* scene_path, uint32_t& inout_width, uint32_t& inout_height)
 {
 	constexpr uint32_t ID_SCN = make_id('S', 'C', 'N', '\0');
 	constexpr uint32_t ID_OUT = make_id('O', 'U', 'T', '\0');
@@ -275,7 +255,7 @@ bool Scene::Init(const char* scene_path, int& inout_width, int& inout_height)
 					{
 						vec3 eye, center, up;
 						float fov;
-						float ratio = float(inout_width) / float(max(inout_height, 1));
+						float ratio = float(inout_width) / float(max(inout_height, 1u));
 
 						if (sscanf(params, "(%f,%f,%f) (%f,%f,%f) (%f,%f,%f) %f", &eye.x, &eye.y, &eye.z,
 						                                                          &center.x, &center.y, &center.z,

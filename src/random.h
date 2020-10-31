@@ -23,7 +23,7 @@ inline float fastrand(RandomCtx ctx)
     x ^= x << 5;
     ctx = x;
 
-    return x / (float)UINT32_MAX;
+    return x / static_cast<float>(UINT32_MAX);
 }
 
 #elif RANDOM_LCG
@@ -36,7 +36,7 @@ inline float fastrand(RandomCtx ctx)
 inline float fastrand(RandomCtx ctx)
 {
     ctx = (1103515245u * ctx + 12345u);
-    return  ctx / (float)UINT32_MAX;
+    return ctx / static_cast<float>(UINT32_MAX);
 }
 
 #else
@@ -56,7 +56,7 @@ inline float fastrand(RandomCtx ctx)
         }
     }
     
-    return rand() / (float)RAND_MAX;
+    return rand() / static_cast<float>(RAND_MAX);
 }
 
 #endif

@@ -81,21 +81,21 @@ public:
 		return frame_counter_++;
 	}
 
-	CUDA_DEVICE_CALL void EndFrame() const { /* nothing to do here */ }
+	CUDA_DEVICE_CALL void EndFrame() const { }
 
 private:
-	vec3 eye_;
-	vec3 center_;
-	vec3 up_;
+	vec3 eye_{};
+	vec3 center_{};
+	vec3 up_{};
 
-	float fov_;
-	float ratio_;
-	vec2 near_far_;
+	float fov_{};
+	float ratio_{};
+	vec2 near_far_{};
 
-	mat4 view_;
-	mat4 projection_;
-	mat4 view_projection_inv_;
+	mat4 view_{};
+	mat4 projection_{};
+	mat4 view_projection_inv_{};
 
-	mutable bool dirty_ = false;
-	mutable uint64_t frame_counter_ = 0;
+	mutable bool dirty_{ false };
+	mutable uint64_t frame_counter_{ 0 };
 };

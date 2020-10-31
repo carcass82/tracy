@@ -12,12 +12,23 @@ namespace collision
 
 struct TriangleHitData
 {
-	CUDA_DEVICE_CALL TriangleHitData(float in_t = 0) : RayT(in_t) {}
+	CUDA_DEVICE_CALL TriangleHitData(float t = 0) : RayT{ t } {}
 
 	float RayT;
 	vec2 TriangleUV;
 };
 
+struct MeshHitData
+{
+	CUDA_DEVICE_CALL MeshHitData(float t = 0) : RayT{ t } {}
+
+	float RayT;
+	vec2 TriangleUV;
+	uint32_t TriangleIndex;
+};
+
+
+// test ray against triangle and store result in TriangleHitData
 CUDA_DEVICE_CALL inline bool RayTriangle(const Ray& in_ray, const vec3& in_v0, const vec3& in_v1, const vec3& in_v2, TriangleHitData& inout_hit)
 {
 	const vec3 ray_direction = in_ray.GetDirection();
@@ -64,15 +75,7 @@ CUDA_DEVICE_CALL inline bool RayTriangle(const Ray& in_ray, const vec3& in_v0, c
 	return true;
 }
 
-struct MeshHitData
-{
-	CUDA_DEVICE_CALL MeshHitData(float in_t = 0) : RayT(in_t) {}
-
-	float RayT;
-	vec2 TriangleUV;
-	uint32_t TriangleIndex;
-};
-
+// test ray against triangle mesh and store result in MeshHitData
 CUDA_DEVICE_CALL inline bool RayMesh(const Ray& in_ray, const Mesh& in_mesh, MeshHitData& inout_hit)
 {
 	bool result = false;
@@ -97,11 +100,10 @@ CUDA_DEVICE_CALL inline bool RayMesh(const Ray& in_ray, const Mesh& in_mesh, Mes
 	return result;
 }
 
+// Fast, Branchless Ray/Bounding Box Intersections
+// https://tavianator.com/fast-branchless-raybounding-box-intersections/
 CUDA_DEVICE_CALL inline bool RayAABB(const Ray& ray, const BBox& box, float t_max = FLT_MAX)
 {
-	// Fast, Branchless Ray/Bounding Box Intersections
-	// https://tavianator.com/fast-branchless-raybounding-box-intersections/
-
 	vec3 ray_origin = ray.GetOrigin();
 	vec3 ray_inv_dir = ray.GetDirectionInverse();
 
@@ -117,11 +119,10 @@ CUDA_DEVICE_CALL inline bool RayAABB(const Ray& ray, const BBox& box, float t_ma
 	return (tmax >= max(EPS, tmin) && tmin < t_max);
 }
 
+// triangle - box test using separating axis theorem (https://fileadmin.cs.lth.se/cs/Personal/Tomas_Akenine-Moller/pubs/tribox.pdf)
+// code adapted from http://fileadmin.cs.lth.se/cs/Personal/Tomas_Akenine-Moller/code/tribox3.txt
 CUDA_DEVICE_CALL inline bool TriangleAABB(const vec3& in_v0, const vec3& in_v1, const vec3& in_v2, const BBox& in_aabb)
 {
-	// triangle - box test using separating axis theorem (https://fileadmin.cs.lth.se/cs/Personal/Tomas_Akenine-Moller/pubs/tribox.pdf)
-	// code adapted from http://fileadmin.cs.lth.se/cs/Personal/Tomas_Akenine-Moller/code/tribox3.txt
-
 	const vec3 v0 = in_v0;
 	const vec3 v1 = in_v1;
 	const vec3 v2 = in_v2;
@@ -172,45 +173,16 @@ CUDA_DEVICE_CALL inline bool TriangleAABB(const vec3& in_v0, const vec3& in_v1, 
 	vec3 trinormal = cross(e0, e1);
 	vec3 vmin, vmax;
 
-	if (trinormal.x > .0f)
-	{
-		vmin.x = -aabb_hsize.x - v0.x;
-		vmax.x = aabb_hsize.x - v0.x;
-	}
-	else
-	{
-		vmin.x = aabb_hsize.x - v0.x;
-		vmax.x = -aabb_hsize.x - v0.x;
-	}
+	vmin.x = (trinormal.x > .0f)? -aabb_hsize.x - v0.x :  aabb_hsize.x - v0.x;
+	vmax.x = (trinormal.x > .0f)?  aabb_hsize.x - v0.x : -aabb_hsize.x - v0.x;
+	
+	vmin.y = (trinormal.y > .0f)? -aabb_hsize.y - v0.y :  aabb_hsize.y - v0.y;
+	vmax.y = (trinormal.y > .0f)?  aabb_hsize.y - v0.y : -aabb_hsize.y - v0.y;
 
-	if (trinormal.y > .0f)
-	{
-		vmin.y = -aabb_hsize.y - v0.y;
-		vmax.y = aabb_hsize.y - v0.y;
-	}
-	else
-	{
-		vmin.y = aabb_hsize.y - v0.y;
-		vmax.y = -aabb_hsize.y - v0.y;
-	}
+	vmin.z = (trinormal.z > .0f)? -aabb_hsize.z - v0.z :  aabb_hsize.z - v0.z;
+	vmax.z = (trinormal.z > .0f)?  aabb_hsize.z - v0.z : -aabb_hsize.z - v0.z;
 
-	if (trinormal.z > .0f)
-	{
-		vmin.z = -aabb_hsize.z - v0.z;
-		vmax.z = aabb_hsize.z - v0.z;
-	}
-	else
-	{
-		vmin.z = aabb_hsize.z - v0.z;
-		vmax.z = -aabb_hsize.z - v0.z;
-	}
-
-	if (dot(trinormal, vmin) > .0f || dot(trinormal, vmax) < .0f)
-	{
-		return false;
-	}
-
-	return true;
+	return !(dot(trinormal, vmin) > .0f || dot(trinormal, vmax) < .0f);
 }
 
 }
