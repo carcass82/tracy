@@ -12,18 +12,18 @@ build_script:
 - cmd: >-
     mkdir build && cd build
 
-    cmake -G "Visual Studio 16 2019" -DCMAKE_BUILD_TYPE=Release -DRENDER_MODULE="CPU (RayTracing)" ..
+    cmake -G "Visual Studio 16 2019" -DCMAKE_BUILD_TYPE=Release -DTRACY_RENDER_MODULE="CPU (RayTracing)" ..
     
     cmake --build . --config Release
     
-    cmake -G "Visual Studio 16 2019" -DCMAKE_BUILD_TYPE=Release -DRENDER_MODULE="OpenGL (Raster)" ..
+    cmake -G "Visual Studio 16 2019" -DCMAKE_BUILD_TYPE=Release -DTRACY_RENDER_MODULE="OpenGL (Raster)" ..
     
     cmake --build . --config Release
 
 - sh: >-
     mkdir build && cd build
 
-    cmake -G "Unix Makefiles" -DCMAKE_BUILD_TYPE=Release -DRENDER_MODULE="CPU (RayTracing)" ..
+    cmake -G "Unix Makefiles" -DCMAKE_BUILD_TYPE=Release -DTRACY_RENDER_MODULE="CPU (RayTracing)" ..
     
     cmake --build . --config Release
 
@@ -33,9 +33,9 @@ build_script:
 #
 
 # CUDA support for both vs2019 and g++ is missing
-#cmake -G "Visual Studio 16 2019" -DCMAKE_BUILD_TYPE=Release -DRENDER_MODULE="CUDA (RayTracing)" ..    
+#cmake -G "Visual Studio 16 2019" -DCMAKE_BUILD_TYPE=Release -DTRACY_RENDER_MODULE="CUDA (RayTracing)" ..    
 #cmake --build . --config Release
 
 # CMake won't find OpenGL on linux
-#cmake -G "Unix Makefiles" -DCMAKE_BUILD_TYPE=Release -DRENDER_MODULE="OpenGL (Raster)" ..
+#cmake -G "Unix Makefiles" -DCMAKE_BUILD_TYPE=Release -DTRACY_RENDER_MODULE="OpenGL (Raster)" ..
 #cmake --build . --config Release
