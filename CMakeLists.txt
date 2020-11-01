@@ -321,16 +321,18 @@ if(MSVC)
 else()
 
     message(STATUS "Found C++ Compiler: " ${CMAKE_CXX_COMPILER})
-    set(CMAKE_CXX_FLAGS "-Wall -no-pie -g -DNOVTABLE= ")
+    set(CMAKE_CXX_FLAGS "-Wall -g -DNOVTABLE= ")
     set(CMAKE_CXX_FLAGS_DEBUG "-D_DEBUG -O0")
-	set(CMAKE_CXX_FLAGS_RELEASE "-DNDEBUG -Ofast -march=native -fsingle-precision-constant -fno-rtti -funroll-loops -D_GLIBCXX_PARALLEL")
+	set(CMAKE_CXX_FLAGS_RELEASE "-DNDEBUG -Ofast -march=native -fno-rtti -funroll-loops -D_GLIBCXX_PARALLEL")
 	
 	if(NOT CPU_NO_OPENMP)
-		set(CMAKE_CXX_FLAGS_RELEASE "${CMAKE_CXX_FLAGS_RELEASE} -fopenmp")
+		find_package(OpenMP REQUIRED)
+		set(CMAKE_CXX_FLAGS_RELEASE "${CMAKE_CXX_FLAGS_RELEASE} ${OpenMP_CXX_FLAGS}")
 	endif()
 	
 	if(NOT "${CMAKE_CXX_COMPILER_ID}" STREQUAL "Clang")
-		set(CMAKE_CXX_FLAGS_RELEASE "${CMAKE_CXX_FLAGS_RELEASE} -flto")
+		set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -no-pie")
+		set(CMAKE_CXX_FLAGS_RELEASE "${CMAKE_CXX_FLAGS_RELEASE} -fsingle-precision-constant -flto")
 	endif()
 
 endif()

@@ -135,8 +135,6 @@ struct CpuTrace::CpuTraceDetails
 		// Triangle-AABB intersection
 		auto TriangleAABBTester = [&scene](const auto& in_triangle, const BBox& in_aabb)
 		{
-			const Mesh& mesh = scene.GetObject(in_triangle.GetMeshId());
-
 			vec3 v0{ in_triangle.vertices[0] - in_aabb.GetCenter() };
 			vec3 v1{ in_triangle.vertices[1] - in_aabb.GetCenter() };
 			vec3 v2{ in_triangle.vertices[2] - in_aabb.GetCenter() };

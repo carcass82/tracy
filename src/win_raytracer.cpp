@@ -227,17 +227,17 @@ void TracyProcessInputs(Scene& scene, Input& input, Handle window_handle, double
 			vec3 cam_forward = camera.GetTarget() - camera.GetPosition();
 			vec3 cam_right = normalize(cross(cam_forward, cam_up));
 
-			if (input.keystatus['W']) { new_cam_pos += cam_speed * cam_forward; }
+			if (input.keystatus[Input::W]) { new_cam_pos += cam_speed * cam_forward; }
 
-			if (input.keystatus['S']) { new_cam_pos -= cam_speed * cam_forward; }
+			if (input.keystatus[Input::S]) { new_cam_pos -= cam_speed * cam_forward; }
 
-			if (input.keystatus['A']) { new_cam_pos -= cam_speed * cam_right; }
+			if (input.keystatus[Input::A]) { new_cam_pos -= cam_speed * cam_right; }
 
-			if (input.keystatus['D']) { new_cam_pos += cam_speed * cam_right; }
+			if (input.keystatus[Input::D]) { new_cam_pos += cam_speed * cam_right; }
 
-			if (input.keystatus['Q']) { new_cam_pos -= cam_speed * cam_up; }
+			if (input.keystatus[Input::Q]) { new_cam_pos -= cam_speed * cam_up; }
 
-			if (input.keystatus['E']) { new_cam_pos += cam_speed * cam_up; }
+			if (input.keystatus[Input::E]) { new_cam_pos += cam_speed * cam_up; }
 
 			input.ResetKeyStatus(Input::KeyGroup::Movement);
 

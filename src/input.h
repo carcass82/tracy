@@ -8,7 +8,15 @@
 
 struct Input
 {
+	enum Key
+	{ 
+		ESC = 0x1b,
+		A = 'A', B, C, D, E, F, G, H, I, J, K, L, M, N, O, P, Q, R, S, T, U, V, W, X, Y, Z,
+		a = 'a', b, c, d, e, f, g, h, i, j, k, l, m, n, o, p, q, r, s, t, u, v, w, x, y, z
+	};
+
 	enum MouseButton { Left, Middle, Right, NumButtons };
+	
 	enum KeyGroup { Movement, NumGroups };
 
 	struct mousestatus
@@ -27,7 +35,7 @@ struct Input
 		switch (k)
 		{
 		case Movement:
-			return keystatus['W'] || keystatus['S'] || keystatus['A'] || keystatus['D'] || keystatus['Q'] || keystatus['E'];
+			return keystatus[W] || keystatus[S] || keystatus[A] || keystatus[D] || keystatus[Q] || keystatus[E];
 
 		default:
 			TracyLog("keygroup %d not recognized\n", k);
@@ -45,7 +53,7 @@ struct Input
 		switch (k)
 		{
 		case Movement:
-			keystatus['W'] = keystatus['S'] = keystatus['A'] = keystatus['D'] = keystatus['Q'] = keystatus['E'] = value;
+			keystatus[W] = keystatus[S] = keystatus[A] = keystatus[D] = keystatus[Q] = keystatus[E] = value;
 			break;
 
 		default:
