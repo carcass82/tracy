@@ -10,14 +10,28 @@
 #include <climits>
 #include <cassert>
 
+using int64  = long long;
+using uint64 = unsigned long long;
+using int32  = int;
+using uint32 = unsigned int;
+using int16  = short;
+using uint16 = unsigned short;
+using int8   = char;
+using uint8  = unsigned char;
+
 #if defined(_DEBUG)
  #define DEBUG_ASSERT(x) assert(x)
 #else
  #define DEBUG_ASSERT(x)
 #endif
 
-#define LIKELY(x)   (x) /* placeholders, replace with proper impl (perhaps [[likely]]?) */
-#define UNLIKELY(x) (x) /* placeholders, replace with proper impl (perhaps [[unlikely]]?) */
+#if !defined(_MSC_VER)
+ #define LIKELY(x)   __builtin_expect(!!(x), 1)
+ #define UNLIKELY(x) __builtin_expect(!!(x), 0)
+#else
+ #define LIKELY(x)   (x) /* placeholders, replace with proper impl (perhaps [[likely]]?) */
+ #define UNLIKELY(x) (x) /* placeholders, replace with proper impl (perhaps [[unlikely]]?) */
+#endif
 
 #if !defined(CUDA_CALL) 
  #define CUDA_CALL
@@ -37,6 +51,12 @@
  #endif
 #else
  #define DEBUG_BREAK() {}
+#endif
+
+#if defined(_MSC_VER)
+ #define NOVTABLE __declspec(novtable)
+#else
+ #define NOVTABLE
 #endif
 
 template<typename T>
@@ -148,7 +168,32 @@ struct HitData
 #define NOSERVICE
 #define NOMCX
 #include <Windows.h>
-using Handle = HWND;
+struct handle_t
+{
+	uint32 width;
+	uint32 height;
+	HWND win;
+};
+using WindowHandle = struct handle_t*;
+
+static WindowHandle CreateWindowHandle(HWND hwnd, uint32 width, uint32 height)
+{
+	return new handle_t{ width, height, hwnd };
+}
+
+static bool IsValidWindowHandle(WindowHandle handle)
+{
+	return handle && handle->win && IsWindow(handle->win);
+}
+
+static void ReleaseWindowHandle(WindowHandle& handle)
+{
+	if (IsValidWindowHandle(handle))
+	{
+		delete handle;
+		handle = nullptr;
+	}
+}
 
 #elif defined(__linux__)
 
@@ -162,7 +207,7 @@ struct handle_t
 	Display* dpy;
 	Window win;
 };
-using Handle = struct handle_t*;
+using WindowHandle = struct handle_t*;
 
 #if !defined(MAX_PATH)
  #define MAX_PATH 260

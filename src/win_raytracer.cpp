@@ -12,22 +12,23 @@
 #include "mesh.h"
 #include "scene.h"
 
+WindowHandle g_win_handle{};
+
 #include "input.h"
 Input g_input;
 
-
 #if defined(CPU_KERNEL)
  #include "kernels/raytracing/software/cpu_trace.h"
- CpuTrace& g_kernel = CpuTrace::GetInstance();
+ auto& g_kernel = TracyModule<CpuTrace>::GetInstance();
 #elif defined(CUDA_KERNEL)
  #include "kernels/raytracing/cuda/cuda_trace.h"
- CUDATrace& g_kernel = CUDATrace::GetInstance();
+ auto& g_kernel = TracyModule<CUDATrace>::GetInstance();
 #elif defined(OPENGL_KERNEL)
  #include "kernels/rasterization/opengl/opengl_render.h"
- OpenGLRender& g_kernel = OpenGLRender::GetInstance();
+ auto& g_kernel = TracyModule<OpenGLRender>::GetInstance();
 #elif defined(DXR_KERNEL)
  #include "kernels/raytracing/dxr/dxr_trace.h"
- DXRTrace& g_kernel = DXRTrace::GetInstance();
+ auto& g_kernel = TracyModule<DXRTrace>::GetInstance();
 #else
  #error "at least one module should be enabled!"
 #endif
@@ -57,7 +58,7 @@ LRESULT CALLBACK WindowProc(HWND hwnd, UINT uMsg, WPARAM wParam, LPARAM lParam)
 		break;
 
 	case WM_PAINT:
-		g_kernel.OnPaint();
+		g_kernel.OnRender(g_win_handle);
 		break;
 
 	default:
@@ -68,25 +69,16 @@ LRESULT CALLBACK WindowProc(HWND hwnd, UINT uMsg, WPARAM wParam, LPARAM lParam)
 }
 #endif
 
-void UpdateWindowText(Handle window, const char* text)
+void UpdateWindowText(WindowHandle window, const char* text)
 {
 #if defined(WIN32)
-	SetWindowTextA(window, text);
+	SetWindowTextA(window->win, text);
 #else
 	XStoreName(window->dpy, window->win, text);
 #endif
 }
 
-bool IsValidHandle(Handle window)
-{
-#if defined(WIN32)
-	return window != nullptr;
-#else
-	return window && window->win;
-#endif
-}
-
-Handle TracyCreateWindow(int width, int height)
+WindowHandle TracyCreateWindow(int width, int height)
 {
 #if defined(WIN32)
 
@@ -149,32 +141,43 @@ Handle TracyCreateWindow(int width, int height)
 
 #endif
 
-    return win_handle;
+	return CreateWindowHandle(win_handle, width, height);
 }
 
-void TracyDestroyWindow(Handle window_handle)
+void TracyDestroyWindow(WindowHandle window_handle)
 {
 #if defined(WIN32)
-	DestroyWindow(window_handle);
+	DestroyWindow(window_handle->win);
 #else
 	XDestroyWindow(window_handle->dpy, window_handle->win);
 	XCloseDisplay(window_handle->dpy);
 #endif
+
+	ReleaseWindowHandle(window_handle);
 }
 
-void TracyDisplayWindow(Handle window_handle)
+void TracyDisplayWindow(WindowHandle window_handle)
 {
 #if defined(WIN32)
-	ShowWindow(window_handle, SW_SHOW);
-	SetForegroundWindow(window_handle);
-	UpdateWindow(window_handle);
-	SetFocus(window_handle);
+	ShowWindow(window_handle->win, SW_SHOW);
+	SetForegroundWindow(window_handle->win);
+	UpdateWindow(window_handle->win);
+	SetFocus(window_handle->win);
 #endif
 }
 
-bool TracyProcessMessages(Handle window_handle)
+void TracyUpdateWindow(WindowHandle window_handle)
 {
 #if defined(WIN32)
+	InvalidateRect(window_handle->win, nullptr, FALSE);
+	UpdateWindow(window_handle->win);
+#endif
+}
+
+bool TracyProcessMessages(WindowHandle window_handle)
+{
+#if defined(WIN32)
+
 	MSG msg;
 	if (PeekMessage(&msg, NULL, NULL, NULL, PM_REMOVE | PM_QS_SENDMESSAGE | PM_QS_INPUT | PM_QS_POSTMESSAGE))
 	{
@@ -207,14 +210,14 @@ bool TracyProcessMessages(Handle window_handle)
 	return false;
 }
 
-void TracyProcessInputs(Scene& scene, Input& input, Handle window_handle, double dt)
+void TracyProcessInputs(Scene& scene, Input& input, WindowHandle window_handle, double dt)
 {
 	if (input.pending)
 	{
-		if (input.GetKeyStatus(0x1b /* ESCAPE */))
+		if (input.GetKeyStatus(Input::ESC))
 		{
 			TracyDestroyWindow(window_handle);
-			input.ResetKeyStatus(0x1b /* ESCAPE */);
+			input.ResetKeyStatus(Input::ESC);
 		}
 
 		if (input.GetKeyStatus(Input::KeyGroup::Movement))
@@ -279,12 +282,15 @@ void TracyProcessInputs(Scene& scene, Input& input, Handle window_handle, double
 	}
 }
 
-bool ShouldQuit(Handle window_handle)
+bool ShouldQuit(WindowHandle window_handle)
 {
 #if defined(WIN32)
+
 	MSG msg;
 	return (PeekMessage(&msg, NULL, NULL, NULL, PM_NOREMOVE) && msg.message == WM_QUIT);
+
 #else
+
 	static const Atom WM_PROTOCOL = XInternAtom(window_handle->dpy, "WM_PROTOCOLS", false);
     static const Atom close_win_msg = XInternAtom(window_handle->dpy, "WM_DELETE_WINDOW", false);
 
@@ -296,6 +302,7 @@ bool ShouldQuit(Handle window_handle)
 		       (e.type == ClientMessage && ((Atom)e.xclient.message_type == WM_PROTOCOL && (Atom)e.xclient.data.l[0] == close_win_msg));
 	}
 	return false;
+
 #endif
 }
 
@@ -338,93 +345,98 @@ int main(int argc, char** argv)
 	Scene world;
 	if (world.Init(SCENE_PATH, WIDTH, HEIGHT))
 	{
-		Handle win_handle = TracyCreateWindow(WIDTH, HEIGHT);
-		if (IsValidHandle(win_handle))
+		g_win_handle = TracyCreateWindow(WIDTH, HEIGHT);
+		if (IsValidWindowHandle(g_win_handle))
 		{
-			TracyDisplayWindow(win_handle);
+			TracyDisplayWindow(g_win_handle);
 
-			g_kernel.Initialize(win_handle, WIDTH, HEIGHT, world);
-
-			int frame_count = 0;
-			Timer trace_timer;
-			Timer frame_timer;
-			Timer run_timer;
-
-			int avg_raycount = 0;
-			float avg_fps = .0f;
-			int samples = 0;
-
-			run_timer.Begin();
-
-			// TODO: threads
-			while (!ShouldQuit(win_handle))
+			if (g_kernel.Startup(g_win_handle, world))
 			{
-				TracyProcessMessages(win_handle);
-				
-				while (g_input.pending)
+				int frame_count = 0;
+				Timer trace_timer;
+				Timer frame_timer;
+				Timer run_timer;
+
+				int avg_raycount = 0;
+				float avg_fps = .0f;
+				int samples = 0;
+
+				run_timer.Begin();
+
+				// TODO: threads
+				while (!ShouldQuit(g_win_handle))
 				{
-					TracyProcessInputs(world, g_input, win_handle, frame_timer.GetDuration());
+					TracyProcessMessages(g_win_handle);
+
+					while (g_input.pending)
+					{
+						TracyProcessInputs(world, g_input, g_win_handle, frame_timer.GetDuration());
+					}
+
+					frame_timer.Reset();
+					frame_timer.Begin();
+
+					trace_timer.Begin();
+
+					g_kernel.OnUpdate(world);
+
+					trace_timer.End();
+
+					TracyUpdateWindow(g_win_handle);
+
+					++frame_count;
+
+					if (trace_timer.GetDuration() > 1.f || frame_count > 100)
+					{
+						int raycount = g_kernel.GetRayCount();
+						float fps = frame_count / (float)trace_timer.GetDuration();
+
+						run_timer.End();
+
+						static char window_title[MAX_PATH] = {};
+						snprintf(window_title,
+							MAX_PATH,
+							".:: Tracy 2.0 (%s) ::. '%s' :: %dx%d :: Elapsed: %s :: [%d objs] [%d tris] [%.2f MRays/s] [%.2f fps]",
+							g_kernel.GetModuleName(),
+							world.GetName().c_str(),
+							WIDTH,
+							HEIGHT,
+							TracySecondsToString(run_timer.GetDuration()),
+							world.GetObjectCount(),
+							world.GetTriCount(),
+							raycount * 1e-6 / trace_timer.GetDuration(),
+							fps);
+
+						UpdateWindowText(g_win_handle, window_title);
+
+						++samples;
+						avg_raycount = avg_raycount + (raycount - avg_raycount) / samples;
+						avg_fps = avg_fps + (fps - avg_fps) / samples;
+
+						g_kernel.ResetRayCount();
+						trace_timer.Reset();
+						frame_count = 0;
+
+						run_timer.Begin();
+					}
+
+					frame_timer.End();
 				}
-				
-				frame_timer.Reset();
-				frame_timer.Begin();
+				g_kernel.Shutdown();
+				TracyDestroyWindow(g_win_handle);
 
-				trace_timer.Begin();
-
-				g_kernel.UpdateScene();
-
-				g_kernel.RenderScene();
-
-				trace_timer.End();
-
-				++frame_count;
-
-				if (trace_timer.GetDuration() > 1.f || frame_count > 100)
+				if (avg_raycount > 0)
 				{
-					int raycount = g_kernel.GetRayCount();
-					float fps = frame_count / (float)trace_timer.GetDuration();
-
 					run_timer.End();
-
-					static char window_title[MAX_PATH] = {};
-					snprintf(window_title,
-					         MAX_PATH,
-					         ".:: Tracy 2.0 (%s) ::. '%s' :: %dx%d :: Elapsed: %s :: [%d objs] [%d tris] [%.2f MRays/s] [%.2f fps]",
-					         g_kernel.GetName(),
-					         world.GetName().c_str(),
-					         WIDTH,
-					         HEIGHT,
-					         TracySecondsToString(run_timer.GetDuration()),
-					         world.GetObjectCount(),
-					         world.GetTriCount(),
-					         raycount * 1e-6 / trace_timer.GetDuration(),
-					         fps);
-
-					UpdateWindowText(win_handle, window_title);
-
-					++samples;
-					avg_raycount = avg_raycount + (raycount - avg_raycount) / samples;
-					avg_fps      = avg_fps + (fps - avg_fps) / samples;
-
-					g_kernel.ResetRayCount();
-					trace_timer.Reset();
-					frame_count = 0;
-
-					run_timer.Begin();
+					TracyLog("\n*** Performance: %.2f MRays/s and %.2f fps on average - Run time: %s ***\n\n",
+						avg_raycount * 1e-6,
+						avg_fps,
+						TracySecondsToString(run_timer.GetDuration()));
 				}
-
-				frame_timer.End();
 			}
-			g_kernel.Shutdown();
-			TracyDestroyWindow(win_handle);
-
-			if (avg_raycount > 0)
+			else
 			{
-				run_timer.End();
-				TracyLog("\n*** Performance: %.2f MRays/s and %.2f fps on average - Run time: %s ***\n\n",
-				         avg_raycount * 1e-6,
-				         avg_fps,
-				         TracySecondsToString(run_timer.GetDuration()));
+				TracyLog("Kernel failed to initialize\n");
 			}
 		}
 		else

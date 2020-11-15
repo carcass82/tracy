@@ -48,6 +48,10 @@ public:
 
 	uint32_t GetTriCount() const;
 	
+	uint32_t Width() const                 { return width_; }
+
+	uint32_t Height() const                { return height_; }
+
 	const Material* GetSkyMaterial() const
 	{
 		if (UNLIKELY(!sky_material_))
@@ -63,6 +67,8 @@ private:
 	vector<Mesh> objects_{};
 	unordered_map<string, Material> materials_{};
 	mutable const Material* sky_material_{};
+	uint32_t width_{};
+	uint32_t height_{};
 	string scene_name_{};
 	static constexpr const char* SKY_MATERIAL_NAME{ "__sky__" };
 };

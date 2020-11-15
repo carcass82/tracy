@@ -244,8 +244,8 @@ bool Scene::Init(const char* scene_path, uint32_t& inout_width, uint32_t& inout_
 						int w, h;
 						if (sscanf(params, "%d %d", &w, &h) == 2)
 						{
-							inout_width = w;
-							inout_height = h;
+							inout_width = width_ = w;
+							inout_height = height_ = h;
 						}
 					}
 					break;

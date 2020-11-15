@@ -16,13 +16,13 @@ struct BBox
 	{}
 
     CUDA_DEVICE_CALL BBox(const float in_minbound, const float in_maxbound)
-        : minbound(in_minbound, in_minbound, in_minbound)
-        , maxbound(in_maxbound, in_maxbound, in_maxbound)
+        : minbound{ in_minbound, in_minbound, in_minbound }
+        , maxbound{ in_maxbound, in_maxbound, in_maxbound }
     {}
 
 	CUDA_DEVICE_CALL BBox(const vec3& in_minbound, const vec3& in_maxbound)
-		: minbound(in_minbound)
-		, maxbound(in_maxbound)
+		: minbound{ in_minbound }
+		, maxbound{ in_maxbound }
 	{}
 
     CUDA_DEVICE_CALL vec3 GetCenter() const

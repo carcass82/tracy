@@ -104,6 +104,7 @@ set(main_includes "./src/mesh.h"
                   "./src/scene.h"
                   "./src/material.h"
                   "./src/common.h"
+				  "./src/module.h"
                   "./src/ray.h"
                   "./src/camera.h"
                   "./src/timer.h"
@@ -145,12 +146,14 @@ if(TRACY_RENDER_MODULE STREQUAL "CPU (RayTracing)")
 	option(CPU_NO_OPENMP "Disable OpenMP in CPU Trace loop" OFF)
 	
 	set(cpu_includes "./src/kernels/raytracing/software/cpu_trace.h"
-	                 "./src/kernels/raytracing/software/cpu_specific.h")
+	                 "./src/kernels/raytracing/software/cpu_specific.h"
+					 "./src/kernels/raytracing/software/cpu_details.h")
 
 	source_group("kernel\\cpu\\include" FILES ${cpu_includes})
 	list(APPEND tracy_includes ${cpu_includes})
 
-	set(cpu_sources "./src/kernels/raytracing/software/cpu_trace.cpp")
+	set(cpu_sources "./src/kernels/raytracing/software/cpu_trace.cpp"
+	                "./src/kernels/raytracing/software/cpu_details.cpp")
 	source_group("kernel\\cpu\\src" FILES ${cpu_sources})
 	list(APPEND tracy_sources ${cpu_sources})
 	
@@ -159,7 +162,6 @@ if(TRACY_RENDER_MODULE STREQUAL "CPU (RayTracing)")
 	elseif(CPU_RAND_ALGORITHM STREQUAL "LCG")
 		add_definitions(-DRANDOM_LCG=1)
 	endif()
-
 	
 
 elseif(TRACY_RENDER_MODULE STREQUAL "CUDA (RayTracing)")
@@ -291,12 +293,12 @@ endif()
 ###############################################################################
 # Compiler options                                                            #
 ###############################################################################
+message(STATUS "Found Compiler " ${CMAKE_CXX_COMPILER_ID} ": " ${CMAKE_CXX_COMPILER})
 if(MSVC)
 
-    message(STATUS "Found MSVC: " ${CMAKE_CXX_COMPILER})
-    set(CMAKE_CXX_FLAGS "/nologo /W3 /D_CRT_SECURE_NO_WARNINGS /MP /Gm- /EHsc /Zi")
-	set(CMAKE_CXX_FLAGS_DEBUG "${CMAKE_CXX_FLAGS_DEBUG} /Od /D_DEBUG /DNOVTABLE= ")
-	set(CMAKE_CXX_FLAGS_RELEASE "${CMAKE_CXX_FLAGS_RELEASE} /GR- /Gw /GL /O2 /fp:fast /Qpar /DNDEBUG /DNOVTABLE=__declspec(novtable)")
+    set(CMAKE_CXX_FLAGS "/nologo /W3 /D_CRT_SECURE_NO_WARNINGS /MP /Gm- /Zi")
+	set(CMAKE_CXX_FLAGS_DEBUG "${CMAKE_CXX_FLAGS_DEBUG} /Od /D_DEBUG /EHsc")
+	set(CMAKE_CXX_FLAGS_RELEASE "${CMAKE_CXX_FLAGS_RELEASE} /GR- /Gw /GL /O2 /fp:fast /Qpar /DNDEBUG /D_HAS_EXCEPTIONS=0")
 	
 	# enable auto vectorizer report
 	#set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} /Qvec-report:2")
@@ -320,10 +322,9 @@ if(MSVC)
 
 else()
 
-    message(STATUS "Found C++ Compiler: " ${CMAKE_CXX_COMPILER})
-    set(CMAKE_CXX_FLAGS "-Wall -g -DNOVTABLE= ")
+    set(CMAKE_CXX_FLAGS "-Wall -g")
     set(CMAKE_CXX_FLAGS_DEBUG "-D_DEBUG -O0")
-	set(CMAKE_CXX_FLAGS_RELEASE "-DNDEBUG -Ofast -march=native -fno-rtti -funroll-loops -D_GLIBCXX_PARALLEL")
+	set(CMAKE_CXX_FLAGS_RELEASE "-DNDEBUG -Ofast -march=native -fno-rtti -fno-exceptions -funroll-loops -D_GLIBCXX_PARALLEL")
 	
 	if(NOT CPU_NO_OPENMP)
 		find_package(OpenMP REQUIRED)
@@ -360,4 +361,5 @@ foreach(target_property IN LISTS target_properties)
 	
 	message(STATUS "set_target_properties: ${property} = ${value}")
 	set_target_properties(${PROJECT_NAME} PROPERTIES ${property} ${value})
+	
 endforeach()

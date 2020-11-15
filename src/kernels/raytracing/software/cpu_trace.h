@@ -6,50 +6,32 @@
  */
 #pragma once
 #include "common.h"
-#include "scene.h"
+#include "module.h"
 
-class CpuTrace
+class Scene;
+class Ray;
+class Camera;
+
+class CpuTrace : public TracyModule<CpuTrace>
 {
+	friend class TracyModule<CpuTrace>;
+
 public:
-	~CpuTrace();
-	CpuTrace(const CpuTrace&) = delete;
-	CpuTrace& operator=(const CpuTrace) = delete;
+	bool Startup(const WindowHandle in_Window, const Scene& in_Scene) override;
+	void OnUpdate(const Scene& in_Scene) override;
+	void OnRender(const WindowHandle in_Window) override;
+	void Shutdown() override;
+	const char* GetModuleName() const override { return "CPU"; }
 
-	static CpuTrace& GetInstance()
-	{
-		static CpuTrace instance;
-		return instance;
-	}
-
-	void Initialize(Handle in_window, int in_width, int in_height, const Scene& in_scene);
-	void Shutdown() {}
-	void UpdateScene();
-	void RenderScene();
-	void OnPaint();
-
-	const char* GetName() const          { return "CPU"; }
-	int GetRayCount() const              { return raycount_; }
-	void ResetRayCount()                 { raycount_ = 0; }
-
-	const Scene* GetScene() const        { return scene_; }
+	int GetRayCount() const       { return raycount_; }
+	void ResetRayCount()          { raycount_ = 0; }
 
 private:
-	CpuTrace();
-	void RenderTile(int tile_x, int tile_y, int tile_size, int w, int h);
-	vec3 Trace(const Ray& ray, uint32_t rand_ctx);
+	void RenderTile(uint32_t tile_x, uint32_t tile_y, uint32_t tile_size, const Scene& scene);
+	vec3 Trace(const Ray& ray, const Scene& scene, uint32_t random_ctx);
 
-	const int bounces_{ 5 };
-
-	Handle win_handle_{};
-	int win_width_{};
-	int win_height_{};
+	static constexpr uint32_t kTileSize{ 8 };
+	static constexpr uint32_t kBounces{ 5 };
+	
 	int raycount_{};
-
-	const Scene* scene_{};
-	const Camera* camera_{};
-
-	struct CpuTraceDetails;
-	CpuTraceDetails* details_{};
-
-	const int tile_size_{ 16 };
 };

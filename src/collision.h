@@ -6,6 +6,8 @@
  */
 #pragma once
 #include "common.h"
+#include "ray.h"
+#include "mesh.h"
 
 namespace collision
 {
