@@ -104,11 +104,8 @@ CUDA_DEVICE_CALL inline bool RayMesh(const Ray& in_ray, const Mesh& in_mesh, Mes
 
 // Fast, Branchless Ray/Bounding Box Intersections
 // https://tavianator.com/fast-branchless-raybounding-box-intersections/
-CUDA_DEVICE_CALL inline bool RayAABB(const Ray& ray, const BBox& box, float t_max = FLT_MAX)
+CUDA_DEVICE_CALL inline bool RayAABB(const vec3& ray_origin, const vec3& ray_inv_dir, const BBox& box, float t_max = FLT_MAX)
 {
-	vec3 ray_origin = ray.GetOrigin();
-	vec3 ray_inv_dir = ray.GetDirectionInverse();
-
 	const vec3 minbound = (box.minbound - ray_origin) * ray_inv_dir;
 	const vec3 maxbound = (box.maxbound - ray_origin) * ray_inv_dir;
 
@@ -119,6 +116,11 @@ CUDA_DEVICE_CALL inline bool RayAABB(const Ray& ray, const BBox& box, float t_ma
 	const float tmax = min(tmax1.x, min(tmax1.y, tmax1.z));
 
 	return (tmax >= max(EPS, tmin) && tmin < t_max);
+}
+
+CUDA_DEVICE_CALL inline bool RayAABB(const Ray& ray, const BBox& box, float t_max = FLT_MAX)
+{
+	return RayAABB(ray.GetOrigin(), ray.GetDirection(), box, t_max);
 }
 
 // triangle - box test using separating axis theorem (https://fileadmin.cs.lth.se/cs/Personal/Tomas_Akenine-Moller/pubs/tribox.pdf)

@@ -48,7 +48,7 @@ bool CPUDetails::ProcessScene(const Scene& scene)
 #if USE_KDTREE
 
 	// Triangle-AABB intersection
-	auto TriangleAABBTester = [&scene](const auto& in_triangle, const BBox& in_aabb)
+	auto TriangleAABBTester = [](const auto& in_triangle, const BBox& in_aabb)
 	{
 		vec3 v0{ in_triangle.vertices[0] - in_aabb.GetCenter() };
 		vec3 v1{ in_triangle.vertices[1] - in_aabb.GetCenter() };

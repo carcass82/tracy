@@ -349,9 +349,10 @@ public:
 	CUDA_DEVICE_CALL T    Pop()           { return array_[head_--]; }
 	CUDA_DEVICE_CALL bool IsEmpty() const { return head_ == -1; }
 	CUDA_DEVICE_CALL bool IsFull() const  { return head_ + 1 == FIXED_SIZE; }
+	CUDA_DEVICE_CALL void Clear()         { head_ = -1; }
 
 private:
-	int32_t head_ = -1;
+	int32_t head_{ -1 };
 	T array_[FIXED_SIZE];
 };
 
@@ -366,12 +367,17 @@ CUDA_DEVICE_CALL bool IntersectsWithTree(const NodeType* tree, const Ray& ray, H
 {
 	FixedSizeStack<const NodeType*, STACK_SIZE> traversal_helper;
 
+	const vec3 rayO{ ray.GetOrigin() };
+	const vec3 rayI{ ray.GetDirectionInverse() };
+
+	float minT = inout_intersection.t;
+
 	bool hit_something = false;
 	
 	const NodeType* current = tree;
 	while (current || !traversal_helper.IsEmpty())
 	{
-		while (current && collision::RayAABB(ray, current->GetAABB()))
+		while (current && collision::RayAABB(rayO, rayI, current->GetAABB(), minT))
 		{
 			traversal_helper.Push(current);
 			current = current->GetChild(Child::Left);
@@ -383,6 +389,7 @@ CUDA_DEVICE_CALL bool IntersectsWithTree(const NodeType* tree, const Ray& ray, H
 
 			if (!current->IsEmpty() && ObjectTester(current->GetData(), current->Begin(), current->End(), ray, inout_intersection))
 			{
+				minT = inout_intersection.t;
 				hit_something = true;
 			}
 		}
