@@ -10,6 +10,10 @@
 #include "collision.h"
 #include "scene.h"
 
+#if defined(_OPENMP)
+ #include <omp.h>
+#endif
+
 namespace
 {
 	CPUDetails Details;
@@ -28,19 +32,24 @@ void CpuTrace::Shutdown()
 
 void CpuTrace::OnUpdate(const Scene& in_Scene)
 {
-	#pragma omp parallel for collapse(2) schedule(dynamic)
-	for (int32_t tile_x = 0; tile_x < static_cast<int32_t>(Details.GetTileCount()); ++tile_x)
+	#pragma omp parallel
 	{
-		for (int32_t tile_y = 0; tile_y < static_cast<int32_t>(Details.GetTileCount()); ++tile_y)
+		static RandomCtxData random_ctx{ 0x12345 };
+
+		#pragma omp for collapse(2) schedule(dynamic)
+		for (int32_t tile_x = 0; tile_x < static_cast<int32_t>(Details.GetTileCount()); ++tile_x)
 		{
-			RenderTile(tile_x, tile_y, kTileSize, in_Scene);
+			for (int32_t tile_y = 0; tile_y < static_cast<int32_t>(Details.GetTileCount()); ++tile_y)
+			{
+				RenderTile(tile_x, tile_y, kTileSize, in_Scene, random_ctx);
+			}
 		}
 	}
 
 	Details.UpdateBitmap();
 }
 
-void CpuTrace::RenderTile(uint32_t in_TileX, uint32_t in_TileY, uint32_t in_TileSize, const Scene& in_Scene)
+void CpuTrace::RenderTile(uint32_t in_TileX, uint32_t in_TileY, uint32_t in_TileSize, const Scene& in_Scene, RandomCtx random_ctx)
 {
 	uint32_t w = in_Scene.Width();
 	uint32_t h = in_Scene.Height();
@@ -52,9 +61,6 @@ void CpuTrace::RenderTile(uint32_t in_TileX, uint32_t in_TileY, uint32_t in_Tile
 			uint32_t idx = j * w + i;
 			if (idx < w * h)
 			{
-				// thread-private but lazy written
-				static uint32_t random_ctx = 0x12345 + idx;
-
 				float u = (i + fastrand(random_ctx)) / float(w);
 				float v = (j + fastrand(random_ctx)) / float(h);
 
@@ -64,7 +70,7 @@ void CpuTrace::RenderTile(uint32_t in_TileX, uint32_t in_TileY, uint32_t in_Tile
 	}
 }
 
-vec3 CpuTrace::Trace(const Ray& ray, const Scene& scene, uint32_t random_ctx)
+vec3 CpuTrace::Trace(const Ray& ray, const Scene& scene, RandomCtx random_ctx)
 {
 	Ray current_ray{ ray };
 	vec3 current_color{ 1.f, 1.f, 1.f };

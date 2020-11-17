@@ -75,8 +75,14 @@ public:
 	constexpr uint32_t GetTileCount() const { return tile_count_; }
 
 private:
+
 	RenderData render_data_{};
 	uint32_t tile_count_{};
 	uint64_t frame_counter_{};
+
+#if USE_KDTREE
+	static bool TriangleRayTester(const Tri* in_triangles, unsigned int in_first, unsigned int in_count, const Ray& in_ray, HitData& intersection_data);
+
 	accel::FlatTree<Tri> scene_tree_{};
+#endif
 };

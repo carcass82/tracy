@@ -16,17 +16,17 @@ struct TriangleHitData
 {
 	CUDA_DEVICE_CALL TriangleHitData(float t = 0) : RayT{ t } {}
 
-	float RayT;
-	vec2 TriangleUV;
+	float RayT{};
+	vec2 TriangleUV{};
 };
 
 struct MeshHitData
 {
 	CUDA_DEVICE_CALL MeshHitData(float t = 0) : RayT{ t } {}
 
-	float RayT;
-	vec2 TriangleUV;
-	uint32_t TriangleIndex;
+	float RayT{};
+	vec2 TriangleUV{};
+	uint32_t TriangleIndex{};
 };
 
 
@@ -104,10 +104,10 @@ CUDA_DEVICE_CALL inline bool RayMesh(const Ray& in_ray, const Mesh& in_mesh, Mes
 
 // Fast, Branchless Ray/Bounding Box Intersections
 // https://tavianator.com/fast-branchless-raybounding-box-intersections/
-CUDA_DEVICE_CALL inline bool RayAABB(const vec3& ray_origin, const vec3& ray_inv_dir, const BBox& box, float t_max = FLT_MAX)
+CUDA_DEVICE_CALL inline bool RayAABB(const vec3& in_ray_origin, const vec3& in_ray_inv_dir, const BBox& in_aabb, float in_tmax = FLT_MAX)
 {
-	const vec3 minbound = (box.minbound - ray_origin) * ray_inv_dir;
-	const vec3 maxbound = (box.maxbound - ray_origin) * ray_inv_dir;
+	const vec3 minbound = (in_aabb.minbound - in_ray_origin) * in_ray_inv_dir;
+	const vec3 maxbound = (in_aabb.maxbound - in_ray_origin) * in_ray_inv_dir;
 
 	const vec3 tmin1 = pmin(minbound, maxbound);
 	const vec3 tmax1 = pmax(minbound, maxbound);
@@ -115,12 +115,12 @@ CUDA_DEVICE_CALL inline bool RayAABB(const vec3& ray_origin, const vec3& ray_inv
 	const float tmin = max(tmin1.x, max(tmin1.y, tmin1.z));
 	const float tmax = min(tmax1.x, min(tmax1.y, tmax1.z));
 
-	return (tmax >= max(EPS, tmin) && tmin < t_max);
+	return (tmax >= max(EPS, tmin) && tmin < in_tmax);
 }
 
-CUDA_DEVICE_CALL inline bool RayAABB(const Ray& ray, const BBox& box, float t_max = FLT_MAX)
+CUDA_DEVICE_CALL inline bool RayAABB(const Ray& in_ray, const BBox& in_aabb, float in_tmax = FLT_MAX)
 {
-	return RayAABB(ray.GetOrigin(), ray.GetDirection(), box, t_max);
+	return RayAABB(in_ray.GetOrigin(), in_ray.GetDirectionInverse(), in_aabb, in_tmax);
 }
 
 // triangle - box test using separating axis theorem (https://fileadmin.cs.lth.se/cs/Personal/Tomas_Akenine-Moller/pubs/tribox.pdf)

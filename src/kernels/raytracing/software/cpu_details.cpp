@@ -8,7 +8,7 @@ bool CPUDetails::Initialize(WindowHandle ctx, uint32_t w, uint32_t h, uint32_t s
 
 	render_data_.width = w;
 	render_data_.height = h;
-	render_data_.output.resize(static_cast<size_t>(w) * h, {});
+	render_data_.output.resize(static_cast<size_t>(w) * h, vec3{});
 
 #if defined(WIN32)
 	BITMAPINFO bmi;
@@ -47,7 +47,7 @@ bool CPUDetails::ProcessScene(const Scene& scene)
 {
 #if USE_KDTREE
 
-	// Triangle-AABB intersection
+	// utility wrapper for Triangle-AABB intersection
 	auto TriangleAABBTester = [](const auto& in_triangle, const BBox& in_aabb)
 	{
 		vec3 v0{ in_triangle.vertices[0] - in_aabb.GetCenter() };
@@ -57,6 +57,7 @@ bool CPUDetails::ProcessScene(const Scene& scene)
 		return collision::TriangleAABB(v0, v1, v2, in_aabb);
 	};
 
+	// TODO: split in TLAS and BLAS instead of using one tree for the whole scene
 	accel::Node<Tri> TempTree;
 	TempTree.GetElements().reserve(scene.GetTriCount());
 
@@ -86,35 +87,34 @@ bool CPUDetails::ProcessScene(const Scene& scene)
 	return true;
 }
 
-namespace
+#if USE_KDTREE
+bool CPUDetails::TriangleRayTester(const Tri* in_triangles, unsigned int in_first, unsigned int in_count, const Ray& in_ray, HitData& intersection_data)
 {
-	bool TriangleRayTester(const Tri* in_triangles, unsigned int in_first, unsigned int in_count, const Ray& in_ray, HitData& intersection_data)
+	bool hit_triangle = false;
+
+	for (unsigned int idx = in_first; idx < in_count; ++idx)
 	{
-		bool hit_triangle = false;
+		const uint32_t mesh_id = in_triangles[idx].GetMeshId();
+		const uint32_t triangle_id = in_triangles[idx].GetTriangleId() * 3;
 
-		for (unsigned int idx = in_first; idx < in_count; ++idx)
+		const vec3 v0 = in_triangles[idx].vertices[0];
+		const vec3 v1 = in_triangles[idx].vertices[1];
+		const vec3 v2 = in_triangles[idx].vertices[2];
+
+		collision::TriangleHitData tri_hit_data(intersection_data.t);
+		if (collision::RayTriangle(in_ray, v0, v1, v2, tri_hit_data))
 		{
-			const uint32_t mesh_id = in_triangles[idx].GetMeshId();
-			const uint32_t triangle_id = in_triangles[idx].GetTriangleId() * 3;
-
-			const vec3 v0 = in_triangles[idx].vertices[0];
-			const vec3 v1 = in_triangles[idx].vertices[1];
-			const vec3 v2 = in_triangles[idx].vertices[2];
-
-			collision::TriangleHitData tri_hit_data(intersection_data.t);
-			if (collision::RayTriangle(in_ray, v0, v1, v2, tri_hit_data))
-			{
-				intersection_data.t = tri_hit_data.RayT;
-				intersection_data.uv = tri_hit_data.TriangleUV;
-				intersection_data.triangle_index = triangle_id;
-				intersection_data.object_index = mesh_id;
-				hit_triangle = true;
-			}
+			intersection_data.t = tri_hit_data.RayT;
+			intersection_data.uv = tri_hit_data.TriangleUV;
+			intersection_data.triangle_index = triangle_id;
+			intersection_data.object_index = mesh_id;
+			hit_triangle = true;
 		}
-
-		return hit_triangle;
 	}
+
+	return hit_triangle;
 }
+#endif
 
 bool CPUDetails::ComputeIntersection(const Scene& scene, const Ray& ray, HitData& data) const
 {
@@ -129,7 +129,7 @@ bool CPUDetails::ComputeIntersection(const Scene& scene, const Ray& ray, HitData
 
 #else
 
-	for (unsigned int i = 0; i < scene.GetObjectCount(); ++i)
+	for (uint32_t i = 0; i < scene.GetObjectCount(); ++i)
 	{
 		const Mesh& mesh = scene.GetObject(i);
 
@@ -156,12 +156,11 @@ bool CPUDetails::ComputeIntersection(const Scene& scene, const Ray& ray, HitData
 		const Vertex v1 = mesh.GetVertex(mesh.GetIndex(data.triangle_index + 1));
 		const Vertex v2 = mesh.GetVertex(mesh.GetIndex(data.triangle_index + 2));
 		const vec2 uv = data.uv;
-		const Material* material = mesh.GetMaterial();
 
 		data.point = ray.GetPoint(data.t);
 		data.normal = (1.f - uv.x - uv.y) * v0.normal + uv.x * v1.normal + uv.y * v2.normal;
 		data.uv = (1.f - uv.x - uv.y) * v0.uv0 + uv.x * v1.uv0 + uv.y * v2.uv0;
-		data.material = material;
+		data.material = mesh.GetMaterial();
 	}
 
 	return hit_any_mesh;

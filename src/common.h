@@ -155,6 +155,7 @@ struct HitData
  #include <nvfunctional>
  using nvstd::function;
 #else
+ using RandomCtxData = uint32_t;
  using RandomCtx = uint32_t&;
 
  #include <functional>

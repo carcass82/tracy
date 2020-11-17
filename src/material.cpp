@@ -45,33 +45,42 @@ namespace
 
 CUDA_DEVICE_CALL bool Material::Scatter(const Ray& ray, const HitData& hit, vec3& out_attenuation, vec3& out_emission, Ray& out_scattered, RandomCtx random_ctx) const
 {
+    static constexpr float kRayOffset{ 0.001f };
+
+    vec3 attenuation{};
+    vec3 emission{};
+    vec3 scatteredDirection{};
+    vec3 scatteredOrigin{};
+    bool scattered{ false };
+
     switch (material_type_)
     {
     case MaterialID::eLAMBERTIAN:
     {
-        vec3 target = hit.point + hit.normal + random_on_unit_sphere(random_ctx);
-        out_scattered = Ray(hit.point, normalize(target - hit.point));
-        out_attenuation = albedo_;
-        out_emission = vec3{};
-
-        return true;
+        vec3 target{ hit.point + hit.normal + random_on_unit_sphere(random_ctx) };
+        scatteredDirection = normalize(target - hit.point);
+        scatteredOrigin = hit.point;
+        attenuation = albedo_;
+        scattered = true;
+        break;
     }
 
     case MaterialID::eMETAL:
     {
         vec3 reflected = reflect(ray.GetDirection(), hit.normal);
-        out_scattered = Ray(hit.point, reflected + roughness_ * random_on_unit_sphere(random_ctx));
-        out_attenuation = albedo_;
-        out_emission = vec3{};
-
-        return (dot(out_scattered.GetDirection(), hit.normal) > .0f);
+        scatteredOrigin = hit.point;
+        scatteredDirection = reflected + roughness_ * random_on_unit_sphere(random_ctx);
+        attenuation = albedo_;
+        scattered = dot(scatteredDirection, hit.normal) > .0f;
+        break;
     }
 
     case MaterialID::eDIELECTRIC:
     {
-        vec3 outward_normal = hit.normal;
+        vec3 outward_normal{ hit.normal };
         float ni_nt;
         float cosine = dot(ray.GetDirection(), hit.normal);
+
         if (cosine > EPS)
         {
             outward_normal *= -1.f;
@@ -88,20 +97,23 @@ CUDA_DEVICE_CALL bool Material::Scatter(const Ray& ray, const HitData& hit, vec3
         vec3 reflected = reflect(ray.GetDirection(), hit.normal);
         float reflect_chance = (refracted != vec3{}) ? schlick(cosine, ior_) : 1.0f;
 
-        out_scattered = Ray(hit.point, (fastrand(random_ctx) < reflect_chance) ? reflected : refracted);
-        out_attenuation = albedo_;
-        out_emission = vec3{};
-
-        return true;
+        scatteredOrigin = hit.point;
+        scatteredDirection = (fastrand(random_ctx) < reflect_chance)? reflected : refracted;
+        attenuation = albedo_;
+        scattered = true;
+        break;
     }
 
     case MaterialID::eEMISSIVE:
     {
-        out_emission = albedo_;
-        return false;
+        emission = albedo_;
+        scattered = false;
+        break;
+    }
     }
 
-    default:
-        return false;
-    }
+    out_scattered = Ray(scatteredOrigin + kRayOffset * scatteredDirection, scatteredDirection);
+    out_attenuation = attenuation;
+    out_emission = emission;
+    return scattered;
 }
