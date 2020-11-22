@@ -1,3 +1,9 @@
+/*
+ * Tracy, a simple raytracer
+ * inspired by "Ray Tracing in One Weekend" minibooks
+ *
+ * (c) Carlo Casta, 2018
+ */
 #include "cpu_details.h"
 #include "scene.h"
 #include "collision.h"
@@ -88,26 +94,21 @@ bool CPUDetails::ProcessScene(const Scene& scene)
 }
 
 #if USE_KDTREE
-bool CPUDetails::TriangleRayTester(const Tri* in_triangles, unsigned int in_first, unsigned int in_count, const Ray& in_ray, HitData& intersection_data)
+bool CPUDetails::TriangleRayTester(const Tri* in_triangles, uint32_t in_first, uint32_t in_count, const Ray& in_ray, collision::HitData& intersection_data)
 {
 	bool hit_triangle = false;
 
-	for (unsigned int idx = in_first; idx < in_count; ++idx)
+	for (uint32_t idx = in_first; idx < in_count; ++idx)
 	{
-		const uint32_t mesh_id = in_triangles[idx].GetMeshId();
-		const uint32_t triangle_id = in_triangles[idx].GetTriangleId() * 3;
-
-		const vec3 v0 = in_triangles[idx].vertices[0];
-		const vec3 v1 = in_triangles[idx].vertices[1];
-		const vec3 v2 = in_triangles[idx].vertices[2];
+		const auto& triangle = in_triangles[idx];
 
 		collision::TriangleHitData tri_hit_data(intersection_data.t);
-		if (collision::RayTriangle(in_ray, v0, v1, v2, tri_hit_data))
+		if (collision::RayTriangle(in_ray, triangle.vertices, tri_hit_data))
 		{
 			intersection_data.t = tri_hit_data.RayT;
 			intersection_data.uv = tri_hit_data.TriangleUV;
-			intersection_data.triangle_index = triangle_id;
-			intersection_data.object_index = mesh_id;
+			intersection_data.object_index = triangle.GetMeshId();
+			intersection_data.triangle_index = triangle.GetTriangleId() * 3;
 			hit_triangle = true;
 		}
 	}
@@ -116,7 +117,7 @@ bool CPUDetails::TriangleRayTester(const Tri* in_triangles, unsigned int in_firs
 }
 #endif
 
-bool CPUDetails::ComputeIntersection(const Scene& scene, const Ray& ray, HitData& data) const
+bool CPUDetails::ComputeIntersection(const Scene& scene, const Ray& ray, collision::HitData& data) const
 {
 	bool hit_any_mesh = false;
 

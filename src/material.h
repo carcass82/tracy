@@ -9,6 +9,8 @@
 #include "common.h"
 #include "ray.h"
 
+namespace collision { struct HitData; }
+
 class Material
 {
 public:
@@ -24,7 +26,7 @@ public:
         , ior_(in_ior)
     {}
 
-    CUDA_DEVICE_CALL bool Scatter(const Ray& ray, const HitData& hit, vec3& out_attenuation, vec3& out_emission, Ray& out_scattered, RandomCtx random_ctx) const;
+    CUDA_DEVICE_CALL bool Scatter(const Ray& ray, const collision::HitData& hit, vec3& out_attenuation, vec3& out_emission, Ray& out_scattered, RandomCtx random_ctx) const;
 
     MaterialID GetType() const { return material_type_; }
 

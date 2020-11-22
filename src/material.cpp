@@ -6,6 +6,7 @@
  */
 #include "material.h"
 #include "random.h"
+#include "collision.h"
 
 //
 // Material utility functions
@@ -43,7 +44,7 @@ namespace
     }
 }
 
-CUDA_DEVICE_CALL bool Material::Scatter(const Ray& ray, const HitData& hit, vec3& out_attenuation, vec3& out_emission, Ray& out_scattered, RandomCtx random_ctx) const
+CUDA_DEVICE_CALL bool Material::Scatter(const Ray& ray, const collision::HitData& hit, vec3& out_attenuation, vec3& out_emission, Ray& out_scattered, RandomCtx random_ctx) const
 {
     static constexpr float kRayOffset{ 0.001f };
 

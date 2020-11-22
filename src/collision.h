@@ -9,8 +9,20 @@
 #include "ray.h"
 #include "mesh.h"
 
+class Material;
+
 namespace collision
 {
+struct alignas(64) HitData
+{
+	uint32_t object_index;
+	uint32_t triangle_index;
+	float t;
+	vec2 uv;
+	vec3 point;
+	vec3 normal;
+	const Material* material;
+};
 
 struct TriangleHitData
 {
@@ -20,12 +32,10 @@ struct TriangleHitData
 	vec2 TriangleUV{};
 };
 
-struct MeshHitData
+struct MeshHitData : public TriangleHitData
 {
-	CUDA_DEVICE_CALL MeshHitData(float t = 0) : RayT{ t } {}
+	CUDA_DEVICE_CALL MeshHitData(float t = 0) : TriangleHitData(t) {}
 
-	float RayT{};
-	vec2 TriangleUV{};
 	uint32_t TriangleIndex{};
 };
 
@@ -77,6 +87,11 @@ CUDA_DEVICE_CALL inline bool RayTriangle(const Ray& in_ray, const vec3& in_v0, c
 	return true;
 }
 
+CUDA_DEVICE_CALL inline bool RayTriangle(const Ray& in_ray, const vec3 in_vertices[3], TriangleHitData& inout_hit)
+{
+	return RayTriangle(in_ray, in_vertices[0], in_vertices[1], in_vertices[2], inout_hit);
+}
+
 // test ray against triangle mesh and store result in MeshHitData
 CUDA_DEVICE_CALL inline bool RayMesh(const Ray& in_ray, const Mesh& in_mesh, MeshHitData& inout_hit)
 {
@@ -104,10 +119,10 @@ CUDA_DEVICE_CALL inline bool RayMesh(const Ray& in_ray, const Mesh& in_mesh, Mes
 
 // Fast, Branchless Ray/Bounding Box Intersections
 // https://tavianator.com/fast-branchless-raybounding-box-intersections/
-CUDA_DEVICE_CALL inline bool RayAABB(const vec3& in_ray_origin, const vec3& in_ray_inv_dir, const BBox& in_aabb, float in_tmax = FLT_MAX)
+CUDA_DEVICE_CALL inline bool RayAABB(const vec3& in_ray_origin, const vec3& in_ray_inv_dir, const vec3& in_aabb_min, const vec3& in_aabb_max, float in_tmax = FLT_MAX)
 {
-	const vec3 minbound = (in_aabb.minbound - in_ray_origin) * in_ray_inv_dir;
-	const vec3 maxbound = (in_aabb.maxbound - in_ray_origin) * in_ray_inv_dir;
+	const vec3 minbound = (in_aabb_min - in_ray_origin) * in_ray_inv_dir;
+	const vec3 maxbound = (in_aabb_max - in_ray_origin) * in_ray_inv_dir;
 
 	const vec3 tmin1 = pmin(minbound, maxbound);
 	const vec3 tmax1 = pmax(minbound, maxbound);
@@ -120,8 +135,48 @@ CUDA_DEVICE_CALL inline bool RayAABB(const vec3& in_ray_origin, const vec3& in_r
 
 CUDA_DEVICE_CALL inline bool RayAABB(const Ray& in_ray, const BBox& in_aabb, float in_tmax = FLT_MAX)
 {
-	return RayAABB(in_ray.GetOrigin(), in_ray.GetDirectionInverse(), in_aabb, in_tmax);
+	return RayAABB(in_ray.GetOrigin(), in_ray.GetDirectionInverse(), in_aabb.minbound, in_aabb.maxbound, in_tmax);
 }
+
+#if USE_INTRINSICS
+//
+// "intrinsics we would love to have"
+// horizontal min/max on 128bit vector (used as 4 * 4byte float vector)
+// based on https://stackoverflow.com/a/9798369
+//
+// input => [A B C D]
+// op([A B C D], [D C B A]) = [op(A,D) op(B,C) ...]
+// op([max(A,D) max(B,C) ...], [op(B,C) op(A,D) ...])
+// output => [op(op(A,D), op(B,C)), ...]
+//
+inline __m128 _mm_hmax_ps(__m128 A)
+{
+	A = _mm_max_ps(A, _mm_shuffle_ps(A, A, _MM_SHUFFLE(0, 0, 2, 3)));
+	A = _mm_max_ps(A, _mm_shuffle_ps(A, A, _MM_SHUFFLE(0, 0, 0, 1)));
+	return A;
+}
+
+inline __m128 _mm_hmin_ps(__m128 A)
+{
+	A = _mm_min_ps(A, _mm_shuffle_ps(A, A, _MM_SHUFFLE(0, 0, 2, 3)));
+	A = _mm_min_ps(A, _mm_shuffle_ps(A, A, _MM_SHUFFLE(0, 0, 0, 1)));
+	return A;
+}
+
+inline bool RayAABB(__m128 RayOrigin, __m128 RayInvDir, __m128 BoxMin, __m128 BoxMax, float in_tmax = FLT_MAX)
+{
+	__m128 MinBound = _mm_mul_ps(RayInvDir, _mm_sub_ps(BoxMin, RayOrigin));
+	__m128 MaxBound = _mm_mul_ps(RayInvDir, _mm_sub_ps(BoxMax, RayOrigin));
+
+	__m128 tNear = _mm_min_ps(MinBound, MaxBound);
+	__m128 tFar = _mm_max_ps(MinBound, MaxBound);
+
+	float tmin = _mm_cvtss_f32(_mm_hmax_ps(tNear));
+	float tmax = _mm_cvtss_f32(_mm_hmin_ps(tFar));
+
+	return (tmax >= max(EPS, tmin) && tmin < in_tmax);
+}
+#endif
 
 // triangle - box test using separating axis theorem (https://fileadmin.cs.lth.se/cs/Personal/Tomas_Akenine-Moller/pubs/tribox.pdf)
 // code adapted from http://fileadmin.cs.lth.se/cs/Personal/Tomas_Akenine-Moller/code/tribox3.txt

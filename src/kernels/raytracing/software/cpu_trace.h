@@ -27,8 +27,11 @@ public:
 	void ResetRayCount()          { raycount_ = 0; }
 
 private:
-	void RenderTile(uint32_t tile_x, uint32_t tile_y, uint32_t tile_size, const Scene& scene, RandomCtx random_ctx);
 	vec3 Trace(const Ray& ray, const Scene& scene, RandomCtx random_ctx);
+
+#if TILED_RENDERING
+	void RenderTile(uint32_t tile_x, uint32_t tile_y, uint32_t tile_size, const Scene& scene, RandomCtx random_ctx);
+#endif
 
 	static constexpr uint32_t kTileSize{ 4 };
 	static constexpr uint32_t kBounces{ 5 };

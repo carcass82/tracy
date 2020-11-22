@@ -144,6 +144,10 @@ if(TRACY_RENDER_MODULE STREQUAL "CPU (RayTracing)")
 	set_property(CACHE CPU_RAND_ALGORITHM PROPERTY STRINGS "rand()" "XorShift" "LCG")
 	
 	option(CPU_NO_OPENMP "Disable OpenMP in CPU Trace loop" OFF)
+
+	option(CPU_TILED_RENDER "Split screen in tiles and render indipendently" OFF)
+
+	option(CPU_USE_SIMD_INTRINSICS "Enable hand-optimized hot path code with SIMD intrinsics" OFF)
 	
 	set(cpu_includes "./src/kernels/raytracing/software/cpu_trace.h"
 	                 "./src/kernels/raytracing/software/cpu_specific.h"
@@ -161,6 +165,14 @@ if(TRACY_RENDER_MODULE STREQUAL "CPU (RayTracing)")
 		add_definitions(-DRANDOM_XORSHIFT=1)
 	elseif(CPU_RAND_ALGORITHM STREQUAL "LCG")
 		add_definitions(-DRANDOM_LCG=1)
+	endif()
+
+	if (CPU_TILED_RENDER)
+		add_definitions(-DTILED_RENDERING=1)
+	endif()
+
+	if (CPU_USE_SIMD_INTRINSICS)
+		add_definitions(-DUSE_INTRINSICS=1)
 	endif()
 	
 
@@ -202,14 +214,17 @@ elseif(TRACY_RENDER_MODULE STREQUAL "CUDA (RayTracing)")
 	set(CMAKE_CUDA_FLAGS_RELEASE "-O3 --use_fast_math -DNDEBUG")
 
 	set(cuda_sources "./src/kernels/raytracing/cuda/cuda_trace.cpp"
+	                 "./src/kernels/raytracing/cuda/cuda_details.cpp"
 	                 "./src/kernels/raytracing/cuda/cuda_trace.cu")
 	source_group("kernel\\cuda\\src" FILES ${cuda_sources})
 	list(APPEND tracy_sources ${cuda_sources})
 
 	set(cuda_includes "./src/kernels/raytracing/cuda/cuda_trace.h"
-					  "./src/kernels/raytracing/cuda/cuda_scene.h"
+	                  "./src/kernels/raytracing/cuda/cuda_details.h"
+	                  "./src/kernels/raytracing/cuda/cuda_scene.h"
+	                  "./src/kernels/raytracing/cuda/cuda_device.h"
 	                  "./src/kernels/raytracing/cuda/cuda_log.h"
-					  "./src/kernels/raytracing/cuda/cuda_specific.h")
+	                  "./src/kernels/raytracing/cuda/cuda_specific.h")
 	source_group("kernel\\cuda\\include" FILES ${cuda_includes})
 	list(APPEND tracy_includes ${cuda_includes})
 
@@ -305,6 +320,10 @@ if(MSVC)
 
 	# enable auto parallelizer report
 	#set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} /Qpar-report:2")
+
+	# TODO: MSVC lacks something like -march=native to enable best instruction set available on host compiler
+	#set(MARCH_NATIVE "/ARCH:(SSE,SSE2,AVX,AVX2,AVX512,...)")
+	#set(CMAKE_CXX_FLAGS_RELEASE "${CMAKE_CXX_FLAGS_RELEASE} ${MARCH_NATIVE}")
 
 	if(CPU_NO_OPENMP)
 		set(CMAKE_CXX_FLAGS_RELEASE "${CMAKE_CXX_FLAGS_RELEASE} /openmp-")

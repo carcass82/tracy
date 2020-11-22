@@ -27,7 +27,7 @@ using ObjectAABBTesterFunction = function<bool(const T&, const BBox&)>;
 
 // signature for needed Element vs Ray tester function
 template <typename T>
-using ObjectsRayTesterFunction = function<bool(const T* elems, uint32_t first, uint32_t last, const Ray&, HitData&)>;
+using ObjectsRayTesterFunction = function<bool(const T* elems, uint32_t first, uint32_t last, const Ray&, collision::HitData&)>;
 
 
 //////////////////////////////////////////////////////////////////////////////
@@ -89,6 +89,13 @@ struct FlatNode
 	CUDA_CALL uint32_t Begin() const                      { return first; }
 	CUDA_CALL uint32_t End() const                        { return last; }
 	CUDA_CALL const BBox& GetAABB() const                 { return aabb; }
+#if USE_INTRINSICS
+	CUDA_CALL __m128 GetAABBMin() const                   { return aabb_min; }
+	CUDA_CALL __m128 GetAABBMax() const                   { return aabb_max; }
+#else
+	CUDA_CALL const vec3& GetAABBMin() const              { return aabb.minbound; }
+	CUDA_CALL const vec3& GetAABBMax() const              { return aabb.maxbound; }
+#endif
 	CUDA_CALL const FlatNode* GetChild(Child child) const { return root->GetChild(children[child]); }
 	CUDA_CALL FlatNode* GetChild(Child child)             { return root->GetChild(children[child]); }
 
@@ -99,7 +106,12 @@ struct FlatNode
 		, root{ in_root }
 	{}
 
+#if USE_INTRINSICS
+	__m128 aabb_min;
+	__m128 aabb_max;
+#else
 	BBox aabb;
+#endif
 	uint32_t first;
 	uint32_t last;
 	uint32_t children[Child::Count];
@@ -301,7 +313,15 @@ inline void FlattenTree(NodeType& in_SrcTree, FlatTreeType& out_FlatTree)
 
 		if (current_node.second)
 		{
+#if USE_INTRINSICS
+			vec3 tmp = current_node.second->GetAABB().minbound;
+			nodes[current_node.first].aabb_min = _mm_set_ps(tmp.z, tmp.z, tmp.y, tmp.x);
+
+			tmp = current_node.second->GetAABB().maxbound;
+			nodes[current_node.first].aabb_max = _mm_set_ps(tmp.z, tmp.z, tmp.y, tmp.x);
+#else
 			nodes[current_node.first].aabb = current_node.second->GetAABB();
+#endif
 
 			if (current_node.second->IsEmpty())
 			{
@@ -363,12 +383,20 @@ template <typename ElemType,
           template<class...> class Container = std::vector,
           typename NodeType = Node<ElemType, Container>,
           uint32_t STACK_SIZE = TREE_MAXDEPTH + 1>
-CUDA_DEVICE_CALL bool IntersectsWithTree(const NodeType* tree, const Ray& ray, HitData& inout_intersection, const ObjectsRayTesterFunction<ElemType>& ObjectTester)
+CUDA_DEVICE_CALL bool IntersectsWithTree(const NodeType* tree, const Ray& ray, collision::HitData& inout_intersection, const ObjectsRayTesterFunction<ElemType>& ObjectTester)
 {
 	FixedSizeStack<const NodeType*, STACK_SIZE> traversal_helper;
 
+#if USE_INTRINSICS
+	vec3 origin = ray.GetOrigin();
+	vec3 inv_direction = ray.GetDirectionInverse();
+
+	__m128 rayO{ _mm_set_ps(origin.z, origin.z, origin.y, origin.x) };
+	__m128 rayI{ _mm_set_ps(inv_direction.z, inv_direction.z, inv_direction.y, inv_direction.x) };
+#else
 	const vec3 rayO{ ray.GetOrigin() };
 	const vec3 rayI{ ray.GetDirectionInverse() };
+#endif
 
 	float minT = inout_intersection.t;
 
@@ -377,7 +405,7 @@ CUDA_DEVICE_CALL bool IntersectsWithTree(const NodeType* tree, const Ray& ray, H
 	const NodeType* current = tree;
 	while (current || !traversal_helper.IsEmpty())
 	{
-		while (current && collision::RayAABB(rayO, rayI, current->GetAABB(), minT))
+		while (current && collision::RayAABB(rayO, rayI, current->GetAABBMin(), current->GetAABBMax(), minT))
 		{
 			traversal_helper.Push(current);
 			current = current->GetChild(Child::Left);

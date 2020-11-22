@@ -15,6 +15,7 @@ using std::vector;
 
 class Scene;
 class Ray;
+namespace collision { struct HitData; }
 
 #if defined(_MSC_VER) && _MSC_VER < 1920
  // pre-vs2019 ms compiler does not support openmp "collapse" clause
@@ -62,7 +63,7 @@ public:
 
 	bool ProcessScene(const Scene& scene);
 
-	bool ComputeIntersection(const Scene& scene, const Ray& ray, HitData& data) const;
+	bool ComputeIntersection(const Scene& scene, const Ray& ray, collision::HitData& data) const;
 
 	void UpdateOutput(uint32_t index, const vec3& color);
 
@@ -81,7 +82,7 @@ private:
 	uint64_t frame_counter_{};
 
 #if USE_KDTREE
-	static bool TriangleRayTester(const Tri* in_triangles, unsigned int in_first, unsigned int in_count, const Ray& in_ray, HitData& intersection_data);
+	static bool TriangleRayTester(const Tri* in_triangles, uint32_t in_first, uint32_t in_count, const Ray& in_ray, collision::HitData& intersection_data);
 
 	accel::FlatTree<Tri> scene_tree_{};
 #endif

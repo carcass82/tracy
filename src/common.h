@@ -131,22 +131,6 @@ using cc::array_size;
 using cc::gfx::srgb;
 #endif
 
-//
-// HitData
-//
-class Material;
-struct HitData
-{
-	int object_index;
-	int triangle_index;
-	float t;
-	
-	vec2 uv;
-	vec3 point;
-	vec3 normal;
-	const Material* material;
-};
-
 #if defined(__CUDACC__)
  #include <curand_kernel.h>
  using RandomCtx = curandState*;
@@ -177,17 +161,17 @@ struct handle_t
 };
 using WindowHandle = struct handle_t*;
 
-static WindowHandle CreateWindowHandle(HWND hwnd, uint32 width, uint32 height)
+inline WindowHandle CreateWindowHandle(HWND hwnd, uint32 width, uint32 height)
 {
 	return new handle_t{ width, height, hwnd };
 }
 
-static bool IsValidWindowHandle(WindowHandle handle)
+inline bool IsValidWindowHandle(WindowHandle handle)
 {
 	return handle && handle->win && IsWindow(handle->win);
 }
 
-static void ReleaseWindowHandle(WindowHandle& handle)
+inline void ReleaseWindowHandle(WindowHandle& handle)
 {
 	if (IsValidWindowHandle(handle))
 	{
