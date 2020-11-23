@@ -133,12 +133,15 @@ bool CPUDetails::ComputeIntersection(const Scene& scene, const Ray& ray, collisi
 	{
 		bool hit_triangle{};
 
+		const vec3 rayO{ in_ray.GetOrigin() };
+		const vec3 rayD{ in_ray.GetDirection() };
+
 		for (uint32_t idx = in_first; idx < in_count; ++idx)
 		{
 			const auto& triangle = in_triangles[idx];
 
 			collision::TriangleHitData tri_hit_data(intersection_data.t);
-			if (collision::RayTriangle(in_ray, triangle.vertices, tri_hit_data))
+			if (collision::RayTriangle(rayO, rayD, triangle.vertices, tri_hit_data))
 			{
 				intersection_data.t = tri_hit_data.RayT;
 				intersection_data.uv = tri_hit_data.TriangleUV;

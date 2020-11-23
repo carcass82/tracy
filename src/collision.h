@@ -41,11 +41,8 @@ struct MeshHitData : public TriangleHitData
 
 
 // test ray against triangle and store result in TriangleHitData
-CUDA_DEVICE_CALL inline bool RayTriangle(const Ray& in_ray, const vec3& in_v0, const vec3& in_v1, const vec3& in_v2, TriangleHitData& inout_hit)
+CUDA_DEVICE_CALL inline bool RayTriangle(const vec3& ray_origin, const vec3& ray_direction, const vec3& in_v0, const vec3& in_v1, const vec3& in_v2, TriangleHitData& inout_hit)
 {
-	const vec3 ray_direction = in_ray.GetDirection();
-	const vec3 ray_origin = in_ray.GetOrigin();
-
 	const vec3 v0v1 = in_v1 - in_v0;
 	const vec3 v0v2 = in_v2 - in_v0;
 
@@ -87,9 +84,14 @@ CUDA_DEVICE_CALL inline bool RayTriangle(const Ray& in_ray, const vec3& in_v0, c
 	return true;
 }
 
+CUDA_DEVICE_CALL inline bool RayTriangle(const vec3& in_ray_origin, const vec3& in_ray_direction, const vec3 in_vertices[3], TriangleHitData& inout_hit)
+{
+	return RayTriangle(in_ray_origin, in_ray_direction, in_vertices[0], in_vertices[1], in_vertices[2], inout_hit);
+}
+
 CUDA_DEVICE_CALL inline bool RayTriangle(const Ray& in_ray, const vec3 in_vertices[3], TriangleHitData& inout_hit)
 {
-	return RayTriangle(in_ray, in_vertices[0], in_vertices[1], in_vertices[2], inout_hit);
+	return RayTriangle(in_ray.GetOrigin(), in_ray.GetDirection(), in_vertices, inout_hit);
 }
 
 // test ray against triangle mesh and store result in MeshHitData
@@ -97,14 +99,20 @@ CUDA_DEVICE_CALL inline bool RayMesh(const Ray& in_ray, const Mesh& in_mesh, Mes
 {
 	bool result = false;
 
+	const vec3 ray_origin{ in_ray.GetOrigin() };
+	const vec3 ray_direction{ in_ray.GetDirection() };
+
 	for (uint32_t i = 0; i < in_mesh.GetTriCount(); ++i)
 	{
-		const vec3 v0 = in_mesh.GetVertex(in_mesh.GetIndex(i * 3 + 0)).pos;
-		const vec3 v1 = in_mesh.GetVertex(in_mesh.GetIndex(i * 3 + 1)).pos;
-		const vec3 v2 = in_mesh.GetVertex(in_mesh.GetIndex(i * 3 + 2)).pos;
+		const vec3 vertices[]
+		{
+			in_mesh.GetVertex(in_mesh.GetIndex(i * 3 + 0)).pos,
+			in_mesh.GetVertex(in_mesh.GetIndex(i * 3 + 1)).pos,
+			in_mesh.GetVertex(in_mesh.GetIndex(i * 3 + 2)).pos
+		};
 
 		TriangleHitData hit(inout_hit.RayT);
-		if (RayTriangle(in_ray, v0, v1, v2, hit))
+		if (RayTriangle(ray_origin, ray_direction, vertices, hit))
 		{
 			inout_hit.RayT = hit.RayT;
 			inout_hit.TriangleUV = hit.TriangleUV;
@@ -146,7 +154,7 @@ CUDA_DEVICE_CALL inline bool RayAABB(const Ray& in_ray, const BBox& in_aabb, flo
 //
 // input => [A B C D]
 // op([A B C D], [D C B A]) = [op(A,D) op(B,C) ...]
-// op([max(A,D) max(B,C) ...], [op(B,C) op(A,D) ...])
+// op([op(A,D) op(B,C) ...], [op(B,C) op(A,D) ...])
 // output => [op(op(A,D), op(B,C)), ...]
 //
 inline __m128 _mm_hmax_ps(__m128 A)
