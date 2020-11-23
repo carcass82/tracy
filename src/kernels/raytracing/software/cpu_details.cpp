@@ -53,6 +53,26 @@ bool CPUDetails::ProcessScene(const Scene& scene)
 {
 #if USE_KDTREE
 
+	// utility wrapper for Object-AABB intersection
+	auto ObjectAABBTester = [&scene](const auto& in_object, const BBox& in_aabb)
+	{
+		// super slow but super accurate method: test every mesh triangle against aabb
+		const auto& mesh = scene.GetObject(in_object.object_id);
+		for (uint32_t t = 0; t < mesh.GetTriCount(); ++t)
+		{
+			vec3 v0{ mesh.GetVertex(mesh.GetIndex(t * 3 + 0)).pos };
+			vec3 v1{ mesh.GetVertex(mesh.GetIndex(t * 3 + 1)).pos };
+			vec3 v2{ mesh.GetVertex(mesh.GetIndex(t * 3 + 2)).pos };
+
+			if (collision::TriangleAABB(v0, v1, v2, in_aabb))
+			{
+				return true;
+			}
+		}
+
+		return false;
+	};
+
 	// utility wrapper for Triangle-AABB intersection
 	auto TriangleAABBTester = [](const auto& in_triangle, const BBox& in_aabb)
 	{
@@ -63,59 +83,45 @@ bool CPUDetails::ProcessScene(const Scene& scene)
 		return collision::TriangleAABB(v0, v1, v2, in_aabb);
 	};
 
-	// TODO: split in TLAS and BLAS instead of using one tree for the whole scene
-	accel::Node<Tri> TempTree;
-	TempTree.GetElements().reserve(scene.GetTriCount());
+	BLAS_tree_.resize(scene.GetObjectCount());
+	
+	accel::Node<Obj> TempObjectsTree;
+	TempObjectsTree.GetElements().reserve(scene.GetObjectCount());
 
 	BBox scene_bbox{ FLT_MAX, -FLT_MAX };
 	for (uint16_t i = 0; i < scene.GetObjectCount(); ++i)
 	{
 		const Mesh& mesh = scene.GetObject(i);
+
+		accel::Node<Tri> TempTrianglesTree;
+		TempTrianglesTree.GetElements().reserve(mesh.GetTriCount());
+
 		for (uint32_t t = 0; t < mesh.GetTriCount(); ++t)
 		{
 			vec3 v0{ mesh.GetVertex(mesh.GetIndex(t * 3 + 0)).pos };
 			vec3 v1{ mesh.GetVertex(mesh.GetIndex(t * 3 + 1)).pos };
 			vec3 v2{ mesh.GetVertex(mesh.GetIndex(t * 3 + 2)).pos };
-
-			TempTree.GetElements().emplace_back(i, t, v0, v1, v2);
+			
+			TempTrianglesTree.GetElements().emplace_back(i, t, v0, v1, v2);
 		}
 
+		TempTrianglesTree.SetAABB(mesh.GetAABB());
+		accel::BuildTree<Tri>(&TempTrianglesTree, TriangleAABBTester);
+		accel::FlattenTree<Tri>(TempTrianglesTree, BLAS_tree_[i]);
+
+		TempObjectsTree.GetElements().emplace_back(i);
 		scene_bbox.minbound = pmin(mesh.GetAABB().minbound, scene_bbox.minbound);
 		scene_bbox.maxbound = pmax(mesh.GetAABB().maxbound, scene_bbox.maxbound);
 	}
-	TempTree.SetAABB(scene_bbox);
 
-	accel::BuildTree<Tri>(&TempTree, TriangleAABBTester);
-	accel::FlattenTree<Tri>(TempTree, scene_tree_);
+	TempObjectsTree.SetAABB(scene_bbox);
+	accel::BuildTree<Obj>(&TempObjectsTree, ObjectAABBTester);
+	accel::FlattenTree<Obj>(TempObjectsTree, TLAS_tree_);
 
 #endif
 
 	return true;
 }
-
-#if USE_KDTREE
-bool CPUDetails::TriangleRayTester(const Tri* in_triangles, uint32_t in_first, uint32_t in_count, const Ray& in_ray, collision::HitData& intersection_data)
-{
-	bool hit_triangle = false;
-
-	for (uint32_t idx = in_first; idx < in_count; ++idx)
-	{
-		const auto& triangle = in_triangles[idx];
-
-		collision::TriangleHitData tri_hit_data(intersection_data.t);
-		if (collision::RayTriangle(in_ray, triangle.vertices, tri_hit_data))
-		{
-			intersection_data.t = tri_hit_data.RayT;
-			intersection_data.uv = tri_hit_data.TriangleUV;
-			intersection_data.object_index = triangle.GetMeshId();
-			intersection_data.triangle_index = triangle.GetTriangleId() * 3;
-			hit_triangle = true;
-		}
-	}
-
-	return hit_triangle;
-}
-#endif
 
 bool CPUDetails::ComputeIntersection(const Scene& scene, const Ray& ray, collision::HitData& data) const
 {
@@ -123,10 +129,46 @@ bool CPUDetails::ComputeIntersection(const Scene& scene, const Ray& ray, collisi
 
 #if USE_KDTREE
 
-	if (accel::IntersectsWithTree<Tri>(scene_tree_.GetChild(0), ray, data, TriangleRayTester))
+	const auto TriangleRayTester = [](const Tri* in_triangles, uint32_t in_first, uint32_t in_count, const Ray& in_ray, collision::HitData& intersection_data)
 	{
-		hit_any_mesh = true;
-	}
+		bool hit_triangle{};
+
+		for (uint32_t idx = in_first; idx < in_count; ++idx)
+		{
+			const auto& triangle = in_triangles[idx];
+
+			collision::TriangleHitData tri_hit_data(intersection_data.t);
+			if (collision::RayTriangle(in_ray, triangle.vertices, tri_hit_data))
+			{
+				intersection_data.t = tri_hit_data.RayT;
+				intersection_data.uv = tri_hit_data.TriangleUV;
+				intersection_data.object_index = triangle.GetMeshId();
+				intersection_data.triangle_index = triangle.GetTriangleId() * 3;
+				hit_triangle = true;
+			}
+		}
+
+		return hit_triangle;
+	};
+
+	const auto ObjectRayTester = [this, TriangleRayTester](const Obj* in_objects, uint32_t in_first, uint32_t in_count, const Ray& in_ray, collision::HitData& intersection_data)
+	{
+		bool hit_object{ false };
+
+		for (uint32_t idx = in_first; idx < in_count; ++idx)
+		{
+			uint32_t tree_id = in_objects[idx].object_id;
+			if (accel::IntersectsWithTree<Tri>(BLAS_tree_[tree_id].GetChild(0), in_ray, intersection_data, TriangleRayTester))
+			{
+				hit_object = true;
+			}
+		}
+
+		return hit_object;
+	};
+
+	hit_any_mesh = accel::IntersectsWithTree<Obj>(TLAS_tree_.GetChild(0), ray, data, ObjectRayTester);
+
 
 #else
 

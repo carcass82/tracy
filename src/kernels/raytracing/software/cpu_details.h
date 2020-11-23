@@ -52,6 +52,18 @@ struct Tri
 	uint32_t packed_tri_info{ 0 };
 	vec3 vertices[3]{};
 };
+
+struct Obj
+{
+	constexpr Obj()
+	{}
+
+	constexpr Obj(uint32_t object_idx)
+		: object_id{ object_idx }
+	{}
+
+	uint32_t object_id{};
+};
 #endif
 
 class CPUDetails
@@ -82,8 +94,7 @@ private:
 	uint64_t frame_counter_{};
 
 #if USE_KDTREE
-	static bool TriangleRayTester(const Tri* in_triangles, uint32_t in_first, uint32_t in_count, const Ray& in_ray, collision::HitData& intersection_data);
-
-	accel::FlatTree<Tri> scene_tree_{};
+	accel::FlatTree<Obj> TLAS_tree_{};
+	vector<accel::FlatTree<Tri>> BLAS_tree_{};
 #endif
 };
