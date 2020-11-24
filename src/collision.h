@@ -259,30 +259,29 @@ inline __m128 _mm_dot_ps(__m128 a, __m128 b)
 
 inline bool RayTriangle(__m128 in_ray_origin, __m128 in_ray_direction, const __m128 in_v[3], TriangleHitData& inout_hit)
 {
-	__m128 v0v1{ _mm_sub_ps(in_v[1], in_v[0]) };
-	__m128 v0v2{ _mm_sub_ps(in_v[2], in_v[0]) };
+	__m128 v0v1 = _mm_sub_ps(in_v[1], in_v[0]);
+	__m128 v0v2 = _mm_sub_ps(in_v[2], in_v[0]);
 
-	__m128 pvec{ _mm_cross_ps(in_ray_direction, v0v2) };
-	__m128 tvec{ _mm_sub_ps(in_ray_origin, in_v[0]) };
-	__m128 qvec{ _mm_cross_ps(tvec, v0v1) };
+	__m128 pvec = _mm_cross_ps(in_ray_direction, v0v2);
+	__m128 tvec = _mm_sub_ps(in_ray_origin, in_v[0]);
+	__m128 qvec = _mm_cross_ps(tvec, v0v1);
 
 	__m128 d = _mm_dot_ps(v0v1, pvec);
-	
-	float det{ _mm_cvtss_f32(d) };
-	float inv_det{ _mm_cvtss_f32(_mm_rcp_ss(d)) };
-	float u{ _mm_cvtss_f32(_mm_dot_ps(tvec, pvec)) };
-	float v{ _mm_cvtss_f32(_mm_dot_ps(in_ray_direction, qvec)) };
-	float t = _mm_cvtss_f32(_mm_dot_ps(v0v2, qvec)) * inv_det;
+	__m128 inv_d = _mm_rcp_ss(d);
 
-	if (!((det < EPS) || (u < EPS || u > det) || (v < EPS || u + v > det) || (t < EPS || t > inout_hit.RayT)))
+	float det = _mm_cvtss_f32(d);
+	float inv_det = _mm_cvtss_f32(_mm_rcp_ss(d));
+	float u = _mm_cvtss_f32(_mm_mul_ps(_mm_dot_ps(tvec, pvec), inv_d));
+	float v = _mm_cvtss_f32(_mm_mul_ps(_mm_dot_ps(in_ray_direction, qvec), inv_d));
+	float t = _mm_cvtss_f32(_mm_mul_ps(_mm_dot_ps(v0v2, qvec), inv_d));
+
+	if (!(det < EPS || (u < EPS || u > 1.f) || (v < EPS || u + v > 1.f) || (t < EPS || t > inout_hit.RayT)))
 	{
 		inout_hit.RayT = t;
-		inout_hit.TriangleUV.s = u * inv_det;
-		inout_hit.TriangleUV.t = v * inv_det;
-
+		inout_hit.TriangleUV.s = u;
+		inout_hit.TriangleUV.t = v;
 		return true;
 	}
-
 	return false;
 }
 
