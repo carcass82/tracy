@@ -313,7 +313,7 @@ if(MSVC)
 
     set(CMAKE_CXX_FLAGS "/nologo /W3 /D_CRT_SECURE_NO_WARNINGS /MP /Gm- /Zi")
 	set(CMAKE_CXX_FLAGS_DEBUG "${CMAKE_CXX_FLAGS_DEBUG} /Od /D_DEBUG /EHsc")
-	set(CMAKE_CXX_FLAGS_RELEASE "${CMAKE_CXX_FLAGS_RELEASE} /GR- /Gw /GL /O2 /fp:fast /Qpar /DNDEBUG /D_HAS_EXCEPTIONS=0")
+	set(CMAKE_CXX_FLAGS_RELEASE "${CMAKE_CXX_FLAGS_RELEASE} /GR- /Gw /GL /O2 /Ob1 /Oi /Gv /fp:fast /Qpar /DNDEBUG /D_HAS_EXCEPTIONS=0")
 	
 	# enable auto vectorizer report
 	#set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} /Qvec-report:2")

@@ -42,15 +42,25 @@ struct Tri
 	constexpr Tri()
 	{}
 
-	constexpr Tri(uint32_t mesh_idx, uint32_t triangle_idx, const vec3& v0, const vec3& v1, const vec3& v2)
-		: packed_tri_info((mesh_idx << 24) | triangle_idx), vertices{ v0, v1, v2 }
+	Tri(uint32_t mesh_idx, uint32_t triangle_idx, const vec3& v0, const vec3& v1, const vec3& v2)
+		: packed_tri_info((mesh_idx << 24) | triangle_idx)
+#if USE_INTRINSICS
+		, vertices{ _mm_set_ps(v0.z, v0.z, v0.y, v0.x), _mm_set_ps(v1.z, v1.z, v1.y, v1.x), _mm_set_ps(v2.z, v2.z, v2.y, v2.x) }
+#else
+		, vertices{ v0, v1, v2 }
+#endif
 	{}
 
 	constexpr uint32_t GetMeshId() const { return packed_tri_info >> 24; }
 	constexpr uint32_t GetTriangleId() const { return packed_tri_info & 0xffffff; }
 
 	uint32_t packed_tri_info{ 0 };
+
+#if USE_INTRINSICS
+	__m128 vertices[3]{};
+#else
 	vec3 vertices[3]{};
+#endif
 };
 
 struct Obj

@@ -147,43 +147,7 @@ CUDA_DEVICE_CALL inline bool RayAABB(const Ray& in_ray, const BBox& in_aabb, flo
 }
 
 #if USE_INTRINSICS
-//
-// "intrinsics we would love to have"
-// horizontal min/max on 128bit vector (used as 4 * 4byte float vector)
-// based on https://stackoverflow.com/a/9798369
-//
-// input => [A B C D]
-// op([A B C D], [D C B A]) = [op(A,D) op(B,C) ...]
-// op([op(A,D) op(B,C) ...], [op(B,C) op(A,D) ...])
-// output => [op(op(A,D), op(B,C)), ...]
-//
-inline __m128 _mm_hmax_ps(__m128 A)
-{
-	A = _mm_max_ps(A, _mm_shuffle_ps(A, A, _MM_SHUFFLE(0, 0, 2, 3)));
-	A = _mm_max_ps(A, _mm_shuffle_ps(A, A, _MM_SHUFFLE(0, 0, 0, 1)));
-	return A;
-}
 
-inline __m128 _mm_hmin_ps(__m128 A)
-{
-	A = _mm_min_ps(A, _mm_shuffle_ps(A, A, _MM_SHUFFLE(0, 0, 2, 3)));
-	A = _mm_min_ps(A, _mm_shuffle_ps(A, A, _MM_SHUFFLE(0, 0, 0, 1)));
-	return A;
-}
-
-inline bool RayAABB(__m128 RayOrigin, __m128 RayInvDir, __m128 BoxMin, __m128 BoxMax, float in_tmax = FLT_MAX)
-{
-	__m128 MinBound = _mm_mul_ps(RayInvDir, _mm_sub_ps(BoxMin, RayOrigin));
-	__m128 MaxBound = _mm_mul_ps(RayInvDir, _mm_sub_ps(BoxMax, RayOrigin));
-
-	__m128 tNear = _mm_min_ps(MinBound, MaxBound);
-	__m128 tFar = _mm_max_ps(MinBound, MaxBound);
-
-	float tmin = _mm_cvtss_f32(_mm_hmax_ps(tNear));
-	float tmax = _mm_cvtss_f32(_mm_hmin_ps(tFar));
-
-	return (tmax >= max(EPS, tmin) && tmin < in_tmax);
-}
 #endif
 
 // triangle - box test using separating axis theorem (https://fileadmin.cs.lth.se/cs/Personal/Tomas_Akenine-Moller/pubs/tribox.pdf)
@@ -251,5 +215,91 @@ CUDA_DEVICE_CALL inline bool TriangleAABB(const vec3& in_v0, const vec3& in_v1, 
 
 	return !(dot(trinormal, vmin) > .0f || dot(trinormal, vmax) < .0f);
 }
+
+#if USE_INTRINSICS
+
+inline __m128 _mm_hmax_ps(__m128 A)
+{
+	A = _mm_max_ps(A, _mm_shuffle_ps(A, A, _MM_SHUFFLE(0, 0, 2, 3)));
+	A = _mm_max_ps(A, _mm_shuffle_ps(A, A, _MM_SHUFFLE(0, 0, 0, 1)));
+	return A;
+}
+
+inline __m128 _mm_hmin_ps(__m128 A)
+{
+	A = _mm_min_ps(A, _mm_shuffle_ps(A, A, _MM_SHUFFLE(0, 0, 2, 3)));
+	A = _mm_min_ps(A, _mm_shuffle_ps(A, A, _MM_SHUFFLE(0, 0, 0, 1)));
+	return A;
+}
+
+inline __m128 _mm_hadd_ps(__m128 a)
+{
+	__m128 sum_x_y = _mm_add_ps(a, _mm_shuffle_ps(a, a, _MM_SHUFFLE(0, 0, 0, 1)));
+	__m128 z = _mm_shuffle_ps(a, a, _MM_SHUFFLE(0, 0, 0, 2));
+	__m128 sum_xy_z = _mm_add_ss(sum_x_y, z);
+
+	return sum_xy_z;
+}
+
+inline __m128 _mm_cross_ps(__m128 a, __m128 b)
+{
+	__m128 a_first = _mm_shuffle_ps(a, a, _MM_SHUFFLE(0, 0, 2, 1));
+	__m128 b_first = _mm_shuffle_ps(b, b, _MM_SHUFFLE(0, 1, 0, 2));
+
+	__m128 a_second = _mm_shuffle_ps(a, a, _MM_SHUFFLE(0, 1, 0, 2));
+	__m128 b_second = _mm_shuffle_ps(b, b, _MM_SHUFFLE(0, 0, 2, 1));
+
+	return _mm_sub_ps(_mm_mul_ps(a_first, b_first), _mm_mul_ps(a_second, b_second));
+}
+
+inline __m128 _mm_dot_ps(__m128 a, __m128 b)
+{
+	return _mm_hadd_ps(_mm_mul_ps(a, b));
+}
+
+inline bool RayTriangle(__m128 in_ray_origin, __m128 in_ray_direction, const __m128 in_v[3], TriangleHitData& inout_hit)
+{
+	__m128 v0v1{ _mm_sub_ps(in_v[1], in_v[0]) };
+	__m128 v0v2{ _mm_sub_ps(in_v[2], in_v[0]) };
+
+	__m128 pvec{ _mm_cross_ps(in_ray_direction, v0v2) };
+	__m128 tvec{ _mm_sub_ps(in_ray_origin, in_v[0]) };
+	__m128 qvec{ _mm_cross_ps(tvec, v0v1) };
+
+	__m128 d = _mm_dot_ps(v0v1, pvec);
+	
+	float det{ _mm_cvtss_f32(d) };
+	float inv_det{ _mm_cvtss_f32(_mm_rcp_ss(d)) };
+	float u{ _mm_cvtss_f32(_mm_dot_ps(tvec, pvec)) };
+	float v{ _mm_cvtss_f32(_mm_dot_ps(in_ray_direction, qvec)) };
+	float t = _mm_cvtss_f32(_mm_dot_ps(v0v2, qvec)) * inv_det;
+
+	if (!((det < EPS) || (u < EPS || u > det) || (v < EPS || u + v > det) || (t < EPS || t > inout_hit.RayT)))
+	{
+		inout_hit.RayT = t;
+		inout_hit.TriangleUV.s = u * inv_det;
+		inout_hit.TriangleUV.t = v * inv_det;
+
+		return true;
+	}
+
+	return false;
+}
+
+inline bool RayAABB(__m128 RayOrigin, __m128 RayInvDir, __m128 BoxMin, __m128 BoxMax, float in_tmax = FLT_MAX)
+{
+	__m128 MinBound = _mm_mul_ps(RayInvDir, _mm_sub_ps(BoxMin, RayOrigin));
+	__m128 MaxBound = _mm_mul_ps(RayInvDir, _mm_sub_ps(BoxMax, RayOrigin));
+
+	__m128 tNear = _mm_min_ps(MinBound, MaxBound);
+	__m128 tFar = _mm_max_ps(MinBound, MaxBound);
+
+	float tmin = _mm_cvtss_f32(_mm_hmax_ps(tNear));
+	float tmax = _mm_cvtss_f32(_mm_hmin_ps(tFar));
+
+	return (tmax >= max(EPS, tmin) && tmin < in_tmax);
+}
+
+#endif
 
 }

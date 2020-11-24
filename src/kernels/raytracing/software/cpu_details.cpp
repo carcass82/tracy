@@ -74,11 +74,13 @@ bool CPUDetails::ProcessScene(const Scene& scene)
 	};
 
 	// utility wrapper for Triangle-AABB intersection
-	auto TriangleAABBTester = [](const auto& in_triangle, const BBox& in_aabb)
+	auto TriangleAABBTester = [&scene](const auto& in_triangle, const BBox& in_aabb)
 	{
-		vec3 v0{ in_triangle.vertices[0] - in_aabb.GetCenter() };
-		vec3 v1{ in_triangle.vertices[1] - in_aabb.GetCenter() };
-		vec3 v2{ in_triangle.vertices[2] - in_aabb.GetCenter() };
+		const auto& mesh = scene.GetObject(in_triangle.GetMeshId());
+		
+		vec3 v0{ mesh.GetVertex(mesh.GetIndex(in_triangle.GetTriangleId() * 3 + 0)).pos - in_aabb.GetCenter() };
+		vec3 v1{ mesh.GetVertex(mesh.GetIndex(in_triangle.GetTriangleId() * 3 + 1)).pos - in_aabb.GetCenter() };
+		vec3 v2{ mesh.GetVertex(mesh.GetIndex(in_triangle.GetTriangleId() * 3 + 2)).pos - in_aabb.GetCenter() };
 
 		return collision::TriangleAABB(v0, v1, v2, in_aabb);
 	};
@@ -133,14 +135,23 @@ bool CPUDetails::ComputeIntersection(const Scene& scene, const Ray& ray, collisi
 	{
 		bool hit_triangle{};
 
+#if USE_INTRINSICS
+		vec3 origin = in_ray.GetOrigin();
+		vec3 direction = in_ray.GetDirection();
+
+		__m128 rayO{ _mm_set_ps(origin.z, origin.z, origin.y, origin.x) };
+		__m128 rayD{ _mm_set_ps(direction.z, direction.z, direction.y, direction.x) };
+#else
 		const vec3 rayO{ in_ray.GetOrigin() };
 		const vec3 rayD{ in_ray.GetDirection() };
+#endif
+
+		collision::TriangleHitData tri_hit_data(intersection_data.t);
 
 		for (uint32_t idx = in_first; idx < in_count; ++idx)
 		{
 			const auto& triangle = in_triangles[idx];
 
-			collision::TriangleHitData tri_hit_data(intersection_data.t);
 			if (collision::RayTriangle(rayO, rayD, triangle.vertices, tri_hit_data))
 			{
 				intersection_data.t = tri_hit_data.RayT;
