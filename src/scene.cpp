@@ -9,6 +9,9 @@
 #define TINYOBJLOADER_IMPLEMENTATION
 #include "ext/tiny_obj_loader.h"
 
+#define STB_IMAGE_IMPLEMENTATION
+#include "ext/stb_image.h"
+
 constexpr inline uint32_t make_id(char a, char b, char c = '\0', char d = '\0')
 {
 	return a | b << 8 | c << 16 | d << 24;
@@ -205,13 +208,14 @@ Mesh& Scene::AddMesh(Mesh&& mesh, bool compute_normals /* = false */)
 
 bool Scene::Init(const char* scene_path, uint32_t& inout_width, uint32_t& inout_height)
 {
-	constexpr uint32_t ID_SCN = make_id('S', 'C', 'N', '\0');
-	constexpr uint32_t ID_OUT = make_id('O', 'U', 'T', '\0');
-	constexpr uint32_t ID_CAM = make_id('C', 'A', 'M', '\0');
-	constexpr uint32_t ID_MTL = make_id('M', 'T', 'L', '\0');
-	constexpr uint32_t ID_SKY = make_id('S', 'K', 'Y', '\0');
-	constexpr uint32_t ID_OBJ = make_id('O', 'B', 'J', '\0');
-	constexpr uint32_t ID_TRI = make_id('T', 'R', 'I', '\0');
+	static constexpr uint32_t ID_SCN = make_id('S', 'C', 'N', '\0');
+	static constexpr uint32_t ID_OUT = make_id('O', 'U', 'T', '\0');
+	static constexpr uint32_t ID_CAM = make_id('C', 'A', 'M', '\0');
+	static constexpr uint32_t ID_MTL = make_id('M', 'T', 'L', '\0');
+	static constexpr uint32_t ID_TEX = make_id('T', 'E', 'X', '\0');
+	static constexpr uint32_t ID_SKY = make_id('S', 'K', 'Y', '\0');
+	static constexpr uint32_t ID_OBJ = make_id('O', 'B', 'J', '\0');
+	static constexpr uint32_t ID_TRI = make_id('T', 'R', 'I', '\0');
 
 	if (FILE* fp = fopen(scene_path, "r"))
 	{
@@ -309,6 +313,36 @@ bool Scene::Init(const char* scene_path, uint32_t& inout_width, uint32_t& inout_
 					}
 					break;
 
+				case ID_TEX:
+					TracyLog("found TEX: %s\n", params);
+					{
+						char mat_name[16];
+						char tex_type;
+						char file_name[MAX_PATH];
+
+						if (sscanf(params, "%s %c %s", mat_name, &tex_type, &file_name) == 3)
+						{
+							Material::TextureID tex_id;
+							switch (tex_type)
+							{
+							case 'B':
+								tex_id = Material::eBASECOLOR;
+								break;
+							case 'N':
+								tex_id = Material::eNORMAL;
+								break;
+							}
+
+							int w, h, bpp;
+							if (uint8_t* pixels = stbi_load(file_name, &w, &h, &bpp, 4))
+							{
+								materials_[mat_name].SetTexture({ w, h, pixels }, tex_id);
+								stbi_image_free(pixels);
+							}
+						}
+					}
+					break;
+
 				case ID_SKY:
 					TracyLog("found SKY: %s\n", params);
 					{
@@ -380,7 +414,7 @@ bool Scene::Init(const char* scene_path, uint32_t& inout_width, uint32_t& inout_
 				case ID_TRI:
 					TracyLog("found TRI: %s\n", params);
 					{
-						char file_name[256];
+						char file_name[MAX_PATH];
 						char mat_name[16];
 						if (sscanf(params, "%s %s", file_name, mat_name) == 2)
 						{
@@ -421,7 +455,7 @@ bool Scene::Init(const char* scene_path, uint32_t& inout_width, uint32_t& inout_
 										const int uvoffset = 2 * index.texcoord_index;
 										if (index.texcoord_index != -1)
 										{
-											uv = vec2{ attrib.texcoords[uvoffset], attrib.vertices[uvoffset + 1] };
+											uv = vec2{ attrib.texcoords[uvoffset], attrib.texcoords[uvoffset + 1] };
 										}
 
 										m_Vertices.emplace_back(pos, normal, uv);

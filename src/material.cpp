@@ -58,29 +58,32 @@ CUDA_DEVICE_CALL bool Material::Scatter(const Ray& ray, const collision::HitData
     {
     case MaterialID::eLAMBERTIAN:
     {
-        vec3 target{ hit.point + hit.normal + random_on_unit_sphere(random_ctx) };
+        vec3 normal{ GetNormal(hit) };
+        vec3 target{ hit.point + normal + random_on_unit_sphere(random_ctx) };
         scatteredDirection = normalize(target - hit.point);
         scatteredOrigin = hit.point;
-        attenuation = albedo_;
+        attenuation = GetBaseColor(hit);
         scattered = true;
         break;
     }
 
     case MaterialID::eMETAL:
     {
-        vec3 reflected = reflect(ray.GetDirection(), hit.normal);
+        vec3 normal{ GetNormal(hit) };
+        vec3 reflected = reflect(ray.GetDirection(), normal);
         scatteredOrigin = hit.point;
         scatteredDirection = reflected + roughness_ * random_on_unit_sphere(random_ctx);
-        attenuation = albedo_;
-        scattered = dot(scatteredDirection, hit.normal) > .0f;
+        attenuation = GetBaseColor(hit);
+        scattered = dot(scatteredDirection, normal) > .0f;
         break;
     }
 
     case MaterialID::eDIELECTRIC:
     {
-        vec3 outward_normal{ hit.normal };
+        vec3 normal{ GetNormal(hit) };
+        vec3 outward_normal{ normal };
         float ni_nt;
-        float cosine = dot(ray.GetDirection(), hit.normal);
+        float cosine = dot(ray.GetDirection(), normal);
 
         if (cosine > EPS)
         {
@@ -95,19 +98,19 @@ CUDA_DEVICE_CALL bool Material::Scatter(const Ray& ray, const collision::HitData
         }
 
         vec3 refracted = refract(ray.GetDirection(), outward_normal, ni_nt);
-        vec3 reflected = reflect(ray.GetDirection(), hit.normal);
+        vec3 reflected = reflect(ray.GetDirection(), normal);
         float reflect_chance = (refracted != vec3{}) ? schlick(cosine, ior_) : 1.0f;
 
         scatteredOrigin = hit.point;
         scatteredDirection = (fastrand(random_ctx) < reflect_chance)? reflected : refracted;
-        attenuation = albedo_;
+        attenuation = GetBaseColor(hit);
         scattered = true;
         break;
     }
 
     case MaterialID::eEMISSIVE:
     {
-        emission = albedo_;
+        emission = GetBaseColor(hit);
         scattered = false;
         break;
     }
@@ -118,3 +121,25 @@ CUDA_DEVICE_CALL bool Material::Scatter(const Ray& ray, const collision::HitData
     out_emission = emission;
     return scattered;
 }
+
+vec3 Material::GetBaseColor(const collision::HitData& hit) const
+{
+    vec3 result = albedo_;
+    if (base_color_.pixels != nullptr)
+    {
+       result *= base_color_.GetPixel(hit.uv);
+    }
+
+    return result;
+}
+
+vec3 Material::GetNormal(const collision::HitData& hit) const
+{
+    if (normal_.pixels != nullptr)
+    {
+        return normal_.GetPixel(hit.uv) * 2.f - 1.f;
+    }
+
+    return hit.normal;
+}
+

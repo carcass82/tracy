@@ -8,4 +8,4 @@
 
 #include "vertex.h"
 using Vertex = BaseVertex<false /* no tangent or bitangent */>;
-using Index = unsigned int;
+using Index = uint32_t;

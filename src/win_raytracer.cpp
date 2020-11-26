@@ -395,17 +395,17 @@ int main(int argc, char** argv)
 
 						static char window_title[MAX_PATH] = {};
 						snprintf(window_title,
-							MAX_PATH,
-							".:: Tracy 2.0 (%s) ::. '%s' :: %dx%d :: Elapsed: %s :: [%d objs] [%d tris] [%.2f MRays/s] [%.2f fps]",
-							g_kernel.GetModuleName(),
-							world.GetName().c_str(),
-							WIDTH,
-							HEIGHT,
-							TracySecondsToString(run_timer.GetDuration()),
-							world.GetObjectCount(),
-							world.GetTriCount(),
-							raycount * 1e-6 / trace_timer.GetDuration(),
-							fps);
+						         MAX_PATH,
+						         ".:: Tracy 2.0 (%s) ::. '%s' :: %dx%d :: Elapsed: %s :: [%d objs] [%d tris] [%.2f MRays/s] [%.2f fps]",
+						         g_kernel.GetModuleName(),
+						         world.GetName().c_str(),
+						         WIDTH,
+						         HEIGHT,
+						         TracySecondsToString(run_timer.GetDuration()),
+						         world.GetObjectCount(),
+						         world.GetTriCount(),
+						         raycount * 1e-6 / trace_timer.GetDuration(),
+						         fps);
 
 						UpdateWindowText(g_win_handle, window_title);
 
@@ -429,9 +429,9 @@ int main(int argc, char** argv)
 				{
 					run_timer.End();
 					TracyLog("\n*** Performance: %.2f MRays/s and %.2f fps on average - Run time: %s ***\n\n",
-						avg_raycount * 1e-6,
-						avg_fps,
-						TracySecondsToString(run_timer.GetDuration()));
+					         avg_raycount * 1e-6,
+					         avg_fps,
+					         TracySecondsToString(run_timer.GetDuration()));
 				}
 			}
 			else
