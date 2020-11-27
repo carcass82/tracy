@@ -97,6 +97,8 @@ public:
 
 	constexpr uint32_t GetTileCount() const { return tile_count_; }
 
+	void ResetFrameCounter() { frame_counter_ = 0; }
+
 private:
 
 	RenderData render_data_{};

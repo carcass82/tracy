@@ -1,0 +1,68 @@
+#
+# Damaged Helmet
+# source model: https://github.com/KhronosGroup/glTF-Sample-Models/tree/master/sourceModels/DamagedHelmet
+#
+SCN Damaged Helmet
+OUT 800 600
+
+#
+# CAM Eye Center Up fov
+#
+CAM (0, 0.2, -3) (0.0, -0.2, 0.0) (0.0, 1.0, 0.0) 45.0
+
+#
+# MTL Name TYPE ALBEDO [Roughness] [IoR]
+# ...
+#
+# Type can be any of
+# - E (emissive)
+# - L (lambertian)
+# - M (metal)
+# - D (dielectric)
+#
+# optional roughness only makes sense for Metals and
+# IoR for Dielectrics. They defaults to 0 and 1 respectively.
+#
+MTL Light E (5.0, 5.0, 5.0)
+MTL Grey L (0.2, 0.2, 0.2)
+MTL Textured L (1, 1, 1)
+
+#
+# TEX <MTL> TYPE PATH
+#
+# Type can be
+# - B (base color map)
+# - N (normal map)
+# - R (roughness map)
+# - M (metalness map)
+# - E (emissive map)
+# 
+TEX Textured B data/helmet_albedo.jpg
+#TEX Textured N data/helmet_normal.jpg
+TEX Textured R data/helmet_roughness.jpg
+TEX Textured M data/helmet_metal.jpg
+TEX Textured E data/helmet_emissive.jpg
+
+
+#
+# SKY [ALBEDO|PATH]
+#
+# sky is just an emissive material used when rays miss
+# all objects in the scene. It defaults to (0,0,0)
+#
+SKY (0, 0, 0)
+
+#
+# OBJ TYPE COORD1 [COORD2] [COORD3] <MTL>
+#
+# - S RADIUS   (sphere)
+# - B MIN MAX  (box)
+# - T V1 V2 V3 (triangle)
+#
+OBJ B (-5.0, 15, -10.0) (5.0, 15.5, 10.0) Light
+OBJ B (-20.0, -1,  -20.0) (20.0, -1, 20.0) Grey
+
+#
+# TRI PATH <MTL>
+#
+TRI data/helmet.obj Textured

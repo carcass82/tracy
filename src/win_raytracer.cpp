@@ -210,8 +210,10 @@ bool TracyProcessMessages(WindowHandle window_handle)
 	return false;
 }
 
-void TracyProcessInputs(Scene& scene, Input& input, WindowHandle window_handle, double dt)
+bool TracyProcessInputs(Scene& scene, Input& input, WindowHandle window_handle, float dt)
 {
+	bool camera_cut{ false };
+
 	if (input.pending)
 	{
 		if (input.GetKeyStatus(Input::ESC))
@@ -222,36 +224,33 @@ void TracyProcessInputs(Scene& scene, Input& input, WindowHandle window_handle, 
 
 		if (input.GetKeyStatus(Input::KeyGroup::Movement))
 		{
-			float cam_speed = static_cast<float>(dt);
-
 			Camera& camera = scene.GetCamera();
 			vec3 new_cam_pos = camera.GetPosition();
 			vec3 cam_up = camera.GetUpVector();
 			vec3 cam_forward = camera.GetTarget() - camera.GetPosition();
 			vec3 cam_right = normalize(cross(cam_forward, cam_up));
 
-			if (input.keystatus[Input::W]) { new_cam_pos += cam_speed * cam_forward; }
+			if (input.keystatus[Input::W]) { new_cam_pos += dt * cam_forward; }
 
-			if (input.keystatus[Input::S]) { new_cam_pos -= cam_speed * cam_forward; }
+			if (input.keystatus[Input::S]) { new_cam_pos -= dt * cam_forward; }
 
-			if (input.keystatus[Input::A]) { new_cam_pos -= cam_speed * cam_right; }
+			if (input.keystatus[Input::A]) { new_cam_pos -= dt * cam_right; }
 
-			if (input.keystatus[Input::D]) { new_cam_pos += cam_speed * cam_right; }
+			if (input.keystatus[Input::D]) { new_cam_pos += dt * cam_right; }
 
-			if (input.keystatus[Input::Q]) { new_cam_pos -= cam_speed * cam_up; }
+			if (input.keystatus[Input::Q]) { new_cam_pos -= dt * cam_up; }
 
-			if (input.keystatus[Input::E]) { new_cam_pos += cam_speed * cam_up; }
+			if (input.keystatus[Input::E]) { new_cam_pos += dt * cam_up; }
 
 			input.ResetKeyStatus(Input::KeyGroup::Movement);
 
 			camera.UpdateView(new_cam_pos, camera.GetTarget(), cam_up);
+			camera_cut = true;
 		}
 
 		static bool mousemoving = false;
 		if (input.mouse.buttonstatus[Input::MouseButton::Left])
 		{
-			float cam_speed = static_cast<float>(dt);
-
 			Camera& camera = scene.GetCamera();
 			vec3 cam_pos = camera.GetPosition();
 			vec3 cam_up = camera.GetUpVector();
@@ -265,13 +264,14 @@ void TracyProcessInputs(Scene& scene, Input& input, WindowHandle window_handle, 
 				mousemoving = true;
 			}
 
-			vec2 delta = cam_speed * (input.mouse.pos - oldpos);
+			vec2 delta = dt * (input.mouse.pos - oldpos);
 
 			mat4 rotation(1.f);
 			rotation = rotate(rotation, radians(delta.x), cam_up);
 			rotation = rotate(rotation, radians(delta.y), cam_right);
 
 			camera.UpdateView((vec4(cam_pos, 1.f) * rotation).xyz, camera.GetTarget(), cam_up);
+			camera_cut = true;
 		}
 		else
 		{
@@ -280,6 +280,8 @@ void TracyProcessInputs(Scene& scene, Input& input, WindowHandle window_handle, 
 
 		input.pending = false;
 	}
+
+	return camera_cut;
 }
 
 bool ShouldQuit(WindowHandle window_handle)
@@ -368,9 +370,14 @@ int main(int argc, char** argv)
 				{
 					TracyProcessMessages(g_win_handle);
 
+					float dt{ static_cast<float>(frame_timer.GetDuration()) };
+
 					while (g_input.pending)
 					{
-						TracyProcessInputs(world, g_input, g_win_handle, frame_timer.GetDuration());
+						if (TracyProcessInputs(world, g_input, g_win_handle, dt))
+						{
+							g_kernel.OnEvent(TracyEvent::eCameraCut, g_win_handle, world);
+						}
 					}
 
 					frame_timer.Reset();
@@ -378,7 +385,7 @@ int main(int argc, char** argv)
 
 					trace_timer.Begin();
 
-					g_kernel.OnUpdate(world);
+					g_kernel.OnUpdate(world, dt);
 
 					trace_timer.End();
 

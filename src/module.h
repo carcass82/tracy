@@ -9,6 +9,8 @@
 
 class Scene;
 
+enum class TracyEvent { eResize, eCameraCut };
+
 //
 // Base class for Tracy render kernels
 //
@@ -37,10 +39,13 @@ public:
 	virtual void Shutdown() = 0;
 	
 	// scene description changed or camera position changed
-	virtual void OnUpdate(const Scene& in_Scene) = 0;
+	virtual void OnUpdate(const Scene& in_Scene, float in_DeltaTime) = 0;
 	
 	// main program says it's time to render
 	virtual void OnRender(const WindowHandle in_Window) = 0;
+
+	// event occurred and module should take appropriate action
+	virtual void OnEvent(TracyEvent in_Event, const WindowHandle in_Window, const Scene& in_Scene) = 0;
 
 	// who are you
 	virtual const char* GetModuleName() const = 0;

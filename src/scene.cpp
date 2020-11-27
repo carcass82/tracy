@@ -289,19 +289,19 @@ bool Scene::Init(const char* scene_path, uint32_t& inout_width, uint32_t& inout_
 							switch (mat_type)
 							{
 							case 'E':
-								material_type = Material::eEMISSIVE;
+								material_type = Material::MaterialID::eEMISSIVE;
 								break;
 							case 'L':
-								material_type = Material::eLAMBERTIAN;
+								material_type = Material::MaterialID::eLAMBERTIAN;
 								break;
 							case 'M':
-								material_type = Material::eMETAL;
+								material_type = Material::MaterialID::eMETAL;
 								break;
 							case 'D':
-								material_type = Material::eDIELECTRIC;
+								material_type = Material::MaterialID::eDIELECTRIC;
 								break;
 							default:
-								material_type = Material::eINVALID;
+								material_type = Material::MaterialID::eINVALID;
 								break;
 							}
 
@@ -326,10 +326,19 @@ bool Scene::Init(const char* scene_path, uint32_t& inout_width, uint32_t& inout_
 							switch (tex_type)
 							{
 							case 'B':
-								tex_id = Material::eBASECOLOR;
+								tex_id = Material::TextureID::eBASECOLOR;
 								break;
 							case 'N':
-								tex_id = Material::eNORMAL;
+								tex_id = Material::TextureID::eNORMAL;
+								break;
+							case 'R':
+								tex_id = Material::TextureID::eROUGHNESS;
+								break;
+							case 'M':
+								tex_id = Material::TextureID::eMETALNESS;
+								break;
+							case 'E':
+								tex_id = Material::TextureID::eEMISSIVE;
 								break;
 							}
 
@@ -349,7 +358,7 @@ bool Scene::Init(const char* scene_path, uint32_t& inout_width, uint32_t& inout_
 						vec3 albedo;
 						if (sscanf(params, "(%f,%f,%f)", &albedo.x, &albedo.y, &albedo.z) == 3)
 						{
-							materials_[SKY_MATERIAL_NAME] = Material(Material::eEMISSIVE, albedo);
+							materials_[SKY_MATERIAL_NAME] = Material(Material::MaterialID::eEMISSIVE, albedo);
 						}
 					}
 					break;
@@ -484,7 +493,7 @@ bool Scene::Init(const char* scene_path, uint32_t& inout_width, uint32_t& inout_
 		// create default black sky material
 		if (materials_.count(SKY_MATERIAL_NAME) == 0)
 		{
-			materials_[SKY_MATERIAL_NAME] = Material(Material::eEMISSIVE, {});
+			materials_[SKY_MATERIAL_NAME] = Material(Material::MaterialID::eEMISSIVE, {});
 		}
 
 		return true;

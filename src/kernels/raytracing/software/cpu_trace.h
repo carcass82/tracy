@@ -18,7 +18,8 @@ class CpuTrace : public TracyModule<CpuTrace>
 
 public:
 	bool Startup(const WindowHandle in_Window, const Scene& in_Scene) override;
-	void OnUpdate(const Scene& in_Scene) override;
+	void OnUpdate(const Scene& in_Scene, float in_DeltaTime) override;
+	void OnEvent(TracyEvent in_Event, const WindowHandle in_Window, const Scene& in_Scene) override;
 	void OnRender(const WindowHandle in_Window) override;
 	void Shutdown() override;
 	const char* GetModuleName() const override { return "CPU"; }

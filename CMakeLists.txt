@@ -54,6 +54,11 @@ if(DEBUG_KDTREE_DISABLE_SAH)
 	add_definitions(-DDISABLE_SAH)
 endif()
 
+option(DEBUG_KDTREE_SHOW "Draw Kd-Tree only (no geometry)" OFF)
+if(DEBUG_KDTREE_SHOW)
+	add_definitions(-DDEBUG_SHOW_TREE)
+endif()
+
 option(DEBUG_FORCE_CONSOLE "Force launch with debug console" OFF)
 if(DEBUG_FORCE_CONSOLE)
 	add_definitions(-DFORCE_CONSOLE)

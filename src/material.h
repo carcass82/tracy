@@ -66,43 +66,65 @@ struct Texture
 class Material
 {
 public:
-	enum MaterialID { eINVALID, eLAMBERTIAN, eMETAL, eDIELECTRIC, eEMISSIVE };
-    enum TextureID { eBASECOLOR, eNORMAL };
+    enum class MaterialID { eINVALID, eLAMBERTIAN, eMETAL, eDIELECTRIC, eEMISSIVE };
+    enum class TextureID { eBASECOLOR, eNORMAL, eROUGHNESS, eMETALNESS, eEMISSIVE };
 
     CUDA_DEVICE_CALL Material()
     {}
 
-    CUDA_DEVICE_CALL Material(MaterialID in_type, const vec3& in_albedo, float in_roughness = .0f, float in_ior = 1.f)
-        : material_type_(in_type)
-        , albedo_(in_albedo)
-        , roughness_(in_roughness)
-        , ior_(in_ior)
+    CUDA_DEVICE_CALL Material(MaterialID in_type, const vec3& in_color, float in_roughness = .0f, float in_ior = 1.f)
+        : material_type_{ in_type }
+        , albedo_{ in_color }
+        , roughness_{ in_roughness }
+        , ior_{ in_ior }
+        , emissive_{ (in_type == MaterialID::eEMISSIVE)? in_color : vec3{} }
     {}
 
     void SetTexture(Texture&& in_texture, TextureID in_texture_id)
     {
         switch (in_texture_id)
         {
-        case eBASECOLOR:
-            base_color_ = std::move(in_texture);
+        case TextureID::eBASECOLOR:
+            base_color_map_ = std::move(in_texture);
             break;
-        case eNORMAL:
-            normal_ = std::move(in_texture);
+        case TextureID::eNORMAL:
+            normal_map_ = std::move(in_texture);
+            break;
+        case TextureID::eROUGHNESS:
+            roughness_map_ = std::move(in_texture);
+            break;
+        case TextureID::eMETALNESS:
+            metalness_map_ = std::move(in_texture);
+            break;
+        case TextureID::eEMISSIVE:
+            emissive_map_ = std::move(in_texture);
             break;
         }
     }
 
     CUDA_DEVICE_CALL bool Scatter(const Ray& ray, const collision::HitData& hit, vec3& out_attenuation, vec3& out_emission, Ray& out_scattered, RandomCtx random_ctx) const;
 
-private:
     vec3 GetBaseColor(const collision::HitData& hit) const;
+
     vec3 GetNormal(const collision::HitData& hit) const;
 
-    MaterialID material_type_{ eINVALID };
+    float GetRoughness(const collision::HitData& hit) const;
+
+    bool GetMetalness(const collision::HitData& hit) const;
+
+    vec3 GetEmissive(const collision::HitData& hit) const;
+
+private:
+
+    MaterialID material_type_{ MaterialID::eINVALID };
     vec3 albedo_{};
     float roughness_{ .0f };
     float ior_{ 1.f };
+    vec3 emissive_{};
 
-    Texture base_color_{};
-    Texture normal_{};
+    Texture base_color_map_{};
+    Texture normal_map_{};
+    Texture roughness_map_{};
+    Texture metalness_map_{};
+    Texture emissive_map_{};
 };

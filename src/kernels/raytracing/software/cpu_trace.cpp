@@ -30,7 +30,7 @@ void CpuTrace::Shutdown()
 	Details.Shutdown();
 }
 
-void CpuTrace::OnUpdate(const Scene& in_Scene)
+void CpuTrace::OnUpdate(const Scene& in_Scene, float in_DeltaTime)
 {
 	const int32_t w = in_Scene.Width();
 	const int32_t h = in_Scene.Height();
@@ -65,6 +65,16 @@ void CpuTrace::OnUpdate(const Scene& in_Scene)
 	}
 
 	Details.UpdateBitmap();
+}
+
+void CpuTrace::OnEvent(TracyEvent in_Event, const WindowHandle in_Window, const Scene& in_Scene)
+{
+	switch (in_Event)
+	{
+	case TracyEvent::eCameraCut:
+		Details.ResetFrameCounter();
+		break;
+	}
 }
 
 #if TILED_RENDERING
@@ -105,8 +115,8 @@ vec3 CpuTrace::Trace(const Ray& ray, const Scene& scene, RandomCtx random_ctx)
 		if (Details.ComputeIntersection(scene, current_ray, intersection_data))
 		{
 #if DEBUG_SHOW_NORMALS
-			return .5f * normalize((1.f + mat3(scene.GetCamera().GetView()) * intersection_data.normal));
-#else
+			return .5f * normalize((1.f + mat3(scene.GetCamera().GetView()) * intersection_data.material->GetNormal(intersection_data)));
+#endif
 			vec3 attenuation;
 			vec3 emission;
 			if (intersection_data.material->Scatter(current_ray, intersection_data, attenuation, emission, current_ray, random_ctx))
@@ -118,7 +128,6 @@ vec3 CpuTrace::Trace(const Ray& ray, const Scene& scene, RandomCtx random_ctx)
 				current_color *= emission;
 				return current_color;
 			}
-#endif
 		}
 		else
 		{
