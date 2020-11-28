@@ -105,6 +105,7 @@ constexpr float EPS = 1.e-8f;
 template<typename T, size_t N> constexpr inline uint32_t array_size(const T(&)[N]) { return N; }
 constexpr inline float rcp(float x) { return 1.f / x; }
 #define srgb(x) convertLinearToSRGB(x)
+#define linear(x) convertSRGBToLinear(x)
 #else
 #include "cclib/cclib.h"
 using cc::math::mat4;
@@ -129,6 +130,7 @@ using cc::math::PI;
 using cc::math::EPS;
 using cc::array_size;
 using cc::gfx::srgb;
+using cc::gfx::linear;
 #endif
 
 #if defined(__CUDACC__)

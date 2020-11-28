@@ -88,10 +88,9 @@ CUDA_DEVICE_CALL bool Material::Scatter(const Ray& ray, const collision::HitData
 
             vec3 refracted = refract(ray.GetDirection(), outward_normal, ni_nt);
             vec3 reflected = reflect(ray.GetDirection(), normal);
-            float reflect_chance = (refracted != vec3{}) ? schlick(cosine, ior_) : 1.0f;
-
+            
             scatteredOrigin = hit.point;
-            scatteredDirection = (fastrand(random_ctx) < reflect_chance) ? reflected : refracted;
+            scatteredDirection = (fastrand(random_ctx) < schlick(cosine, ior_)) ? reflected : refracted;
             attenuation = GetBaseColor(hit);
             scattered = true;
         }
@@ -125,9 +124,10 @@ CUDA_DEVICE_CALL bool Material::Scatter(const Ray& ray, const collision::HitData
 vec3 Material::GetBaseColor(const collision::HitData& hit) const
 {
     vec3 result = albedo_;
+
     if (base_color_map_.pixels != nullptr)
     {
-       result *= base_color_map_.GetPixel(hit.uv);
+       result = base_color_map_.GetPixel(hit.uv).rgb;
     }
 
     return result;
@@ -137,7 +137,10 @@ vec3 Material::GetNormal(const collision::HitData& hit) const
 {
     if (normal_map_.pixels != nullptr)
     {
-        return normal_map_.GetPixel(hit.uv) * 2.f - 1.f;
+        vec3 normal = vec3{ normal_map_.GetPixel(hit.uv).rgb } * 2.f - 1.f;
+        mat3 tbn{ hit.bitangent, hit.tangent, hit.normal };
+
+        return normalize(tbn * normal);
     }
 
     return hit.normal;
@@ -145,30 +148,36 @@ vec3 Material::GetNormal(const collision::HitData& hit) const
 
 float Material::GetRoughness(const collision::HitData& hit) const
 {
+    float result = roughness_;
+
     if (roughness_map_.pixels != nullptr)
     {
-        return roughness_map_.GetPixel(hit.uv).r;
+        result = roughness_map_.GetPixel(hit.uv).r;
     }
 
-    return roughness_;
+    return result;
 }
 
 bool Material::GetMetalness(const collision::HitData& hit) const
 {
+    bool result = material_type_ == MaterialID::eMETAL;
+
     if (metalness_map_.pixels != nullptr)
     {
-        return metalness_map_.GetPixel(hit.uv).r > .0f;
+        result = metalness_map_.GetPixel(hit.uv).r > .0f;
     }
 
-    return material_type_ == MaterialID::eMETAL;
+    return result;
 }
 
 vec3 Material::GetEmissive(const collision::HitData& hit) const
 {
+    vec3 result = emissive_;
+
     if (emissive_map_.pixels != nullptr)
     {
-        return emissive_map_.GetPixel(hit.uv);
+        result = emissive_map_.GetPixel(hit.uv).rgb;
     }
 
-    return emissive_;
+    return result;
 }

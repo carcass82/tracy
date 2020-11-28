@@ -21,6 +21,8 @@ struct alignas(64) HitData
 	vec2 uv;
 	vec3 point;
 	vec3 normal;
+	vec3 tangent;
+	vec3 bitangent;
 	const Material* material;
 };
 

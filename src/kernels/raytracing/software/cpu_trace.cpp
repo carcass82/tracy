@@ -131,10 +131,12 @@ vec3 CpuTrace::Trace(const Ray& ray, const Scene& scene, RandomCtx random_ctx)
 		}
 		else
 		{
-			Ray dummy_ray;
 			vec3 dummy_vec;
 			vec3 sky_color;
-			scene.GetSkyMaterial()->Scatter(current_ray, intersection_data, dummy_vec, sky_color, dummy_ray, random_ctx);
+
+			vec3 v{ normalize(current_ray.GetDirection()) };
+			intersection_data.uv = vec2(atan2f(v.z, v.x) / (2 * PI), asinf(v.y) / PI) + 0.5f;
+			scene.GetSkyMaterial()->Scatter(current_ray, intersection_data, dummy_vec, sky_color, current_ray, random_ctx);
 
 			current_color *= sky_color;
 			return current_color;

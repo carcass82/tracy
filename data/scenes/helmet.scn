@@ -28,7 +28,7 @@ MTL Grey L (0.2, 0.2, 0.2)
 MTL Textured L (1, 1, 1)
 
 #
-# TEX <MTL> TYPE PATH
+# TEX <MTL> TYPE PATH [SRGB]
 #
 # Type can be
 # - B (base color map)
@@ -36,21 +36,23 @@ MTL Textured L (1, 1, 1)
 # - R (roughness map)
 # - M (metalness map)
 # - E (emissive map)
+#
+# use SRGB option to convert pixels to linear
 # 
-TEX Textured B data/helmet_albedo.jpg
-#TEX Textured N data/helmet_normal.jpg
+TEX Textured B data/helmet_albedo.jpg SRGB
+TEX Textured N data/helmet_normal.jpg
 TEX Textured R data/helmet_roughness.jpg
 TEX Textured M data/helmet_metal.jpg
-TEX Textured E data/helmet_emissive.jpg
+TEX Textured E data/helmet_emissive.jpg SRGB
 
 
 #
-# SKY [ALBEDO|PATH]
+# SKY (ALBEDO|PATH [SRGB])
 #
 # sky is just an emissive material used when rays miss
-# all objects in the scene. It defaults to (0,0,0)
+# all objects in the scene. It defaults to solid black
 #
-SKY (0, 0, 0)
+SKY data/helmet_sky.jpg SRGB
 
 #
 # OBJ TYPE COORD1 [COORD2] [COORD3] <MTL>

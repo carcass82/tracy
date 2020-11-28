@@ -216,6 +216,8 @@ bool CPUDetails::ComputeIntersection(const Scene& scene, const Ray& ray, collisi
 
 		data.point = ray.GetPoint(data.t);
 		data.normal = (1.f - uv.x - uv.y) * v0.normal + uv.x * v1.normal + uv.y * v2.normal;
+		data.tangent = (1.f - uv.x - uv.y) * v0.tangent + uv.x * v1.tangent + uv.y * v2.tangent;
+		data.bitangent = (1.f - uv.x - uv.y) * v0.bitangent + uv.x * v1.bitangent + uv.y * v2.bitangent;
 		data.uv = (1.f - uv.x - uv.y) * v0.uv0 + uv.x * v1.uv0 + uv.y * v2.uv0;
 		data.material = mesh.GetMaterial();
 	}

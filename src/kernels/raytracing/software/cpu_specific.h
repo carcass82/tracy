@@ -7,5 +7,5 @@
 #pragma once
 
 #include "vertex.h"
-using Vertex = BaseVertex<false /* no tangent or bitangent */>;
+using Vertex = BaseVertex<true /* no tangent or bitangent */>;
 using Index = uint32_t;
