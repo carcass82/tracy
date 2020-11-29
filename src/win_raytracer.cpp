@@ -201,10 +201,19 @@ bool TracyProcessMessages(WindowHandle window_handle)
 			g_kernel.OnRender(window_handle);
 			break;
 		case KeyPress:
-		case KeyRelease:
+			g_input.keystatus[XLookupKeysym(&e.xkey, 0)] = true;
+			g_input.pending = true;
+			break;
 		case ButtonPress:
 		case ButtonRelease:
-			// TODO: handle input
+			g_input.mouse.buttonstatus[Input::MouseButton::Left] = (e.xbutton.button == Button1);
+			g_input.mouse.buttonstatus[Input::MouseButton::Middle] = (e.xbutton.button == Button2);
+			g_input.mouse.buttonstatus[Input::MouseButton::Right] = (e.xbutton.button == Button3);
+			[[fallthrough]];
+		case MotionNotify:
+			g_input.mouse.pos.x = e.xbutton.x;
+			g_input.mouse.pos.y = e.xbutton.y;
+			g_input.pending = true;
 			break;
 		}
 	}
