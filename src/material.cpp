@@ -55,9 +55,9 @@ CUDA_DEVICE_CALL bool Material::Scatter(const Ray& ray, const collision::HitData
     bool scattered{ false };
 
     bool is_translucent{ material_type_ == MaterialID::eDIELECTRIC };
-    bool is_metal{ GetMetalness(hit) };
     vec3 emissive{ GetEmissive(hit) };
     bool is_emissive{ emissive != vec3{} || material_type_ == MaterialID::eEMISSIVE };
+    bool is_metal{ GetMetalness(hit) > .1f };
 
     if (is_emissive)
     {
@@ -78,7 +78,7 @@ CUDA_DEVICE_CALL bool Material::Scatter(const Ray& ray, const collision::HitData
             {
                 outward_normal *= -1.f;
                 ni_nt = ior_;
-                cosine = sqrtf(1.f - ior_ * ior_ * (1.f - cosine - cosine));
+                cosine = sqrtf(1.f - pow2(ior_) * (1.f - pow2(cosine)));
             }
             else
             {
@@ -96,20 +96,19 @@ CUDA_DEVICE_CALL bool Material::Scatter(const Ray& ray, const collision::HitData
         }
         else
         {
+            scatteredOrigin = hit.point;
+            attenuation = GetBaseColor(hit);
+
             if (is_metal)
             {
                 vec3 reflected = reflect(ray.GetDirection(), normal);
-                scatteredOrigin = hit.point;
                 scatteredDirection = reflected + GetRoughness(hit) * random_on_unit_sphere(random_ctx);
-                attenuation = GetBaseColor(hit);
                 scattered = dot(scatteredDirection, normal) > .0f;
             }
             else
             {
                 vec3 target{ hit.point + normal + random_on_unit_sphere(random_ctx) };
                 scatteredDirection = normalize(target - hit.point);
-                scatteredOrigin = hit.point;
-                attenuation = GetBaseColor(hit);
                 scattered = true;
             }
         }
@@ -138,8 +137,10 @@ vec3 Material::GetNormal(const collision::HitData& hit) const
     if (normal_map_.pixels != nullptr)
     {
         vec3 normal = vec3{ normal_map_.GetPixel(hit.uv).rgb } * 2.f - 1.f;
-        mat3 tbn{ hit.bitangent, hit.tangent, hit.normal };
-
+        
+        vec3 bitangent = cross(hit.normal, normalize(hit.tangent - dot(hit.tangent, hit.normal) * hit.normal));
+        mat3 tbn{ bitangent, hit.tangent, hit.normal };
+        
         return normalize(tbn * normal);
     }
 
@@ -158,16 +159,14 @@ float Material::GetRoughness(const collision::HitData& hit) const
     return result;
 }
 
-bool Material::GetMetalness(const collision::HitData& hit) const
+float Material::GetMetalness(const collision::HitData& hit) const
 {
-    bool result = material_type_ == MaterialID::eMETAL;
-
     if (metalness_map_.pixels != nullptr)
     {
-        result = metalness_map_.GetPixel(hit.uv).r > .0f;
+        return metalness_map_.GetPixel(hit.uv).r;
     }
 
-    return result;
+    return material_type_ == MaterialID::eMETAL ? 1.f : .0f;
 }
 
 vec3 Material::GetEmissive(const collision::HitData& hit) const

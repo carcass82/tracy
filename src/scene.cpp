@@ -345,7 +345,7 @@ bool Scene::Init(const char* scene_path, uint32_t& inout_width, uint32_t& inout_
 							int w, h, bpp;
 							if (uint8_t* pixels = stbi_load(file_name, &w, &h, &bpp, 4))
 							{
-								materials_[mat_name].SetTexture({ w, h, pixels, (num == 4 && stricmp(srgb_flag, "SRGB") == 0) }, tex_id);
+								materials_[mat_name].SetTexture({ w, h, pixels, (num == 4 && strncmp(srgb_flag, "SRGB", 4) == 0) }, tex_id);
 								stbi_image_free(pixels);
 							}
 						}
@@ -369,7 +369,7 @@ bool Scene::Init(const char* scene_path, uint32_t& inout_width, uint32_t& inout_
 							if (uint8_t* pixels = stbi_load(file_name, &w, &h, &bpp, 4))
 							{
 								materials_[SKY_MATERIAL_NAME] = Material(Material::MaterialID::eEMISSIVE, { 1, 1, 1 });
-								materials_[SKY_MATERIAL_NAME].SetTexture({ w, h, pixels, (num == 2 && stricmp(srgb_flag, "SRGB") == 0) }, Material::TextureID::eEMISSIVE);
+								materials_[SKY_MATERIAL_NAME].SetTexture({ w, h, pixels, (num == 2 && strncmp(srgb_flag, "SRGB", 4) == 0) }, Material::TextureID::eEMISSIVE);
 							}
 						}
 					}

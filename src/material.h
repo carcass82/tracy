@@ -116,7 +116,7 @@ public:
 
     float GetRoughness(const collision::HitData& hit) const;
 
-    bool GetMetalness(const collision::HitData& hit) const;
+    float GetMetalness(const collision::HitData& hit) const;
 
     vec3 GetEmissive(const collision::HitData& hit) const;
 
