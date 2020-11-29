@@ -271,7 +271,6 @@ inline bool RayTriangle(__m128 in_ray_origin, __m128 in_ray_direction, const __m
 	__m128 inv_d = _mm_rcp_ss(d);
 
 	float det = _mm_cvtss_f32(d);
-	float inv_det = _mm_cvtss_f32(_mm_rcp_ss(d));
 	float u = _mm_cvtss_f32(_mm_mul_ps(_mm_dot_ps(tvec, pvec), inv_d));
 	float v = _mm_cvtss_f32(_mm_mul_ps(_mm_dot_ps(in_ray_direction, qvec), inv_d));
 	float t = _mm_cvtss_f32(_mm_mul_ps(_mm_dot_ps(v0v2, qvec), inv_d));

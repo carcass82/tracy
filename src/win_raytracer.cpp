@@ -111,13 +111,15 @@ WindowHandle TracyCreateWindow(int width, int height)
 	                                 (HINSTANCE)GetModuleHandle(nullptr),
 	                                 nullptr);
 
+	return CreateWindowHandle(win_handle, width, height);
+
 #else
 
 	Display* dpy = XOpenDisplay(nullptr);
 	
 	int ds = DefaultScreen(dpy);
     Window win = XCreateSimpleWindow(dpy, RootWindow(dpy, ds), 0, 0, width, height, 1, BlackPixel(dpy, ds), WhitePixel(dpy, ds));
-    XSelectInput(dpy, win, KeyPressMask | KeyReleaseMask | ButtonPressMask | ButtonReleaseMask | ButtonMotionMask | StructureNotifyMask);
+    XSelectInput(dpy, win, KeyPressMask | KeyReleaseMask | ButtonPressMask | ButtonReleaseMask | ButtonMotionMask | StructureNotifyMask | ExposureMask);
     
     XInternAtom(dpy, "WM_PROTOCOLS", false);
     Atom close_win_msg = XInternAtom(dpy, "WM_DELETE_WINDOW", false);
@@ -131,17 +133,11 @@ WindowHandle TracyCreateWindow(int width, int height)
     size_hint.min_height = height;
     XSetWMNormalHints(dpy, win, &size_hint);
 
-    XMapWindow(dpy, win);
 	XStoreName(dpy, win, ".:: Tracy 2.0 ::. (collecting data...)");
 
-    handle_t* win_handle = new handle_t;
-    win_handle->ds = ds;
-    win_handle->dpy = dpy;
-    win_handle->win = win;
+    return CreateWindowHandle(width, height, ds, dpy, win);
 
 #endif
-
-	return CreateWindowHandle(win_handle, width, height);
 }
 
 void TracyDestroyWindow(WindowHandle window_handle)
@@ -149,6 +145,7 @@ void TracyDestroyWindow(WindowHandle window_handle)
 #if defined(WIN32)
 	DestroyWindow(window_handle->win);
 #else
+	XUnmapWindow(window_handle->dpy, window_handle->win);
 	XDestroyWindow(window_handle->dpy, window_handle->win);
 	XCloseDisplay(window_handle->dpy);
 #endif
@@ -163,6 +160,8 @@ void TracyDisplayWindow(WindowHandle window_handle)
 	SetForegroundWindow(window_handle->win);
 	UpdateWindow(window_handle->win);
 	SetFocus(window_handle->win);
+#else	
+    XMapWindow(window_handle->dpy, window_handle->win);
 #endif
 }
 
@@ -171,6 +170,9 @@ void TracyUpdateWindow(WindowHandle window_handle)
 #if defined(WIN32)
 	InvalidateRect(window_handle->win, nullptr, FALSE);
 	UpdateWindow(window_handle->win);
+#else
+	XClearArea(window_handle->dpy, window_handle->win, 0, 0, 1, 1, true);
+	XFlush(window_handle->dpy);
 #endif
 }
 
@@ -189,18 +191,20 @@ bool TracyProcessMessages(WindowHandle window_handle)
 
 #else
 
-	if (XEventsQueued(window_handle->dpy, QueuedAlready) > 0)
+	while (XPending(window_handle->dpy))
 	{
 		XEvent e;
 		XNextEvent(window_handle->dpy, &e);
 		switch (e.type)
 		{
 		case Expose:
-			TracyLog("[X11] Expose Event\n");
-			g_kernel.OnPaint();
+			g_kernel.OnRender(window_handle);
 			break;
-		default:
-			TracyLog("[X11] %d Event\n", e.type);
+		case KeyPress:
+		case KeyRelease:
+		case ButtonPress:
+		case ButtonRelease:
+			// TODO: handle input
 			break;
 		}
 	}
@@ -296,14 +300,10 @@ bool ShouldQuit(WindowHandle window_handle)
 	static const Atom WM_PROTOCOL = XInternAtom(window_handle->dpy, "WM_PROTOCOLS", false);
     static const Atom close_win_msg = XInternAtom(window_handle->dpy, "WM_DELETE_WINDOW", false);
 
-	if (XEventsQueued(window_handle->dpy, QueuedAlready) > 0)
-	{
-		XEvent e;
-		XPeekEvent(window_handle->dpy, &e);
-		return (e.type == KeyPress && (XLookupKeysym(&e.xkey, 0) == XK_Escape)) ||
-		       (e.type == ClientMessage && ((Atom)e.xclient.message_type == WM_PROTOCOL && (Atom)e.xclient.data.l[0] == close_win_msg));
-	}
-	return false;
+	XEvent e;
+	XPeekEvent(window_handle->dpy, &e);
+	return (e.type == KeyPress && (XLookupKeysym(&e.xkey, 0) == XK_Escape)) ||
+	       (e.type == ClientMessage && ((Atom)e.xclient.message_type == WM_PROTOCOL && (Atom)e.xclient.data.l[0] == close_win_msg));
 
 #endif
 }

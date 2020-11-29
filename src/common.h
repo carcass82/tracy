@@ -10,15 +10,6 @@
 #include <climits>
 #include <cassert>
 
-using int64  = long long;
-using uint64 = unsigned long long;
-using int32  = int;
-using uint32 = unsigned int;
-using int16  = short;
-using uint16 = unsigned short;
-using int8   = char;
-using uint8  = unsigned char;
-
 #if defined(_DEBUG)
  #define DEBUG_ASSERT(x) assert(x)
 #else
@@ -157,13 +148,13 @@ using cc::gfx::linear;
 #include <Windows.h>
 struct handle_t
 {
-	uint32 width;
-	uint32 height;
+	uint32_t width;
+	uint32_t height;
 	HWND win;
 };
 using WindowHandle = struct handle_t*;
 
-inline WindowHandle CreateWindowHandle(HWND hwnd, uint32 width, uint32 height)
+inline WindowHandle CreateWindowHandle(HWND hwnd, uint32_t width, uint32_t height)
 {
 	return new handle_t{ width, height, hwnd };
 }
@@ -190,11 +181,32 @@ inline void ReleaseWindowHandle(WindowHandle& handle)
 #include <X11/keysym.h>
 struct handle_t
 {
-	int ds;
+	uint32_t width;
+	uint32_t height;
+	int32_t ds;
 	Display* dpy;
 	Window win;
 };
 using WindowHandle = struct handle_t*;
+
+inline WindowHandle CreateWindowHandle(uint32_t width, uint32_t height, int32_t ds, Display* dpy, Window win)
+{
+	return new handle_t{ width, height, ds, dpy, win };
+}
+
+inline bool IsValidWindowHandle(WindowHandle handle)
+{
+	return handle && handle->win;
+}
+
+inline void ReleaseWindowHandle(WindowHandle& handle)
+{
+	if (IsValidWindowHandle(handle))
+	{
+		delete handle;
+		handle = nullptr;
+	}
+}
 
 #if !defined(MAX_PATH)
  #define MAX_PATH 260

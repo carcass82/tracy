@@ -32,9 +32,6 @@ void CpuTrace::Shutdown()
 
 void CpuTrace::OnUpdate(const Scene& in_Scene, float in_DeltaTime)
 {
-	const int32_t w = in_Scene.Width();
-	const int32_t h = in_Scene.Height();
-
 	#pragma omp parallel
 	{
 		static RandomCtxData random_ctx{ 0x12345 };
@@ -50,6 +47,9 @@ void CpuTrace::OnUpdate(const Scene& in_Scene, float in_DeltaTime)
 			}
 		}
 #else
+		const int32_t w{ in_Scene.Width() };
+		const int32_t h{ in_Scene.Height() };
+
 		for (int32_t x = 0; x < w; ++x)
 		{
 			for (int32_t y = 0; y < h; ++y)
@@ -73,6 +73,8 @@ void CpuTrace::OnEvent(TracyEvent in_Event, const WindowHandle in_Window, const 
 	{
 	case TracyEvent::eCameraCut:
 		Details.ResetFrameCounter();
+		break;
+	default:
 		break;
 	}
 }
@@ -105,7 +107,7 @@ vec3 CpuTrace::Trace(const Ray& ray, const Scene& scene, RandomCtx random_ctx)
 	Ray current_ray{ ray.GetOrigin(), ray.GetDirection() };
 	vec3 current_color{ 1.f, 1.f, 1.f };
 
-	for (int t = 0; t < kBounces; ++t)
+	for (uint32_t t = 0; t < kBounces; ++t)
 	{
 		++raycount_;
 

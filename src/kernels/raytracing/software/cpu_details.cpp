@@ -17,6 +17,7 @@ bool CPUDetails::Initialize(WindowHandle ctx, uint32_t w, uint32_t h, uint32_t s
 	render_data_.output.resize(static_cast<size_t>(w) * h, vec3{});
 
 #if defined(WIN32)
+
 	BITMAPINFO bmi;
 	bmi.bmiHeader.biSize = sizeof(BITMAPINFOHEADER);
 	bmi.bmiHeader.biWidth = w;
@@ -27,18 +28,21 @@ bool CPUDetails::Initialize(WindowHandle ctx, uint32_t w, uint32_t h, uint32_t s
 	bmi.bmiHeader.biSizeImage = w * h * bmi.bmiHeader.biBitCount / 8;
 	HDC hdc = CreateCompatibleDC(GetDC(ctx->win));
 	render_data_.bitmap = CreateDIBSection(hdc, &bmi, DIB_RGB_COLORS, (void**)&render_data_.bitmap_bytes, nullptr, 0);
+
 #else
-	//details_->bitmap_bytes = new uint32_t[in_width * in_height];
-	//details_->bitmap = XCreateImage(win_handle_->dpy,
-	//                              DefaultVisual(win_handle_->dpy, win_handle_->ds),
-	//                              DefaultDepth(win_handle_->dpy, win_handle_->ds),
-	//                              ZPixmap,
-	//                              0,
-	//                              reinterpret_cast<char*>(details_->bitmap_bytes),
-	//                              in_width,
-	//                              in_height,
-	//                              32,
-	//                              0);
+
+	render_data_.bitmap_bytes = new uint32_t[w * h];
+	render_data_.bitmap = XCreateImage(ctx->dpy,
+	                                   DefaultVisual(ctx->dpy, ctx->ds),
+	                                   DefaultDepth(ctx->dpy, ctx->ds),
+	                                   ZPixmap,
+	                                   0,
+	                                   reinterpret_cast<char*>(render_data_.bitmap_bytes),
+	                                   w,
+	                                   h,
+	                                   32,
+	                                   0);
+
 #endif
 
 	return (render_data_.bitmap != nullptr);
@@ -46,7 +50,11 @@ bool CPUDetails::Initialize(WindowHandle ctx, uint32_t w, uint32_t h, uint32_t s
 
 void CPUDetails::Shutdown()
 {
+#if defined(WIN32)
 	DeleteObject(render_data_.bitmap);
+#else
+	XDestroyImage(render_data_.bitmap);
+#endif
 }
 
 bool CPUDetails::ProcessScene(const Scene& scene)
@@ -234,9 +242,9 @@ void CPUDetails::UpdateBitmap()
 {
 	// copy last frame result to bitmap for displaying
 	#pragma omp parallel for collapse(2)
-	for (int32_t j = 0; j < static_cast<int32>(render_data_.height); ++j)
+	for (int32_t j = 0; j < static_cast<int32_t>(render_data_.height); ++j)
 	{
-		for (int32_t i = 0; i < static_cast<int32>(render_data_.width); ++i)
+		for (int32_t i = 0; i < static_cast<int32_t>(render_data_.width); ++i)
 		{
 			int32_t idx = j * render_data_.width + i;
 
@@ -252,12 +260,10 @@ void CPUDetails::UpdateBitmap()
 	}
 
 #else
-	#error "TODO: review!"
-	//		XPutPixel(details_->bitmap, i, win_height_ - j, dst);
-	//	}
-	//}
-	//XPutImage(win_handle_->dpy, win_handle_->win, DefaultGC(win_handle_->dpy, win_handle_->ds), details_->bitmap, 0, 0, 0, 0, win_width_, win_height_);
-	//XFlush(win_handle_->dpy);
+			XPutPixel(render_data_.bitmap, i, render_data_.height - j, dst);
+		}
+	}
+	
 #endif
 
 	// buffer ready, frame complete
@@ -285,5 +291,7 @@ void CPUDetails::Render(WindowHandle ctx, uint32_t w, uint32_t h)
 	DeleteObject(srcDC);
 
 	EndPaint(ctx->win, &ps);
+#else	
+	XPutImage(ctx->dpy, ctx->win, DefaultGC(ctx->dpy, ctx->ds), render_data_.bitmap, 0, 0, 0, 0, render_data_.width, render_data_.height);
 #endif
 }

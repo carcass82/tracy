@@ -88,11 +88,11 @@ struct FlatNode
 	CUDA_CALL const T* GetData() const                    { return &root->elements[0]; }
 	CUDA_CALL uint32_t Begin() const                      { return first; }
 	CUDA_CALL uint32_t End() const                        { return last; }
-	CUDA_CALL const BBox& GetAABB() const                 { return aabb; }
 #if USE_INTRINSICS
 	CUDA_CALL __m128 GetAABBMin() const                   { return aabb_min; }
 	CUDA_CALL __m128 GetAABBMax() const                   { return aabb_max; }
 #else
+	CUDA_CALL const BBox& GetAABB() const                 { return aabb; }
 	CUDA_CALL const vec3& GetAABBMin() const              { return aabb.minbound; }
 	CUDA_CALL const vec3& GetAABBMax() const              { return aabb.maxbound; }
 #endif
