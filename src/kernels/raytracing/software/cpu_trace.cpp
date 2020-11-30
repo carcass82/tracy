@@ -32,6 +32,11 @@ void CpuTrace::Shutdown()
 
 void CpuTrace::OnUpdate(const Scene& in_Scene, float in_DeltaTime)
 {
+#if !TILED_RENDERING
+	const int32_t w{ static_cast<int32_t>(in_Scene.Width()) };
+	const int32_t h{ static_cast<int32_t>(in_Scene.Height()) };
+#endif
+
 	#pragma omp parallel
 	{
 		static RandomCtxData random_ctx{ 0x12345 };
@@ -47,9 +52,6 @@ void CpuTrace::OnUpdate(const Scene& in_Scene, float in_DeltaTime)
 			}
 		}
 #else
-		const int32_t w{ in_Scene.Width() };
-		const int32_t h{ in_Scene.Height() };
-
 		for (int32_t x = 0; x < w; ++x)
 		{
 			for (int32_t y = 0; y < h; ++y)
