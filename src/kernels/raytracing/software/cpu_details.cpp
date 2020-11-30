@@ -272,8 +272,23 @@ void CPUDetails::UpdateBitmap()
 
 vec3 CPUDetails::Tonemap(const vec3& color)
 {
-	// perhaps add a better "tonemapping" than Linear -> sRGB
-	return clamp(255.99f * srgb(color), vec3(.0f), vec3(255.f));
+#if USE_TONEMAP_REINHARD
+
+	using cc::gfx::reinhard;
+	vec3 output{ srgb(reinhard(color)) };
+
+#elif USE_TONEMAP_ACES
+	
+	using cc::gfx::aces;
+	vec3 output{ srgb(aces(color)) };
+
+#else
+
+	vec3 output{ srgb(color) };
+
+#endif
+	
+	return clamp(255.99f * output, vec3(.0f), vec3(255.f));
 }
 
 void CPUDetails::Render(WindowHandle ctx, uint32_t w, uint32_t h)

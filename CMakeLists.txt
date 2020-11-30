@@ -39,9 +39,18 @@ if(DEBUG_VERBOSE_MAKEFILE)
     set(CMAKE_VERBOSE_MAKEFILE ON)
 endif()
 
-option(DEBUG_SHOW_NORMALS "Draw scene normals only (no lighting)" OFF)
-if(DEBUG_SHOW_NORMALS)
+set(DEBUG_VIEW "None" CACHE STRING "Debug Visualization")
+set_property(CACHE DEBUG_VIEW PROPERTY STRINGS "None" "BaseColor" "Normals" "Metalness" "Roughness" "Emissive")
+if(DEBUG_VIEW STREQUAL "BaseColor")
+	add_definitions(-DDEBUG_SHOW_BASECOLOR)
+elseif(DEBUG_VIEW STREQUAL "Normals")
 	add_definitions(-DDEBUG_SHOW_NORMALS)
+elseif(DEBUG_VIEW STREQUAL "Metalness")
+	add_definitions(-DDEBUG_SHOW_METALNESS)
+elseif(DEBUG_VIEW STREQUAL "Roughness")
+	add_definitions(-DDEBUG_SHOW_ROUGHNESS)
+elseif(DEBUG_VIEW STREQUAL "Emissive")
+	add_definitions(-DDEBUG_SHOW_EMISSIVE)
 endif()
 
 option(TRACY_ACCELERATION_STRUCTURE "Use Kd-Tree to speed up tracing" ON)
@@ -80,7 +89,16 @@ else()
 	list(APPEND tracy_includes ${cclib_includes})
 endif()
 
-
+###############################################################################
+# Misc options                                                                #
+###############################################################################
+set(TRACY_TONEMAPPING "sRGB" CACHE STRING "Tonemapper Function")
+set_property(CACHE TRACY_TONEMAPPING PROPERTY STRINGS sRGB Aces Reinhard)
+if(TRACY_TONEMAPPING STREQUAL "Aces")
+	add_definitions(-DUSE_TONEMAP_ACES)
+elseif(TRACY_TONEMAPPING STREQUAL "Reinhard")
+	add_definitions(-DUSE_TONEMAP_REINHARD)
+endif()
 
 ###############################################################################
 # Common Sources                                                              #

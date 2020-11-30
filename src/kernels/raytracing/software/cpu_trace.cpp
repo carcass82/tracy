@@ -118,9 +118,19 @@ vec3 CpuTrace::Trace(const Ray& ray, const Scene& scene, RandomCtx random_ctx)
 
 		if (Details.ComputeIntersection(scene, current_ray, intersection_data))
 		{
-#if DEBUG_SHOW_NORMALS
+
+#if DEBUG_SHOW_BASECOLOR
+			return intersection_data.material->GetBaseColor(intersection_data);
+#elif DEBUG_SHOW_NORMALS
 			return .5f * normalize((1.f + mat3(scene.GetCamera().GetView()) * intersection_data.material->GetNormal(intersection_data)));
+#elif DEBUG_SHOW_METALNESS
+			return vec3(intersection_data.material->GetMetalness(intersection_data));
+#elif DEBUG_SHOW_ROUGHNESS
+			return vec3(intersection_data.material->GetRoughness(intersection_data));
+#elif DEBUG_SHOW_EMISSIVE
+			return intersection_data.material->GetEmissive(intersection_data);
 #endif
+
 			vec3 attenuation;
 			vec3 emission;
 			if (intersection_data.material->Scatter(current_ray, intersection_data, attenuation, emission, current_ray, random_ctx))

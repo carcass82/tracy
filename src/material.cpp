@@ -47,7 +47,7 @@ namespace
 CUDA_DEVICE_CALL bool Material::Scatter(const Ray& ray, const collision::HitData& hit, vec3& out_attenuation, vec3& out_emission, Ray& out_scattered, RandomCtx random_ctx) const
 {
     static constexpr float kRayOffset{ 0.001f };
-
+    
     vec3 attenuation{};
     vec3 emission{};
     vec3 scatteredDirection{};
@@ -56,7 +56,7 @@ CUDA_DEVICE_CALL bool Material::Scatter(const Ray& ray, const collision::HitData
 
     bool is_translucent{ material_type_ == MaterialID::eDIELECTRIC };
     vec3 emissive{ GetEmissive(hit) };
-    bool is_emissive{ emissive != vec3{} || material_type_ == MaterialID::eEMISSIVE };
+    bool is_emissive{ emissive.x > .01f || emissive.y > .01f || emissive.z > .01f || material_type_ == MaterialID::eEMISSIVE };
     bool is_metal{ GetMetalness(hit) > .1f };
 
     if (is_emissive)
@@ -171,11 +171,14 @@ float Material::GetMetalness(const collision::HitData& hit) const
 
 vec3 Material::GetEmissive(const collision::HitData& hit) const
 {
+    // TODO: read from scn file
+    static constexpr float kEmissiveMultiplier{ 3.f };
+
     vec3 result = emissive_;
 
     if (emissive_map_.pixels != nullptr)
     {
-        result = emissive_map_.GetPixel(hit.uv).rgb;
+        result = (emissive_map_.GetPixel(hit.uv) * kEmissiveMultiplier).rgb;
     }
 
     return result;
