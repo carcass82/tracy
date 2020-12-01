@@ -44,80 +44,51 @@ namespace
     }
 }
 
-CUDA_DEVICE_CALL bool Material::Scatter(const Ray& ray, const collision::HitData& hit, vec3& out_attenuation, vec3& out_emission, Ray& out_scattered, RandomCtx random_ctx) const
+CUDA_DEVICE_CALL void Material::Scatter(const Ray& ray, const collision::HitData& hit, vec3& out_attenuation, vec3& out_emission, Ray& out_scattered, RandomCtx random_ctx) const
 {
     static constexpr float kRayOffset{ 0.001f };
-    
-    vec3 attenuation{};
-    vec3 emission{};
-    vec3 scatteredDirection{};
-    vec3 scatteredOrigin{};
-    bool scattered{ false };
 
-    bool is_translucent{ material_type_ == MaterialID::eDIELECTRIC };
     vec3 emissive{ GetEmissive(hit) };
-    bool is_emissive{ emissive.x > .01f || emissive.y > .01f || emissive.z > .01f || material_type_ == MaterialID::eEMISSIVE };
-    bool is_metal{ GetMetalness(hit) > .1f };
+    vec3 attenuation{ GetBaseColor(hit) };
+    vec3 scatteredDirection{};
+    vec3 scatteredOrigin{ hit.point };
 
-    if (is_emissive)
-    {
-        emission = emissive;
-        scattered = false;
-    }
-    else
-    {
-        vec3 normal{ GetNormal(hit) };
+    vec3 normal{ GetNormal(hit) };
 
-        if (is_translucent)
+    if (material_type_ == MaterialID::eDIELECTRIC)
+    {
+        vec3 outward_normal{ normal };
+        float ni_nt;
+        float cosine = dot(ray.GetDirection(), normal);
+
+        if (cosine > EPS)
         {
-            vec3 outward_normal{ normal };
-            float ni_nt;
-            float cosine = dot(ray.GetDirection(), normal);
-
-            if (cosine > EPS)
-            {
-                outward_normal *= -1.f;
-                ni_nt = ior_;
-                cosine = sqrtf(1.f - pow2(ior_) * (1.f - pow2(cosine)));
-            }
-            else
-            {
-                ni_nt = rcp(ior_);
-                cosine *= -1;
-            }
-
-            vec3 refracted = refract(ray.GetDirection(), outward_normal, ni_nt);
-            vec3 reflected = reflect(ray.GetDirection(), normal);
-            
-            scatteredOrigin = hit.point;
-            scatteredDirection = (fastrand(random_ctx) < schlick(cosine, ior_)) ? reflected : refracted;
-            attenuation = GetBaseColor(hit);
-            scattered = true;
+            outward_normal *= -1.f;
+            ni_nt = ior_;
+            cosine = sqrtf(1.f - pow2(ior_) * (1.f - pow2(cosine)));
         }
         else
         {
-            scatteredOrigin = hit.point;
-            attenuation = GetBaseColor(hit);
-
-            if (is_metal)
-            {
-                vec3 reflected = reflect(ray.GetDirection(), normal);
-                scatteredDirection = reflected + GetRoughness(hit) * random_on_unit_sphere(random_ctx);
-                scattered = dot(scatteredDirection, normal) > .0f;
-            }
-            else
-            {
-                vec3 target{ hit.point + normal + random_on_unit_sphere(random_ctx) };
-                scatteredDirection = normalize(target - hit.point);
-                scattered = true;
-            }
+            ni_nt = rcp(ior_);
+            cosine *= -1;
         }
+
+        vec3 refracted = refract(ray.GetDirection(), outward_normal, ni_nt);
+        vec3 reflected = reflect(ray.GetDirection(), normal);
+            
+        scatteredDirection = (fastrand(random_ctx) < schlick(cosine, ior_)) ? reflected : refracted;
+    }
+    else
+    {
+        vec3 reflected{ reflect(ray.GetDirection(), normal) };
+        vec3 scattered{ normal + random_on_unit_sphere(random_ctx) };
+
+        scatteredDirection = lerp(scattered, lerp(reflected, scattered, GetRoughness(hit)), GetMetalness(hit));
     }
 
     out_scattered = Ray(scatteredOrigin + kRayOffset * scatteredDirection, scatteredDirection);
     out_attenuation = attenuation;
-    out_emission = emission;
-    return scattered;
+    out_emission = emissive;
 }
 
 vec3 Material::GetBaseColor(const collision::HitData& hit) const

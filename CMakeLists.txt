@@ -107,9 +107,17 @@ elseif(TRACY_TONEMAPPING STREQUAL "sRGB")
 	add_definitions(-DUSE_TONEMAP_SRGB)
 endif()
 
+set(TRACY_EXPOSURE "1" CACHE STRING "Exposure")
+add_definitions(-DTRACY_EXPOSURE=${TRACY_EXPOSURE})
+
 option(TRACY_ACCUMULATE_SAMPLES "Accumulate samples over time" ON)
 if(TRACY_ACCUMULATE_SAMPLES)
 	add_definitions(-DACCUMULATE_SAMPLES)
+endif()
+
+option(TRACY_RUSSIAN_ROULETTE "Use Russian roulette for early ray termination" ON)
+if(TRACY_RUSSIAN_ROULETTE)
+	add_definitions(-DUSE_RUSSIAN_ROULETTE)
 endif()
 
 

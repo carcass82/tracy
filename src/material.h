@@ -25,8 +25,9 @@ public:
         : material_type_{ in_type }
         , albedo_{ in_color }
         , roughness_{ in_roughness }
+        , metalness_{ in_type == MaterialID::eMETAL? 1.f : 0.f }
         , ior_{ in_ior }
-        , emissive_{ (in_type == MaterialID::eEMISSIVE)? in_color : vec3{} }
+        , emissive_{ in_type == MaterialID::eEMISSIVE? in_color : vec3{} }
     {}
 
     void SetTexture(Texture&& in_texture, TextureID in_texture_id)
@@ -51,7 +52,7 @@ public:
         }
     }
 
-    CUDA_DEVICE_CALL bool Scatter(const Ray& ray, const collision::HitData& hit, vec3& out_attenuation, vec3& out_emission, Ray& out_scattered, RandomCtx random_ctx) const;
+    CUDA_DEVICE_CALL void Scatter(const Ray& ray, const collision::HitData& hit, vec3& out_attenuation, vec3& out_emission, Ray& out_scattered, RandomCtx random_ctx) const;
 
     vec3 GetBaseColor(const collision::HitData& hit) const;
 
@@ -68,6 +69,7 @@ private:
     MaterialID material_type_{ MaterialID::eINVALID };
     vec3 albedo_{};
     float roughness_{ .0f };
+    float metalness_{ .0f };
     float ior_{ 1.f };
     vec3 emissive_{};
 

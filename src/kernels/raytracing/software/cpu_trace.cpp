@@ -150,6 +150,16 @@ vec3 CpuTrace::Trace(Ray&& ray, const Scene& scene, RandomCtx random_ctx)
 			pixel += emission * throughput;
 			break;
 		}
+
+#if USE_RUSSIAN_ROULETTE
+		float p = max(throughput.r, max(throughput.g, throughput.b));
+		if (fastrand(random_ctx) > p)
+		{
+			break;
+		}
+		
+		throughput *= rcp(p);
+#endif
 	}
 
 	return pixel;

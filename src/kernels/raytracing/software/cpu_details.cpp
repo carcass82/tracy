@@ -276,19 +276,21 @@ void CPUDetails::UpdateBitmap()
 
 vec3 CPUDetails::Tonemap(const vec3& color)
 {
+	constexpr float kExposure = TRACY_EXPOSURE;
+
 #if USE_TONEMAP_REINHARD
 
 	using cc::gfx::reinhard;
-	vec3 output{ srgb(reinhard(color)) };
+	vec3 output{ srgb(reinhard(color * kExposure)) };
 
 #elif USE_TONEMAP_ACES
 	
 	using cc::gfx::aces;
-	vec3 output{ srgb(aces(color)) };
+	vec3 output{ srgb(aces(color * kExposure)) };
 
 #elif USE_TONEMAP_SRGB
 
-	vec3 output{ srgb(color) };
+	vec3 output{ srgb(color * kExposure) };
 
 #else
 

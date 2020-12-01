@@ -32,6 +32,10 @@
  #define CUDA_DEVICE_CALL
 #endif
 
+#if !defined(TRACY_EXPOSURE)
+ #define TRACY_EXPOSURE 1.f
+#endif
+
 #if defined(_DEBUG)
  #if defined(_MSC_VER)
   #define DEBUG_BREAK() __debugbreak()
