@@ -34,7 +34,7 @@ Input g_input;
 #endif
 
 
-#if defined(WIN32)
+#if defined(_WIN32)
 LRESULT CALLBACK WindowProc(HWND hwnd, UINT uMsg, WPARAM wParam, LPARAM lParam)
 {
 	switch (uMsg)
@@ -71,7 +71,7 @@ LRESULT CALLBACK WindowProc(HWND hwnd, UINT uMsg, WPARAM wParam, LPARAM lParam)
 
 void UpdateWindowText(WindowHandle window, const char* text)
 {
-#if defined(WIN32)
+#if defined(_WIN32)
 	SetWindowTextA(window->win, text);
 #else
 	XStoreName(window->dpy, window->win, text);
@@ -80,7 +80,7 @@ void UpdateWindowText(WindowHandle window, const char* text)
 
 WindowHandle TracyCreateWindow(int width, int height)
 {
-#if defined(WIN32)
+#if defined(_WIN32)
 
 	WNDCLASSEXA win_class = {};
 	win_class.cbSize = sizeof(WNDCLASSEX);
@@ -142,7 +142,7 @@ WindowHandle TracyCreateWindow(int width, int height)
 
 void TracyDestroyWindow(WindowHandle window_handle)
 {
-#if defined(WIN32)
+#if defined(_WIN32)
 	DestroyWindow(window_handle->win);
 #else
 	XUnmapWindow(window_handle->dpy, window_handle->win);
@@ -155,7 +155,7 @@ void TracyDestroyWindow(WindowHandle window_handle)
 
 void TracyDisplayWindow(WindowHandle window_handle)
 {
-#if defined(WIN32)
+#if defined(_WIN32)
 	ShowWindow(window_handle->win, SW_SHOW);
 	SetForegroundWindow(window_handle->win);
 	UpdateWindow(window_handle->win);
@@ -167,7 +167,7 @@ void TracyDisplayWindow(WindowHandle window_handle)
 
 void TracyUpdateWindow(WindowHandle window_handle)
 {
-#if defined(WIN32)
+#if defined(_WIN32)
 	InvalidateRect(window_handle->win, nullptr, FALSE);
 	UpdateWindow(window_handle->win);
 #else
@@ -178,7 +178,7 @@ void TracyUpdateWindow(WindowHandle window_handle)
 
 bool TracyProcessMessages(WindowHandle window_handle)
 {
-#if defined(WIN32)
+#if defined(_WIN32)
 
 	MSG msg;
 	if (PeekMessage(&msg, NULL, NULL, NULL, PM_REMOVE | PM_QS_SENDMESSAGE | PM_QS_INPUT | PM_QS_POSTMESSAGE))
@@ -299,7 +299,7 @@ bool TracyProcessInputs(Scene& scene, Input& input, WindowHandle window_handle, 
 
 bool ShouldQuit(WindowHandle window_handle)
 {
-#if defined(WIN32)
+#if defined(_WIN32)
 
 	MSG msg;
 	return (PeekMessage(&msg, NULL, NULL, NULL, PM_NOREMOVE) && msg.message == WM_QUIT);
@@ -334,7 +334,7 @@ const char* TracySecondsToString(double in_seconds)
 	return timestring;
 }
 
-#if defined(WIN32) && !defined(FORCE_CONSOLE)
+#if defined(_WIN32) && !defined(FORCE_CONSOLE)
 int WINAPI WinMain(_In_ HINSTANCE /* hInstance */, _In_opt_ HINSTANCE /* hPrevInstance */, _In_ LPSTR /* lpCmdLine */, _In_ int /* nShowCmd */)
 {
 	int argc = __argc;

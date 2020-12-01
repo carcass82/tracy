@@ -5,6 +5,7 @@
  * (c) Carlo Casta, 2018
  */
 #pragma once
+#include "common.h"
 #include <cstdio>
 #include <cstdarg>
 
@@ -18,7 +19,7 @@ inline void TracyLog(const char* msg, ...)
     vsnprintf(buffer, MAX_BUFFER_SIZE, msg, args);
     va_end(args);
 
-#if defined(WIN32)
+#if defined(_WIN32)
     OutputDebugStringA(buffer);
 #else
     fputs(buffer, stderr);

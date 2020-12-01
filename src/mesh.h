@@ -28,7 +28,7 @@ using std::vector;
 class Mesh
 {
 public:
-	Mesh() : Mesh(nullptr, 0, nullptr, 0) {}
+	Mesh() {}
 
 	Mesh(const vector<Vertex>& in_vertices, const vector<Index>& in_indices, const Material* in_material = nullptr)
 		: material_(in_material)
@@ -42,15 +42,6 @@ public:
 		indexcount_ = static_cast<uint32_t>(in_indices.size());
 		indices_ = new Index[indexcount_];
 		memcpy(indices_, &in_indices[0], indexcount_ * sizeof(Index));
-	}
-
-	Mesh(Vertex* in_vertices, uint32_t in_vertexcount, Index* in_indices, uint32_t in_indexcount, Material* in_material = nullptr)
-		: vertices_(in_vertices)
-		, vertexcount_(in_vertexcount)
-		, indices_(in_indices)
-		, indexcount_(in_indexcount)
-		, material_(in_material)
-	{
 	}
 
 	~Mesh()
@@ -118,12 +109,12 @@ public:
 	
 
 private:
-	Vertex* vertices_;
-	uint32_t vertexcount_;
-	Index* indices_;
-	uint32_t indexcount_;
-	const Material* material_;
-	BBox aabb_;
+	Vertex* vertices_{};
+	uint32_t vertexcount_{};
+	Index* indices_{};
+	uint32_t indexcount_{};
+	const Material* material_{};
+	BBox aabb_{};
 };
 
 

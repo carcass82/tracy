@@ -66,7 +66,7 @@ public:
 	Container<T>& GetElements()                { return elems_; }
 	const Container<T>& GetElements() const    { return elems_; }
 	const T* GetData() const                   { return &elems_[0]; }
-	void ClearChild(Child child)               { SafeDelete(children_[child]); }
+	void ClearChild(Child child)               { delete children_[child]; children_[child] = nullptr; }
 	void ClearChildren()                       { ClearChild(Child::Right); ClearChild(Child::Left); }
 	void ClearElems()                          { Container<T>().swap(elems_); }
 	uint32_t GetDepth() const                  { return depth_; }

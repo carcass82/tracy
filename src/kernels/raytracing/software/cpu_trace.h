@@ -28,7 +28,7 @@ public:
 	void ResetRayCount()          { raycount_ = 0; }
 
 private:
-	vec3 Trace(const Ray& ray, const Scene& scene, RandomCtx random_ctx);
+	vec3 Trace(Ray&& ray, const Scene& scene, RandomCtx random_ctx);
 
 #if TILED_RENDERING
 	void RenderTile(uint32_t tile_x, uint32_t tile_y, uint32_t tile_size, const Scene& scene, RandomCtx random_ctx);

@@ -16,7 +16,7 @@ bool CPUDetails::Initialize(WindowHandle ctx, uint32_t w, uint32_t h, uint32_t s
 	render_data_.height = h;
 	render_data_.output.resize(static_cast<size_t>(w) * h, vec3{});
 
-#if defined(WIN32)
+#if defined(_WIN32)
 
 	BITMAPINFO bmi;
 	bmi.bmiHeader.biSize = sizeof(BITMAPINFOHEADER);
@@ -50,7 +50,7 @@ bool CPUDetails::Initialize(WindowHandle ctx, uint32_t w, uint32_t h, uint32_t s
 
 void CPUDetails::Shutdown()
 {
-#if defined(WIN32)
+#if defined(_WIN32)
 	DeleteObject(render_data_.bitmap);
 #else
 	XDestroyImage(render_data_.bitmap);
@@ -234,8 +234,16 @@ bool CPUDetails::ComputeIntersection(const Scene& scene, const Ray& ray, collisi
 
 void CPUDetails::UpdateOutput(uint32_t index, const vec3& color)
 {
+#if ACCUMULATE_SAMPLES
+
 	float blend_factor = frame_counter_ / (frame_counter_ + 1.f);
 	render_data_.output[index] = lerp(color, render_data_.output[index], blend_factor);
+
+#else
+
+	render_data_.output[index] = color;
+
+#endif
 }
 
 void CPUDetails::UpdateBitmap()
@@ -254,17 +262,13 @@ void CPUDetails::UpdateBitmap()
 			               ((uint8_t)bitmap_col.g << 8) |
 			               ((uint8_t)bitmap_col.r << 16);
 
-#if defined(WIN32)
+#if defined(_WIN32)
 			render_data_.bitmap_bytes[idx] = dst;
-		}
-	}
-
 #else
 			XPutPixel(render_data_.bitmap, i, render_data_.height - j, dst);
+#endif
 		}
 	}
-	
-#endif
 
 	// buffer ready, frame complete
 	++frame_counter_;
@@ -282,9 +286,13 @@ vec3 CPUDetails::Tonemap(const vec3& color)
 	using cc::gfx::aces;
 	vec3 output{ srgb(aces(color)) };
 
-#else
+#elif USE_TONEMAP_SRGB
 
 	vec3 output{ srgb(color) };
+
+#else
+
+	vec3 output{ color };
 
 #endif
 	
@@ -293,7 +301,7 @@ vec3 CPUDetails::Tonemap(const vec3& color)
 
 void CPUDetails::Render(WindowHandle ctx, uint32_t w, uint32_t h)
 {
-#if defined(WIN32)
+#if defined(_WIN32)
 	PAINTSTRUCT ps;
 	RECT rect;
 	HDC hdc = BeginPaint(ctx->win, &ps);

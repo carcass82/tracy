@@ -29,7 +29,7 @@ struct RenderData
 	vector<vec3> output{};
 	uint32_t* bitmap_bytes{};
 
-#if defined(WIN32)
+#if defined(_WIN32)
 	HBITMAP bitmap{};
 #else
 	XImage* bitmap{};

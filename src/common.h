@@ -50,9 +50,6 @@
  #define NOVTABLE
 #endif
 
-template<typename T>
-inline void SafeDelete(T* ptr) { delete ptr; ptr = nullptr; }
-
 #if USE_GLM
  #if defined(__CUDACC__)
   #include <cuda.h>

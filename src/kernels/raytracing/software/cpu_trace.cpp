@@ -104,10 +104,11 @@ void CpuTrace::RenderTile(uint32_t in_TileX, uint32_t in_TileY, uint32_t in_Tile
 }
 #endif
 
-vec3 CpuTrace::Trace(const Ray& ray, const Scene& scene, RandomCtx random_ctx)
+vec3 CpuTrace::Trace(Ray&& ray, const Scene& scene, RandomCtx random_ctx)
 {
-	Ray current_ray{ ray.GetOrigin(), ray.GetDirection() };
-	vec3 current_color{ 1.f, 1.f, 1.f };
+	Ray current_ray{ std::move(ray) };
+	vec3 throughput{ 1.f, 1.f, 1.f };
+	vec3 pixel;
 
 	for (uint32_t t = 0; t < kBounces; ++t)
 	{
@@ -115,6 +116,9 @@ vec3 CpuTrace::Trace(const Ray& ray, const Scene& scene, RandomCtx random_ctx)
 
 		collision::HitData intersection_data;
 		intersection_data.t = FLT_MAX;
+
+		vec3 attenuation;
+		vec3 emission;
 
 		if (Details.ComputeIntersection(scene, current_ray, intersection_data))
 		{
@@ -131,33 +135,24 @@ vec3 CpuTrace::Trace(const Ray& ray, const Scene& scene, RandomCtx random_ctx)
 			return intersection_data.material->GetEmissive(intersection_data);
 #endif
 
-			vec3 attenuation;
-			vec3 emission;
-			if (intersection_data.material->Scatter(current_ray, intersection_data, attenuation, emission, current_ray, random_ctx))
+			intersection_data.material->Scatter(current_ray, intersection_data, attenuation, emission, current_ray, random_ctx);
 			{
-				current_color *= attenuation;
-			}
-			else
-			{
-				current_color *= emission;
-				return current_color;
+				pixel += emission * throughput;
+				throughput *= attenuation;
 			}
 		}
 		else
 		{
-			vec3 dummy_vec;
-			vec3 sky_color;
-
 			vec3 v{ normalize(current_ray.GetDirection()) };
 			intersection_data.uv = vec2(atan2f(v.z, v.x) / (2 * PI), asinf(v.y) / PI) + 0.5f;
-			scene.GetSkyMaterial()->Scatter(current_ray, intersection_data, dummy_vec, sky_color, current_ray, random_ctx);
-
-			current_color *= sky_color;
-			return current_color;
+			scene.GetSkyMaterial()->Scatter(current_ray, intersection_data, attenuation, emission, current_ray, random_ctx);
+			
+			pixel += emission * throughput;
+			break;
 		}
 	}
 
-	return {};
+	return pixel;
 }
 
 void CpuTrace::OnRender(const WindowHandle in_Window)

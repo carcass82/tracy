@@ -124,7 +124,7 @@ vec3 Material::GetBaseColor(const collision::HitData& hit) const
 {
     vec3 result = albedo_;
 
-    if (base_color_map_.pixels != nullptr)
+    if (*base_color_map_)
     {
        result = base_color_map_.GetPixel(hit.uv).rgb;
     }
@@ -134,10 +134,9 @@ vec3 Material::GetBaseColor(const collision::HitData& hit) const
 
 vec3 Material::GetNormal(const collision::HitData& hit) const
 {
-    if (normal_map_.pixels != nullptr)
+    if (*normal_map_)
     {
         vec3 normal = vec3{ normal_map_.GetPixel(hit.uv).rgb } * 2.f - 1.f;
-        
         vec3 bitangent = cross(hit.normal, normalize(hit.tangent - dot(hit.tangent, hit.normal) * hit.normal));
         mat3 tbn{ bitangent, hit.tangent, hit.normal };
         
@@ -151,7 +150,7 @@ float Material::GetRoughness(const collision::HitData& hit) const
 {
     float result = roughness_;
 
-    if (roughness_map_.pixels != nullptr)
+    if (*roughness_map_)
     {
         result = roughness_map_.GetPixel(hit.uv).r;
     }
@@ -161,7 +160,7 @@ float Material::GetRoughness(const collision::HitData& hit) const
 
 float Material::GetMetalness(const collision::HitData& hit) const
 {
-    if (metalness_map_.pixels != nullptr)
+    if (*metalness_map_)
     {
         return metalness_map_.GetPixel(hit.uv).r;
     }
@@ -171,14 +170,11 @@ float Material::GetMetalness(const collision::HitData& hit) const
 
 vec3 Material::GetEmissive(const collision::HitData& hit) const
 {
-    // TODO: read from scn file
-    static constexpr float kEmissiveMultiplier{ 3.f };
-
     vec3 result = emissive_;
 
-    if (emissive_map_.pixels != nullptr)
+    if (*emissive_map_)
     {
-        result = (emissive_map_.GetPixel(hit.uv) * kEmissiveMultiplier).rgb;
+        result = emissive_map_.GetPixel(hit.uv).rgb;
     }
 
     return result;

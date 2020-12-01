@@ -22,6 +22,7 @@ if(POLICY CMP0072)
 endif()
 
 
+
 ###############################################################################
 # CMP0104: Raise an error if CUDA_ARCHITECTURES is empty.                     #
 #          (OLD policy allows that)                                           #
@@ -29,6 +30,7 @@ endif()
 if(POLICY CMP0104)
 	cmake_policy(SET CMP0104 OLD)
 endif()
+
 
 
 ###############################################################################
@@ -74,6 +76,7 @@ if(DEBUG_FORCE_CONSOLE)
 endif()
 
 
+
 ###############################################################################
 # Math library selection                                                      #
 ###############################################################################
@@ -89,16 +92,26 @@ else()
 	list(APPEND tracy_includes ${cclib_includes})
 endif()
 
+
+
 ###############################################################################
 # Misc options                                                                #
 ###############################################################################
 set(TRACY_TONEMAPPING "sRGB" CACHE STRING "Tonemapper Function")
-set_property(CACHE TRACY_TONEMAPPING PROPERTY STRINGS sRGB Aces Reinhard)
+set_property(CACHE TRACY_TONEMAPPING PROPERTY STRINGS None sRGB Aces Reinhard)
 if(TRACY_TONEMAPPING STREQUAL "Aces")
 	add_definitions(-DUSE_TONEMAP_ACES)
 elseif(TRACY_TONEMAPPING STREQUAL "Reinhard")
 	add_definitions(-DUSE_TONEMAP_REINHARD)
+elseif(TRACY_TONEMAPPING STREQUAL "sRGB")
+	add_definitions(-DUSE_TONEMAP_SRGB)
 endif()
+
+option(TRACY_ACCUMULATE_SAMPLES "Accumulate samples over time" ON)
+if(TRACY_ACCUMULATE_SAMPLES)
+	add_definitions(-DACCUMULATE_SAMPLES)
+endif()
+
 
 ###############################################################################
 # Common Sources                                                              #
@@ -126,6 +139,7 @@ list(APPEND tracy_sources ${main_sources})
 set(main_includes "./src/mesh.h"
                   "./src/scene.h"
                   "./src/material.h"
+				  "./src/texture.h"
                   "./src/common.h"
 				  "./src/module.h"
                   "./src/ray.h"
@@ -379,6 +393,7 @@ else()
 	endif()
 
 endif()
+
 
 
 ###############################################################################
