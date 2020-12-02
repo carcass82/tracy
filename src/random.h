@@ -39,6 +39,27 @@ inline float fastrand(RandomCtx ctx)
     return ctx / static_cast<float>(UINT32_MAX);
 }
 
+#elif RANDOM_PCG
+
+//
+// PRNG from https://www.pcg-random.org/download.html
+//
+inline float fastrand(RandomCtx ctx)
+{
+    uint64_t oldstate = ctx.state;
+
+    // Advance internal state
+    ctx.state = oldstate * 6364136223846793005ULL + (ctx.inc | 1);
+    
+    // Calculate output function (XSH RR), uses old state for max ILP
+    uint32_t xorshifted = ((oldstate >> 18u) ^ oldstate) >> 27u;
+    uint32_t rot = oldstate >> 59u;
+
+    uint32_t rand = (xorshifted >> rot) | (xorshifted << ((-rot) & 31));
+
+    return rand / static_cast<float>(UINT32_MAX);
+}
+
 #else
 
 //

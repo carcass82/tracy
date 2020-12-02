@@ -186,7 +186,7 @@ if(TRACY_RENDER_MODULE STREQUAL "CPU (RayTracing)")
 	include_directories(./src/kernels/raytracing/software/)
 
 	set(CPU_RAND_ALGORITHM "LCG" CACHE STRING "Random Algorithm to use")
-	set_property(CACHE CPU_RAND_ALGORITHM PROPERTY STRINGS "rand()" "XorShift" "LCG")
+	set_property(CACHE CPU_RAND_ALGORITHM PROPERTY STRINGS "rand()" "XorShift" "LCG" "PCG")
 	
 	option(CPU_NO_OPENMP "Disable OpenMP in CPU Trace loop" OFF)
 
@@ -210,6 +210,8 @@ if(TRACY_RENDER_MODULE STREQUAL "CPU (RayTracing)")
 		add_definitions(-DRANDOM_XORSHIFT=1)
 	elseif(CPU_RAND_ALGORITHM STREQUAL "LCG")
 		add_definitions(-DRANDOM_LCG=1)
+	elseif(CPU_RAND_ALGORITHM STREQUAL "PCG")
+		add_definitions(-DRANDOM_PCG=1)
 	endif()
 
 	if (CPU_TILED_RENDER)

@@ -127,14 +127,20 @@ using cc::gfx::linear;
 
 #if defined(__CUDACC__)
  #include <curand_kernel.h>
+ using RandomCtxData = curandState;
  using RandomCtx = curandState*;
  #define fastrand(x) curand_uniform(x)
 
  #include <nvfunctional>
  using nvstd::function;
 #else
+#if RANDOM_PCG
+ using RandomCtxData = struct { uint64_t state;  uint64_t inc; };
+ using RandomCtx = RandomCtxData&;
+#else
  using RandomCtxData = uint32_t;
- using RandomCtx = uint32_t&;
+ using RandomCtx = RandomCtxData&;
+#endif
 
  #include <functional>
  using std::function;
