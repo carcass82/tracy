@@ -10,28 +10,34 @@ OUT 1024 768
 CAM (0, 3, 5) (0.0, 0.0, 0.0) (0.0, 1.0, 0.0) 60.0
 
 #
-# MTL Name TYPE ALBEDO [Roughness] [IoR]
-# ...
+# MTL Name ALBEDO ROUGHNESS METALNESS [IOR] [EMISSIVE] [TRANSLUCENCY]
 #
-# Type can be any of
-# - E (emissive)
-# - L (lambertian)
-# - M (metal)
-# - D (dielectric)
+# optional IOR (defaults to 1)
+# optional EMISSIVE multiplier
 #
-# optional roughness only makes sense for Metals and
-# IoR for Dielectrics. They defaults to 0 and 1 respectively.
-#
-MTL Red L (0.2, 0.0, 0.0)
-MTL Green L (0.0, 0.2, 0.0)
-MTL Blue L (0.0, 0.0, 0.2)
-MTL Yellow L (0.2, 0.2, 0.0)
+MTL Red (0.2, 0.0, 0.0) 1 0
+MTL Green (0.0, 0.2, 0.0) 1 0
+MTL Blue (0.0, 0.0, 0.2) 1 0
+MTL Yellow (0.2, 0.2, 0.0) 1 0
 
 #
-# SKY [ALBEDO]
+# TEX <MTL> TYPE PATH [SRGB]
+#
+# Type can be
+# - B (base color map)
+# - N (normal map)
+# - R (roughness map)
+# - M (metalness map)
+# - E (emissive map)
+#
+# use SRGB option to convert pixels to linear
+# 
+
+#
+# SKY (ALBEDO|PATH [SRGB])
 #
 # sky is just an emissive material used when rays miss
-# all objects in the scene. It defaults to (0,0,0)
+# all objects in the scene. It defaults to solid black
 #
 SKY (1, 1, 1)
 
@@ -46,3 +52,7 @@ OBJ T ( 5, -2, -4) ( 6, -2, -4) ( 6, -1, -4) Red
 OBJ T ( 0, -2, -4) ( 1, -2, -4) ( 1, -1, -4) Green
 OBJ T (-2, -2, -4) (-1, -2, -4) (-1, -1, -4) Blue
 OBJ T (-4, -2, -5) ( 4, -2,  0) ( 4, -2, -5) Yellow
+
+#
+# TRI PATH MTL
+#

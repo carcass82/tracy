@@ -275,40 +275,18 @@ bool Scene::Init(const char* scene_path, uint32_t& inout_width, uint32_t& inout_
 					TracyLog("found MTL: %s\n", params);
 					{
 						char mat_name[16];
-						char mat_type;
-
 						vec3 albedo;
-						float param = .0f;
+						float roughness;
+						float metalness;
+						float ior{ 1.f };
+						float emissive{ 0.f };
+						float translucency{ 0.f };
 
-						int num = sscanf(params, "%s %c (%f,%f,%f) %f", mat_name,
-						                                                &mat_type,
-						                                                &albedo.x, &albedo.y, &albedo.z,
-						                                                &param);
+						if (int num = sscanf(params, "%s (%f,%f,%f) %f %f %f %f %f", mat_name,
+						                                                             &albedo.x, &albedo.y, &albedo.z,
+						                                                             &roughness, &metalness, &ior, &emissive, &translucency) >= 6)
 						{
-							Material::MaterialID material_type;
-							switch (mat_type)
-							{
-							case 'E':
-								material_type = Material::MaterialID::eEMISSIVE;
-								break;
-							case 'L':
-								material_type = Material::MaterialID::eLAMBERTIAN;
-								break;
-							case 'M':
-								material_type = Material::MaterialID::eMETAL;
-								break;
-							case 'D':
-								material_type = Material::MaterialID::eDIELECTRIC;
-								break;
-							default:
-								material_type = Material::MaterialID::eINVALID;
-								break;
-							}
-
-							float roughness = (num == 6) ? param : .0f;
-							float ior = (num == 6) ? param : 1.f;
-
-							materials_[mat_name] = Material(material_type, albedo, roughness, ior);
+							materials_[mat_name] = Material(albedo, roughness, metalness, ior, emissive, translucency);
 						}
 					}
 					break;
@@ -358,7 +336,7 @@ bool Scene::Init(const char* scene_path, uint32_t& inout_width, uint32_t& inout_
 						vec3 albedo;
 						if (sscanf(params, "(%f,%f,%f)", &albedo.x, &albedo.y, &albedo.z) == 3)
 						{
-							materials_[SKY_MATERIAL_NAME] = Material(Material::MaterialID::eEMISSIVE, albedo);
+							materials_[SKY_MATERIAL_NAME] = Material(albedo, .0f, .0f, .0f, 1.f);
 						}
 
 						char file_name[MAX_PATH];
@@ -368,7 +346,7 @@ bool Scene::Init(const char* scene_path, uint32_t& inout_width, uint32_t& inout_
 							int w, h, bpp;
 							if (uint8_t* pixels = stbi_load(file_name, &w, &h, &bpp, 4))
 							{
-								materials_[SKY_MATERIAL_NAME] = Material(Material::MaterialID::eEMISSIVE, { 1, 1, 1 });
+								materials_[SKY_MATERIAL_NAME] = Material({ 1, 1, 1 });
 								materials_[SKY_MATERIAL_NAME].SetTexture({ w, h, pixels, (num == 2 && strncmp(srgb_flag, "SRGB", 4) == 0) }, Material::TextureID::eEMISSIVE);
 							}
 						}
@@ -505,7 +483,7 @@ bool Scene::Init(const char* scene_path, uint32_t& inout_width, uint32_t& inout_
 		// create default black sky material
 		if (materials_.count(SKY_MATERIAL_NAME) == 0)
 		{
-			materials_[SKY_MATERIAL_NAME] = Material(Material::MaterialID::eEMISSIVE, {});
+			materials_[SKY_MATERIAL_NAME] = Material();
 		}
 
 		return true;

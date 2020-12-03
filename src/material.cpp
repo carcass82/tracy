@@ -49,43 +49,42 @@ CUDA_DEVICE_CALL void Material::Scatter(const Ray& ray, const collision::HitData
     static constexpr float kRayOffset{ 0.001f };
 
     vec3 emissive{ GetEmissive(hit) };
-    vec3 attenuation{ GetBaseColor(hit) };
-    vec3 scatteredDirection{};
-    vec3 scatteredOrigin{ hit.point };
+    float metalness{ GetMetalness(hit) };
+    vec3 basecolor{ GetBaseColor(hit) };
+    float roughness{ GetRoughness(hit) };
+    
+    // (1-metalness) * baseColor + metalness * (mix(0.04, baseColor, metalness))
+    vec3 attenuation{ lerp(basecolor, lerp(vec3{ .04f }, basecolor, metalness), metalness) };
+    vec3 refraction{ vec3{ 1.f } - attenuation };
 
     vec3 normal{ GetNormal(hit) };
 
-    if (material_type_ == MaterialID::eDIELECTRIC)
-    {
-        vec3 outward_normal{ normal };
-        float ni_nt;
-        float cosine = dot(ray.GetDirection(), normal);
+    vec3 scatteredDirection{};
+    vec3 scatteredOrigin{ hit.point };
+    
+    // translucent here is loosely mapped to Disney BxDF "specTrans" parameter
+    //
+    // 2 step mix:
+    // translucent blends between full dielectric and full specular
+    // then metalness blends the result with full metal
 
-        if (cosine > EPS)
-        {
-            outward_normal *= -1.f;
-            ni_nt = ior_;
-            cosine = sqrtf(1.f - pow2(ior_) * (1.f - pow2(cosine)));
-        }
-        else
-        {
-            ni_nt = rcp(ior_);
-            cosine *= -1;
-        }
+    // dielectric
+    vec3 scattered{ normal + random_on_unit_sphere(random_ctx) };
 
-        vec3 refracted = refract(ray.GetDirection(), outward_normal, ni_nt);
-        vec3 reflected = reflect(ray.GetDirection(), normal);
-            
-        scatteredDirection = (fastrand(random_ctx) < schlick(cosine, ior_)) ? reflected : refracted;
-    }
-    else
-    {
-        vec3 reflected{ reflect(ray.GetDirection(), normal) };
-        vec3 scattered{ normal + random_on_unit_sphere(random_ctx) };
+    // specular
+    float VdotN{ dot(ray.GetDirection(), normal) };
+    bool inside{ VdotN > EPS };
+    float cosine{ inside ? sqrtf(1.f - pow2(ior_) * (1.f - pow2(VdotN))) : -VdotN };
+    vec3 reflected{ reflect(ray.GetDirection(), normal) };
+    vec3 refracted{ refract(ray.GetDirection(), inside ? -normal : normal, inside ? ior_ : rcp(ior_)) };
+    vec3 specular{ fastrand(random_ctx) < schlick(cosine, ior_)? reflected : refracted };
 
-        scatteredDirection = lerp(scattered, lerp(reflected, scattered, GetRoughness(hit)), GetMetalness(hit));
-    }
+    // metallic
+    vec3 metallic{ lerp(reflected, scattered, roughness) };
 
+    // final mix
+    scatteredDirection = lerp(lerp(scattered, specular, translucent_), metallic, metalness);
+    
     out_scattered = Ray(scatteredOrigin + kRayOffset * scatteredDirection, scatteredDirection);
     out_attenuation = attenuation;
     out_emission = emissive;
@@ -136,7 +135,7 @@ float Material::GetMetalness(const collision::HitData& hit) const
         return metalness_map_.GetPixel(hit.uv).r;
     }
 
-    return material_type_ == MaterialID::eMETAL ? 1.f : .0f;
+    return metalness_;
 }
 
 vec3 Material::GetEmissive(const collision::HitData& hit) const

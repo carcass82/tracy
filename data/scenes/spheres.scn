@@ -1,0 +1,82 @@
+#
+# Scene to test triangular mesh mixed with builtin shapes
+#
+SCN Spheres
+OUT 800 600
+
+#
+# CAM Eye Center Up fov
+#
+CAM (0, 0.5, 2.5) (0.0, 0.5, 0.0) (0.0, 1.0, 0.0) 45.0
+
+#
+# MTL Name ALBEDO ROUGHNESS METALNESS [IOR] [EMISSIVE] [TRANSLUCENCY]
+#
+# optional IOR (defaults to 1)
+# optional EMISSIVE multiplier
+#
+MTL Light (1, 1, 1) 0 0 0 5
+
+MTL MetalRoughness1 (1, 1, 1) 0.0 1
+MTL MetalRoughness2 (1, 1, 1) 0.25 1
+MTL MetalRoughness3 (1, 1, 1) 0.5 1
+MTL MetalRoughness4 (1, 1, 1) 0.75 1
+MTL MetalRoughness5 (1, 1, 1) 1.0 1
+
+MTL Translucency1 (1, 1, 1) 0 0 1.5 0 0
+MTL Translucency2 (1, 1, 1) 0 0 1.5 0 0.25
+MTL Translucency3 (1, 1, 1) 0 0 1.5 0 0.5
+MTL Translucency4 (1, 1, 1) 0 0 1.5 0 0.75
+MTL Translucency5 (1, 1, 1) 0 0 1.5 0 1
+
+MTL DielectricToMetal1 (1, 1, 1) 0.0 0
+MTL DielectricToMetal2 (1, 1, 1) 0.25 0
+MTL DielectricToMetal3 (1, 1, 1) 0.5 0
+MTL DielectricToMetal4 (1, 1, 1) 0.75 0
+MTL DielectricToMetal5 (1, 1, 1) 1.0 0
+
+#
+# TEX <MTL> TYPE PATH [SRGB]
+#
+# Type can be
+# - B (base color map)
+# - N (normal map)
+# - R (roughness map)
+# - M (metalness map)
+# - E (emissive map)
+#
+# use SRGB option to convert pixels to linear
+# 
+
+#
+# SKY (ALBEDO|PATH [SRGB])
+#
+# sky is just an emissive material used when rays miss
+# all objects in the scene. It defaults to solid black
+#
+SKY data/sky.hdr
+
+#
+# OBJ TYPE COORD1 [COORD2] [COORD3] MTL
+#
+# - S RADIUS   (sphere)
+# - B MIN MAX  (box)
+# - T V1 V2 V3 (triangle)
+#
+OBJ S (-1.0, 1.0, 0) 0.2 MetalRoughness1
+OBJ S (-0.5, 1.0, 0) 0.2 MetalRoughness2
+OBJ S ( 0.0, 1.0, 0) 0.2 MetalRoughness3
+OBJ S ( 0.5, 1.0, 0) 0.2 MetalRoughness4
+OBJ S ( 1.0, 1.0, 0) 0.2 MetalRoughness5
+
+OBJ S (-1.0, 0.5, 0) 0.2 Translucency1
+OBJ S (-0.5, 0.5, 0) 0.2 Translucency2
+OBJ S ( 0.0, 0.5, 0) 0.2 Translucency3
+OBJ S ( 0.5, 0.5, 0) 0.2 Translucency4
+OBJ S ( 1.0, 0.5, 0) 0.2 Translucency5
+
+OBJ S (-1.0, 0, 0) 0.2 DielectricToMetal1
+OBJ S (-0.5, 0, 0) 0.2 DielectricToMetal2
+OBJ S ( 0.0, 0, 0) 0.2 DielectricToMetal3
+OBJ S ( 0.5, 0, 0) 0.2 DielectricToMetal4
+OBJ S ( 1.0, 0, 0) 0.2 DielectricToMetal5

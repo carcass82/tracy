@@ -11,21 +11,14 @@ OUT 800 600
 CAM (0, 0.2, -3) (0.0, -0.2, 0.0) (0.0, 1.0, 0.0) 45.0
 
 #
-# MTL Name TYPE ALBEDO [Roughness] [IoR]
-# ...
+# MTL Name ALBEDO ROUGHNESS METALNESS [IOR] [EMISSIVE] [TRANSLUCENCY]
 #
-# Type can be any of
-# - E (emissive)
-# - L (lambertian)
-# - M (metal)
-# - D (dielectric)
-#
-# optional roughness only makes sense for Metals and
-# IoR for Dielectrics. They defaults to 0 and 1 respectively.
+# optional IOR (defaults to 1)
+# optional EMISSIVE multiplier
 #
 MTL Light E (5.0, 5.0, 5.0)
 MTL Grey L (0.2, 0.2, 0.2)
-MTL Textured L (1, 1, 1)
+MTL Textured L (3.0, 3.0, 3.0)
 
 #
 # TEX <MTL> TYPE PATH [SRGB]
@@ -45,14 +38,13 @@ TEX Textured R data/helmet_roughness.jpg
 TEX Textured M data/helmet_metal.jpg
 TEX Textured E data/helmet_emissive.jpg SRGB
 
-
 #
 # SKY (ALBEDO|PATH [SRGB])
 #
 # sky is just an emissive material used when rays miss
 # all objects in the scene. It defaults to solid black
 #
-SKY data/helmet_sky.jpg SRGB
+SKY data/sky.hdr
 
 #
 # OBJ TYPE COORD1 [COORD2] [COORD3] <MTL>
@@ -61,8 +53,8 @@ SKY data/helmet_sky.jpg SRGB
 # - B MIN MAX  (box)
 # - T V1 V2 V3 (triangle)
 #
-OBJ B (-5.0, 15, -10.0) (5.0, 15.5, 10.0) Light
-OBJ B (-20.0, -1,  -20.0) (20.0, -1, 20.0) Grey
+#OBJ B (-5.0, 15, -10.0) (5.0, 15.5, 10.0) Light
+#OBJ B (-20.0, -1,  -20.0) (20.0, -1, 20.0) Grey
 
 #
 # TRI PATH <MTL>

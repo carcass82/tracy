@@ -15,19 +15,15 @@ namespace collision { struct HitData; }
 class Material
 {
 public:
-    enum class MaterialID { eINVALID, eLAMBERTIAN, eMETAL, eDIELECTRIC, eEMISSIVE };
     enum class TextureID { eBASECOLOR, eNORMAL, eROUGHNESS, eMETALNESS, eEMISSIVE };
 
-    CUDA_DEVICE_CALL Material()
-    {}
-
-    CUDA_DEVICE_CALL Material(MaterialID in_type, const vec3& in_color, float in_roughness = .0f, float in_ior = 1.f)
-        : material_type_{ in_type }
-        , albedo_{ in_color }
+    CUDA_DEVICE_CALL Material(const vec3& in_color = vec3(), float in_roughness = 1.f, float in_metalness = .0f, float in_ior = 1.f, float in_emissive = 0.f, float in_translucency = 0.f)
+        : albedo_{ in_color }
         , roughness_{ in_roughness }
-        , metalness_{ in_type == MaterialID::eMETAL? 1.f : 0.f }
+        , metalness_{ in_metalness }
         , ior_{ in_ior }
-        , emissive_{ in_type == MaterialID::eEMISSIVE? in_color : vec3{} }
+        , emissive_{ in_emissive * in_color }
+        , translucent_{ in_translucency }
     {}
 
     void SetTexture(Texture&& in_texture, TextureID in_texture_id)
@@ -65,13 +61,12 @@ public:
     vec3 GetEmissive(const collision::HitData& hit) const;
 
 private:
-
-    MaterialID material_type_{ MaterialID::eINVALID };
     vec3 albedo_{};
     float roughness_{ .0f };
     float metalness_{ .0f };
     float ior_{ 1.f };
     vec3 emissive_{};
+    float translucent_{};
 
     Texture base_color_map_{};
     Texture normal_map_{};
