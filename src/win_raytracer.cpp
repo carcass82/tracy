@@ -334,6 +334,29 @@ const char* TracySecondsToString(double in_seconds)
 	return timestring;
 }
 
+template<typename T>
+void TracySizeToHumanReadableString(T count, char* out_string, uint32_t in_size)
+{
+	static_assert(std::is_arithmetic_v<T>);
+
+	if (count > T(1'000'000'000))
+	{
+		snprintf(out_string, in_size, "%.2fG", count / 1'000'000'000.0);
+	}
+	else if (count > T(1'000'000))
+	{
+		snprintf(out_string, in_size, "%.2fM", count / 1'000'000.0);
+	}
+	else if (count > T(1'000))
+	{
+		snprintf(out_string, in_size, "%.2fK", count / 1'000.0);
+	}
+	else
+	{
+		snprintf(out_string, in_size, "%d", count);
+	}
+}
+
 #if defined(_WIN32) && !defined(FORCE_CONSOLE)
 int WINAPI WinMain(_In_ HINSTANCE /* hInstance */, _In_opt_ HINSTANCE /* hPrevInstance */, _In_ LPSTR /* lpCmdLine */, _In_ int /* nShowCmd */)
 {
@@ -356,6 +379,12 @@ int main(int argc, char** argv)
 	Scene world;
 	if (world.Init(SCENE_PATH, WIDTH, HEIGHT))
 	{
+		static char object_count[16]{};
+		TracySizeToHumanReadableString(world.GetObjectCount(), object_count, 16);
+		
+		static char tri_count[16]{};
+		TracySizeToHumanReadableString(world.GetTriCount(), tri_count, 16);
+
 		g_win_handle = TracyCreateWindow(WIDTH, HEIGHT);
 		if (IsValidWindowHandle(g_win_handle))
 		{
@@ -412,14 +441,14 @@ int main(int argc, char** argv)
 						static char window_title[MAX_PATH] = {};
 						snprintf(window_title,
 						         MAX_PATH,
-						         ".:: Tracy 2.0 (%s) ::. '%s' :: %dx%d :: Elapsed: %s :: [%d objs] [%d tris] [%.2f MRays/s] [%.2f fps]",
+						         ".:: Tracy 2.0 (%s) ::. '%s' :: %dx%d :: Elapsed: %s :: [%s objs] [%s tris] [%.2f MRays/s] [%.2f fps]",
 						         g_kernel.GetModuleName(),
 						         world.GetName().c_str(),
 						         WIDTH,
 						         HEIGHT,
 						         TracySecondsToString(run_timer.GetDuration()),
-						         world.GetObjectCount(),
-						         world.GetTriCount(),
+						         object_count,
+								 tri_count,
 						         raycount * 1e-6 / trace_timer.GetDuration(),
 						         fps);
 

@@ -88,11 +88,11 @@ CUDA_DEVICE_CALL void Material::Scatter(const Ray& ray, const collision::HitData
     out_emission = emissive;
 }
 
-vec3 Material::GetBaseColor(const collision::HitData& hit) const
+CUDA_DEVICE_CALL vec3 Material::GetBaseColor(const collision::HitData& hit) const
 {
     vec3 result = albedo_;
 
-    if (*base_color_map_)
+    if (base_color_map_.IsValid())
     {
        result = base_color_map_.GetPixel(hit.uv).rgb;
     }
@@ -100,9 +100,9 @@ vec3 Material::GetBaseColor(const collision::HitData& hit) const
     return result;
 }
 
-vec3 Material::GetNormal(const collision::HitData& hit) const
+CUDA_DEVICE_CALL vec3 Material::GetNormal(const collision::HitData& hit) const
 {
-    if (*normal_map_)
+    if (normal_map_.IsValid())
     {
         vec3 normal = vec3{ normal_map_.GetPixel(hit.uv).rgb } * 2.f - 1.f;
         vec3 bitangent = cross(hit.normal, normalize(hit.tangent - dot(hit.tangent, hit.normal) * hit.normal));
@@ -114,11 +114,11 @@ vec3 Material::GetNormal(const collision::HitData& hit) const
     return hit.normal;
 }
 
-float Material::GetRoughness(const collision::HitData& hit) const
+CUDA_DEVICE_CALL float Material::GetRoughness(const collision::HitData& hit) const
 {
     float result = roughness_;
 
-    if (*roughness_map_)
+    if (roughness_map_.IsValid())
     {
         result = roughness_map_.GetPixel(hit.uv).r;
     }
@@ -126,9 +126,9 @@ float Material::GetRoughness(const collision::HitData& hit) const
     return result;
 }
 
-float Material::GetMetalness(const collision::HitData& hit) const
+CUDA_DEVICE_CALL float Material::GetMetalness(const collision::HitData& hit) const
 {
-    if (*metalness_map_)
+    if (metalness_map_.IsValid())
     {
         return metalness_map_.GetPixel(hit.uv).r;
     }
@@ -136,11 +136,11 @@ float Material::GetMetalness(const collision::HitData& hit) const
     return metalness_;
 }
 
-vec3 Material::GetEmissive(const collision::HitData& hit) const
+CUDA_DEVICE_CALL vec3 Material::GetEmissive(const collision::HitData& hit) const
 {
     vec3 result = emissive_;
 
-    if (*emissive_map_)
+    if (emissive_map_.IsValid())
     {
         result = emissive_map_.GetPixel(hit.uv).rgb;
     }

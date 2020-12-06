@@ -15,7 +15,7 @@ public:
     {}
 
     Texture(int32_t in_width, int32_t in_height, uint8_t* in_pixels, bool sRGB = false)
-        : width{ in_width }, height{ in_height }
+        : width{ in_width }, height{ in_height }, valid{ true }
     {
         pixels = new vec4[width * height];
 
@@ -36,13 +36,14 @@ public:
     Texture& operator=(const Texture&) = delete;
 
     Texture(Texture&& other) noexcept
-        : width{ other.width }, height{ other.height }, bpp{ other.bpp }, pixels{ std::exchange(other.pixels, nullptr) }
+        : width{ other.width }, height{ other.height }, bpp{ other.bpp }, pixels{ std::exchange(other.pixels, nullptr) }, valid{ other.valid }
     {}
 
     Texture& operator=(Texture&& other) noexcept
     {
         if (this != &other)
         {
+            valid = std::move(other.valid);
             width = std::move(other.width);
             height = std::move(other.height);
             bpp = std::move(other.bpp);
@@ -51,19 +52,20 @@ public:
         return *this;
     }
 
-    const vec4* operator*() const { return pixels; }
-
-    vec4 GetPixel(const vec2& uv) const
+    const vec4& GetPixel(const vec2& uv) const
     {
+        using cc::math::frac;
+
         uint32_t i = static_cast<uint32_t>(clamp(frac(uv.x) * width, 0.f, width - 1.f));
         uint32_t j = static_cast<uint32_t>(clamp(frac(1.f - uv.y) * height, 0.f, height - 1.f));
 
         return pixels[j * width + i];
     }
 
-    float frac(float x) const { return x - trunc(x); }
+    bool IsValid() const { return valid; }
 
 private:
+    bool valid{ false };
     int32_t width{};
     int32_t height{};
     uint8_t bpp{ 4 };

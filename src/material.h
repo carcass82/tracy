@@ -50,15 +50,15 @@ public:
 
     CUDA_DEVICE_CALL void Scatter(const Ray& ray, const collision::HitData& hit, vec3& out_attenuation, vec3& out_emission, Ray& out_scattered, RandomCtx random_ctx) const;
 
-    vec3 GetBaseColor(const collision::HitData& hit) const;
+    CUDA_DEVICE_CALL vec3 GetBaseColor(const collision::HitData& hit) const;
 
-    vec3 GetNormal(const collision::HitData& hit) const;
+    CUDA_DEVICE_CALL vec3 GetNormal(const collision::HitData& hit) const;
 
-    float GetRoughness(const collision::HitData& hit) const;
+    CUDA_DEVICE_CALL float GetRoughness(const collision::HitData& hit) const;
 
-    float GetMetalness(const collision::HitData& hit) const;
+    CUDA_DEVICE_CALL float GetMetalness(const collision::HitData& hit) const;
 
-    vec3 GetEmissive(const collision::HitData& hit) const;
+    CUDA_DEVICE_CALL vec3 GetEmissive(const collision::HitData& hit) const;
 
 private:
     vec3 albedo_{};

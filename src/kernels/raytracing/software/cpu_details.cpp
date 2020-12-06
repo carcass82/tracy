@@ -290,6 +290,7 @@ vec3 CPUDetails::Tonemap(const vec3& color)
 
 #elif USE_TONEMAP_SRGB
 
+	using cc::gfx::srgb;
 	vec3 output{ srgb(color * kExposure) };
 
 #else
