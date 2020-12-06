@@ -15,9 +15,14 @@
 // https://en.wikipedia.org/wiki/Xorshift
 // (Algorithm "xor" from p. 4 of Marsaglia, "Xorshift RNGs")
 //
+inline RandomCtxData initrand()
+{
+    return { 0xABCDEFu };
+}
+
 inline float fastrand(RandomCtx ctx)
 {
-    uint32_t x = ctx;
+    uint32_t x{ ctx };
     x ^= x << 13;
     x ^= x >> 17;
     x ^= x << 5;
@@ -33,10 +38,22 @@ inline float fastrand(RandomCtx ctx)
 // https://software.intel.com/en-us/articles/fast-random-number-generator-on-the-intel-pentiumr-4-processor/
 // with constant values from glibc (according to https://en.wikipedia.org/wiki/Linear_congruential_generator#Parameters_in_common_use)
 //
+inline RandomCtxData initrand()
+{
+    return { 0xABCDEFu };
+}
+
 inline float fastrand(RandomCtx ctx)
 {
-    ctx = (1103515245u * ctx + 12345u);
-    return ctx / static_cast<float>(UINT32_MAX);
+    static constexpr uint32_t multiplier{ 1103515245u };
+    static constexpr uint32_t increment{ 12345u };
+
+    uint32_t x{ ctx };
+    x *= multiplier;
+    x += increment;
+    ctx = x;
+
+    return x / static_cast<float>(UINT32_MAX);
 }
 
 #elif RANDOM_PCG
@@ -44,39 +61,42 @@ inline float fastrand(RandomCtx ctx)
 //
 // PRNG from https://www.pcg-random.org/download.html
 //
+inline RandomCtxData initrand()
+{
+    return { 0x123456789ABCDEFull };
+}
+
 inline float fastrand(RandomCtx ctx)
 {
-    uint64_t oldstate = ctx.state;
+    static constexpr uint64_t multiplier{ 6364136223846793005ull };
+    static constexpr uint64_t increment{ 1442695040888963407ull };
 
     // Advance internal state
-    ctx.state = oldstate * 6364136223846793005ULL + (ctx.inc | 1);
+    ctx = ctx * multiplier + increment;
     
     // Calculate output function (XSH RR), uses old state for max ILP
-    uint32_t xorshifted = static_cast<uint32_t>(((oldstate >> 18u) ^ oldstate) >> 27u);
-    uint32_t rot = oldstate >> 59u;
+    uint32_t xorshifted = static_cast<uint32_t>(((ctx >> 18u) ^ ctx) >> 27u);
 
-    uint32_t rand = (xorshifted >> rot) | (xorshifted << (-(static_cast<int32_t>(rot)) & 31));
+    uint32_t rot = ctx >> 59u;
+    
+    uint32_t result = (xorshifted >> rot) | (xorshifted << (-(static_cast<int32_t>(rot)) & 31));
 
-    return rand / static_cast<float>(UINT32_MAX);
+    return result / static_cast<float>(UINT32_MAX);
 }
 
 #else
+
+inline RandomCtxData initrand()
+{
+    srand(0xABCDEFu);
+    return {};
+}
 
 //
 // Default rand() [0...1]
 //
 inline float fastrand(RandomCtx ctx)
-{
-    #pragma omp master
-    {
-        static bool do_init = true;
-        if (do_init)
-        {
-            srand(ctx);
-            do_init = false;
-        }
-    }
-    
+{ 
     return rand() / static_cast<float>(RAND_MAX);
 }
 

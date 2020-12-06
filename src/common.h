@@ -135,8 +135,9 @@ using cc::gfx::linear;
  using nvstd::function;
 #else
 #if RANDOM_PCG
- using RandomCtxData = struct { uint64_t state;  uint64_t inc; };
+ using RandomCtxData = uint64_t;
  using RandomCtx = RandomCtxData&;
+
 #else
  using RandomCtxData = uint32_t;
  using RandomCtx = RandomCtxData&;

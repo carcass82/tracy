@@ -31,7 +31,7 @@ private:
 	vec3 Trace(Ray&& ray, const Scene& scene, RandomCtx random_ctx);
 
 #if TILED_RENDERING
-	void RenderTile(uint32_t tile_x, uint32_t tile_y, uint32_t tile_size, const Scene& scene, RandomCtx random_ctx);
+	void RenderTile(uint32_t tile_x, uint32_t tile_y, const Scene& scene, RandomCtx random_ctx);
 #endif
 
 	static constexpr uint32_t kTileSize{ 4 };

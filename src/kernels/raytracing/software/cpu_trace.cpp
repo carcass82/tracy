@@ -39,7 +39,7 @@ void CpuTrace::OnUpdate(const Scene& in_Scene, float in_DeltaTime)
 
 	#pragma omp parallel
 	{
-		static RandomCtxData random_ctx{ 0x12345 };
+		static RandomCtxData random_ctx{ initrand() };
 
 		#pragma omp for collapse(2) schedule(dynamic)
 
@@ -48,7 +48,7 @@ void CpuTrace::OnUpdate(const Scene& in_Scene, float in_DeltaTime)
 		{
 			for (int32_t tile_y = 0; tile_y < static_cast<int32_t>(Details.GetTileCount()); ++tile_y)
 			{
-				RenderTile(tile_x, tile_y, kTileSize, in_Scene, random_ctx);
+				RenderTile(tile_x, tile_y, in_Scene, random_ctx);
 			}
 		}
 #else
@@ -82,14 +82,14 @@ void CpuTrace::OnEvent(TracyEvent in_Event, const WindowHandle in_Window, const 
 }
 
 #if TILED_RENDERING
-void CpuTrace::RenderTile(uint32_t in_TileX, uint32_t in_TileY, uint32_t in_TileSize, const Scene& in_Scene, RandomCtx random_ctx)
+void CpuTrace::RenderTile(uint32_t tile_x, uint32_t tile_y, const Scene& scene, RandomCtx random_ctx)
 {
-	uint32_t w = in_Scene.Width();
-	uint32_t h = in_Scene.Height();
+	uint32_t w = scene.Width();
+	uint32_t h = scene.Height();
 
-	for (uint32_t j = in_TileX * in_TileSize; j < (in_TileX + 1) * in_TileSize; ++j)
+	for (uint32_t j = tile_x * kTileSize; j < (tile_x + 1) * kTileSize; ++j)
 	{
-		for (uint32_t i = in_TileY * in_TileSize; i < (in_TileY + 1) * in_TileSize; ++i)
+		for (uint32_t i = tile_y * kTileSize; i < (tile_y + 1) * kTileSize; ++i)
 		{
 			uint32_t idx = j * w + i;
 			if (idx < w * h)
@@ -97,7 +97,7 @@ void CpuTrace::RenderTile(uint32_t in_TileX, uint32_t in_TileY, uint32_t in_Tile
 				float u = (i + fastrand(random_ctx)) / float(w);
 				float v = (j + fastrand(random_ctx)) / float(h);
 
-				Details.UpdateOutput(idx, Trace(in_Scene.GetCamera().GetRayFrom(u, v), in_Scene, random_ctx));
+				Details.UpdateOutput(idx, Trace(scene.GetCamera().GetRayFrom(u, v), scene, random_ctx));
 			}
 		}
 	}
