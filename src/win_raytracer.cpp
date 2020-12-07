@@ -58,8 +58,7 @@ LRESULT CALLBACK WindowProc(HWND hwnd, UINT uMsg, WPARAM wParam, LPARAM lParam)
 		break;
 
 	case WM_PAINT:
-		g_kernel.OnRender(g_win_handle);
-		break;
+		break; // we handle the painting, do nothing here
 
 	default:
 		return DefWindowProc(hwnd, uMsg, wParam, lParam);
@@ -174,9 +173,12 @@ void TracyUpdateWindow(WindowHandle window_handle)
 	XClearArea(window_handle->dpy, window_handle->win, 0, 0, 1, 1, true);
 	XFlush(window_handle->dpy);
 #endif
+
+	// make sure OnRender is issued from the same thread that created the window
+	g_kernel.OnRender(window_handle);
 }
 
-bool TracyProcessMessages(WindowHandle window_handle)
+void TracyProcessMessages(WindowHandle window_handle)
 {
 #if defined(_WIN32)
 
@@ -185,8 +187,6 @@ bool TracyProcessMessages(WindowHandle window_handle)
 	{
 		TranslateMessage(&msg);
 		DispatchMessage(&msg);
-
-		return true;
 	}
 
 #else
@@ -219,8 +219,6 @@ bool TracyProcessMessages(WindowHandle window_handle)
 	}
 
 #endif
-
-	return false;
 }
 
 bool TracyProcessInputs(Scene& scene, Input& input, WindowHandle window_handle, float dt)
