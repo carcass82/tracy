@@ -300,7 +300,7 @@ bool Scene::Init(const char* scene_path, uint32_t& inout_width, uint32_t& inout_
 						char srgb_flag[5]{};
 						int num = sscanf(params, "%s %c %s %s", mat_name, &tex_type, file_name, srgb_flag);
 						{
-							Material::TextureID tex_id;
+							Material::TextureID tex_id{ Material::TextureID::eINVALID };
 							switch (tex_type)
 							{
 							case 'B':
@@ -321,10 +321,21 @@ bool Scene::Init(const char* scene_path, uint32_t& inout_width, uint32_t& inout_
 							}
 
 							int w, h, bpp;
-							if (uint8_t* pixels = stbi_load(file_name, &w, &h, &bpp, 4))
+							if (stbi_is_hdr(file_name))
 							{
-								materials_[mat_name].SetTexture({ w, h, pixels, (num == 4 && strncmp(srgb_flag, "SRGB", 4) == 0) }, tex_id);
-								stbi_image_free(pixels);
+								if (float* pixels = stbi_loadf(file_name, &w, &h, &bpp, 4))
+								{
+									materials_[mat_name].SetTexture({ w, h, pixels, (num == 4 && strncmp(srgb_flag, "SRGB", 4) == 0) }, tex_id);
+									stbi_image_free(pixels);
+								}
+							}
+							else
+							{
+								if (uint8_t* pixels = stbi_load(file_name, &w, &h, &bpp, 4))
+								{
+									materials_[mat_name].SetTexture({ w, h, pixels, (num == 4 && strncmp(srgb_flag, "SRGB", 4) == 0) }, tex_id);
+									stbi_image_free(pixels);
+								}
 							}
 						}
 					}
@@ -344,10 +355,23 @@ bool Scene::Init(const char* scene_path, uint32_t& inout_width, uint32_t& inout_
 						int num = sscanf(params, "%s %s", file_name, srgb_flag);
 						{
 							int w, h, bpp;
-							if (uint8_t* pixels = stbi_load(file_name, &w, &h, &bpp, 4))
+							if (stbi_is_hdr(file_name))
 							{
-								materials_[SKY_MATERIAL_NAME] = Material({ 1, 1, 1 });
-								materials_[SKY_MATERIAL_NAME].SetTexture({ w, h, pixels, (num == 2 && strncmp(srgb_flag, "SRGB", 4) == 0) }, Material::TextureID::eEMISSIVE);
+								if (float* pixels = stbi_loadf(file_name, &w, &h, &bpp, 4))
+								{
+									materials_[SKY_MATERIAL_NAME] = Material({ 1, 1, 1 });
+									materials_[SKY_MATERIAL_NAME].SetTexture({ w, h, pixels, (num == 2 && strncmp(srgb_flag, "SRGB", 4) == 0) }, Material::TextureID::eEMISSIVE);
+									stbi_image_free(pixels);
+								}
+							}
+							else
+							{
+								if (uint8_t* pixels = stbi_load(file_name, &w, &h, &bpp, 4))
+								{
+									materials_[SKY_MATERIAL_NAME] = Material({ 1, 1, 1 });
+									materials_[SKY_MATERIAL_NAME].SetTexture({ w, h, pixels, (num == 2 && strncmp(srgb_flag, "SRGB", 4) == 0) }, Material::TextureID::eEMISSIVE);
+									stbi_image_free(pixels);
+								}
 							}
 						}
 					}

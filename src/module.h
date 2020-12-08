@@ -9,7 +9,7 @@
 
 class Scene;
 
-enum class TracyEvent { eResize, eCameraCut };
+enum class TracyEvent { eCreate, eResize, eCameraCut, eDestroy };
 
 //
 // Base class for Tracy render kernels

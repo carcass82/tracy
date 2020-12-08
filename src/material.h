@@ -15,7 +15,7 @@ namespace collision { struct HitData; }
 class Material
 {
 public:
-    enum class TextureID { eBASECOLOR, eNORMAL, eROUGHNESS, eMETALNESS, eEMISSIVE };
+    enum class TextureID { eBASECOLOR, eNORMAL, eROUGHNESS, eMETALNESS, eEMISSIVE, eINVALID };
 
     CUDA_DEVICE_CALL Material(const vec3& in_color = vec3(), float in_roughness = 1.f, float in_metalness = .0f, float in_ior = 1.f, float in_emissive = 0.f, float in_translucency = 0.f)
         : albedo_{ in_color }
@@ -26,7 +26,7 @@ public:
         , translucent_{ in_translucency }
     {}
 
-    void SetTexture(Texture&& in_texture, TextureID in_texture_id)
+    CUDA_DEVICE_CALL void SetTexture(Texture&& in_texture, TextureID in_texture_id)
     {
         switch (in_texture_id)
         {
