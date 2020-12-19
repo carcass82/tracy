@@ -15,7 +15,7 @@ public:
     {}
 
     CUDA_DEVICE_CALL Texture(int32_t in_width, int32_t in_height, uint8_t* in_pixels, bool sRGB = false)
-        : width{ in_width }, height{ in_height }, pixels{ new vec4[width * height] }, valid{ true }
+        : width{ in_width }, height{ in_height }, pixels{ new vec4[in_width * in_height] }, valid{ true }
     {
         for (int32_t i = 0; i < width * height; ++i)
         {
@@ -60,7 +60,7 @@ public:
         return *this;
     }
 
-    CUDA_DEVICE_CALL const vec4& GetPixel(const vec2& uv) const
+    CUDA_DEVICE_CALL constexpr const vec4& GetPixel(const vec2& uv) const
     {
         using cc::math::frac;
 
@@ -75,7 +75,7 @@ public:
         return pixels;
     }
 
-    CUDA_DEVICE_CALL bool IsValid() const
+    CUDA_DEVICE_CALL constexpr bool IsValid() const
     {
         return valid;
     }

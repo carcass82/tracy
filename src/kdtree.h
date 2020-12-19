@@ -177,8 +177,8 @@ inline unsigned int SplitAndGetDuplicationPercentage(const NodeType& current_nod
 
 #else
 
-	constexpr float TRAVERSAL_COST = 1.f;
-	constexpr float TRIINTERSECTION_COST = 2.f;
+	static constexpr float TRAVERSAL_COST = 1.f;
+	static constexpr float TRIINTERSECTION_COST = 2.f;
 
 	float no_split_cost = TRAVERSAL_COST + TRIINTERSECTION_COST * current_node.GetSize();
 	

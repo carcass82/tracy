@@ -133,15 +133,16 @@ using cc::gfx::linear;
 
  #include <nvfunctional>
  using nvstd::function;
-#else
-#if RANDOM_PCG
- using RandomCtxData = uint64_t;
- using RandomCtx = RandomCtxData&;
 
 #else
+
+ #if RANDOM_PCG
+ using RandomCtxData = uint64_t;
+ using RandomCtx = RandomCtxData&;
+ #else
  using RandomCtxData = uint32_t;
  using RandomCtx = RandomCtxData&;
-#endif
+ #endif
 
  #include <functional>
  using std::function;

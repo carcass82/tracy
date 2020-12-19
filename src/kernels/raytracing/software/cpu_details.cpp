@@ -123,6 +123,8 @@ bool CPUDetails::ProcessScene(const Scene& scene)
 		scene_bbox.minbound = pmin(mesh.GetAABB().minbound, scene_bbox.minbound);
 		scene_bbox.maxbound = pmax(mesh.GetAABB().maxbound, scene_bbox.maxbound);
 	}
+	scene_bbox.minbound -= .5f;
+	scene_bbox.maxbound += .5f;
 
 	TempObjectsTree.SetAABB(scene_bbox);
 	accel::BuildTree<Obj>(&TempObjectsTree, ObjectAABBTester);
@@ -276,7 +278,7 @@ void CPUDetails::UpdateBitmap()
 
 vec3 CPUDetails::Tonemap(const vec3& color)
 {
-	constexpr float kExposure = TRACY_EXPOSURE;
+	static constexpr float kExposure{ TRACY_EXPOSURE };
 
 #if USE_TONEMAP_REINHARD
 

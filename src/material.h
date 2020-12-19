@@ -15,7 +15,7 @@ namespace collision { struct HitData; }
 class Material
 {
 public:
-    enum class TextureID { eBASECOLOR, eNORMAL, eROUGHNESS, eMETALNESS, eEMISSIVE, eINVALID };
+    enum TextureID { eBASECOLOR, eNORMAL, eROUGHNESS, eMETALNESS, eEMISSIVE, eCOUNT };
 
     CUDA_DEVICE_CALL Material(const vec3& in_color = vec3(), float in_roughness = 1.f, float in_metalness = .0f, float in_ior = 1.f, float in_emissive = 0.f, float in_translucency = 0.f)
         : albedo_{ in_color }
@@ -46,19 +46,26 @@ public:
             emissive_map_ = std::move(in_texture);
             break;
         }
+
+        texture_flag_[in_texture_id] = true;
     }
 
     CUDA_DEVICE_CALL void Scatter(const Ray& ray, const collision::HitData& hit, vec3& out_attenuation, vec3& out_emission, Ray& out_scattered, RandomCtx random_ctx) const;
 
-    CUDA_DEVICE_CALL vec3 GetBaseColor(const collision::HitData& hit) const;
+    CUDA_DEVICE_CALL constexpr vec3 GetBaseColor(const collision::HitData& hit) const;
 
-    CUDA_DEVICE_CALL vec3 GetNormal(const collision::HitData& hit) const;
+    CUDA_DEVICE_CALL constexpr vec3 GetNormal(const collision::HitData& hit) const;
 
-    CUDA_DEVICE_CALL float GetRoughness(const collision::HitData& hit) const;
+    CUDA_DEVICE_CALL constexpr float GetRoughness(const collision::HitData& hit) const;
 
-    CUDA_DEVICE_CALL float GetMetalness(const collision::HitData& hit) const;
+    CUDA_DEVICE_CALL constexpr float GetMetalness(const collision::HitData& hit) const;
 
-    CUDA_DEVICE_CALL vec3 GetEmissive(const collision::HitData& hit) const;
+    CUDA_DEVICE_CALL constexpr vec3 GetEmissive(const collision::HitData& hit) const;
+
+    CUDA_DEVICE_CALL constexpr bool HasTexture(TextureID in_texture_id) const
+    {
+        return texture_flag_[in_texture_id];
+    }
 
 private:
     vec3 albedo_{};
@@ -73,4 +80,6 @@ private:
     Texture roughness_map_{};
     Texture metalness_map_{};
     Texture emissive_map_{};
+
+    bool texture_flag_[TextureID::eCOUNT]{};
 };

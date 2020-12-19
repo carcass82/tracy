@@ -300,7 +300,7 @@ bool Scene::Init(const char* scene_path, uint32_t& inout_width, uint32_t& inout_
 						char srgb_flag[5]{};
 						int num = sscanf(params, "%s %c %s %s", mat_name, &tex_type, file_name, srgb_flag);
 						{
-							Material::TextureID tex_id{ Material::TextureID::eINVALID };
+							Material::TextureID tex_id{ Material::TextureID::eCOUNT };
 							switch (tex_type)
 							{
 							case 'B':

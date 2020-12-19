@@ -106,11 +106,13 @@ void CpuTrace::RenderTile(uint32_t tile_x, uint32_t tile_y, const Scene& scene, 
 
 vec3 CpuTrace::Trace(Ray&& ray, const Scene& scene, RandomCtx random_ctx)
 {
+	static constexpr uint32_t kMaxBounces{ TRACY_MAX_BOUNCES };
+
 	Ray current_ray{ std::move(ray) };
 	vec3 throughput{ 1.f, 1.f, 1.f };
 	vec3 pixel;
 
-	for (uint32_t t = 0; t < kBounces; ++t)
+	for (uint32_t t = 0; t < kMaxBounces; ++t)
 	{
 		++raycount_;
 
@@ -143,9 +145,9 @@ vec3 CpuTrace::Trace(Ray&& ray, const Scene& scene, RandomCtx random_ctx)
 		}
 		else
 		{
-			vec3 v{ normalize(current_ray.GetDirection()) };
+			const vec3 v{ current_ray.GetDirection() };
 			intersection_data.uv = vec2(atan2f(v.z, v.x) / (2 * PI), asinf(v.y) / PI) + 0.5f;
-			scene.GetSkyMaterial()->Scatter(current_ray, intersection_data, attenuation, emission, current_ray, random_ctx);
+			emission = scene.GetSkyMaterial()->GetEmissive(intersection_data);
 			
 			pixel += emission * throughput;
 			break;
@@ -158,7 +160,7 @@ vec3 CpuTrace::Trace(Ray&& ray, const Scene& scene, RandomCtx random_ctx)
 			break;
 		}
 		
-		throughput *= rcp(p);
+		throughput *= rcp(max(EPS, p));
 #endif
 	}
 

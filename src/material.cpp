@@ -7,25 +7,13 @@
 #include "material.h"
 #include "random.h"
 #include "collision.h"
+#include "log.h"
 
 //
 // Material utility functions
 //
 namespace
 {
-    CUDA_DEVICE_CALL inline vec3 random_on_unit_sphere(RandomCtx random_ctx)
-    {
-        float z = 1.f - fastrand(random_ctx) * 2.f;
-        float r = sqrtf(1.f - z * z);
-
-        float a = fastrand(random_ctx) * 2.f * PI;
-
-        float sin_a, cos_a;
-        sincosf(a, &sin_a, &cos_a);
-
-        return vec3(r * cos_a, r * sin_a, z);
-    }
-
     CUDA_DEVICE_CALL constexpr inline float pow2(float x)
     {
         return x * x;
@@ -33,13 +21,31 @@ namespace
 
     CUDA_DEVICE_CALL constexpr inline float pow5(float x)
     {
-        return x * x * x * x * x;
+        const float x2{ x * x };
+
+        return x2 * x2 * x;
     }
 
     CUDA_DEVICE_CALL constexpr inline float schlick(float cos, float ref_idx)
     {
-        float r0 = pow2((1.0f - ref_idx) / (1.0f + ref_idx));
-        return r0 + (1.0f - r0) * pow5(1.f - cos);
+        const float r0{ pow2((1.f - ref_idx) / (1.f + ref_idx)) };
+
+        return r0 + (1.f - r0) * pow5(1.f - cos);
+    }
+
+    CUDA_DEVICE_CALL inline vec3 random_on_unit_sphere(RandomCtx random_ctx)
+    {
+        //
+        // http://extremelearning.com.au/how-to-generate-uniformly-random-points-on-n-spheres-and-n-balls/
+        // see Method 10
+        //
+        const float z{ 2.f * fastrand(random_ctx) - 1.f };
+
+        const float phi{ 2.f * PI * fastrand(random_ctx) };
+
+        const float r{ sqrtf(1.f - pow2(z)) };
+
+        return vec3{ r * cosf(phi), r * sinf(phi), z };
     }
 }
 
@@ -55,54 +61,78 @@ CUDA_DEVICE_CALL void Material::Scatter(const Ray& ray, const collision::HitData
     const float roughness{ GetRoughness(hit) };
     const vec3 normal{ GetNormal(hit) };
     
-    // (1-metalness) * baseColor + metalness * specularColor
-    // specularColor defined as mix(0.04, baseColor, metalness)
-    const vec3 attenuation{ lerp(basecolor, lerp(vec3{ .04f }, basecolor, metalness), metalness) };
-
-    // translucent here is loosely mapped to Disney BxDF "specTrans" parameter
-    //
-    // 2 step mix:
-    // translucent blends between full dielectric and full specular
-    // then metalness blends the result with full metal
-
-    // dielectric
-    const vec3 scattered{ normal + random_on_unit_sphere(random_ctx) };
-
-    // specular
-    const float VdotN{ dot(raydir, normal) };
-    const bool inside{ VdotN > EPS };
-    const float cosine{ inside ? sqrtf(1.f - pow2(ior_) * (1.f - pow2(VdotN))) : -VdotN };
-    const vec3 reflected{ reflect(raydir, normal) };
-    const vec3 refracted{ refract(raydir, inside ? -normal : normal, inside ? ior_ : rcp(ior_)) };
-    const vec3 specular{ fastrand(random_ctx) < schlick(cosine, ior_)? reflected : refracted };
-
-    // metallic
-    const vec3 metallic{ lerp(reflected, scattered, roughness) };
-
-    // final mix
     const vec3 scatteredOrigin{ hit.point };
-    const vec3 scatteredDirection{ lerp(lerp(scattered, specular, translucent_), metallic, metalness) };
-    
+    vec3 scatteredDirection{};
+    vec3 attenuation{};
+
+    // TODO: merge BxDFs
+
+    if (translucent_ > EPS) // BTDF
+    {
+        const float VdotN{ dot(raydir, normal) };
+        const bool inside{ VdotN > EPS };
+        const float cosine{ inside ? sqrtf(1.f - pow2(ior_) * (1.f - pow2(VdotN))) : -VdotN };
+        const float ior{ inside ? ior_ : rcp(ior_) };
+        
+        const vec3 scattered{ normal + random_on_unit_sphere(random_ctx) };
+        const vec3 reflected{ reflect(raydir, normal) };
+        const vec3 specular{ lerp(reflected, scattered, roughness) };
+
+        const vec3 refracted{ refract(raydir, normal, ior) };
+        const vec3 transmitted{ lerp(refracted, scattered, roughness) };
+        
+        const bool is_specular{ fastrand(random_ctx) < schlick(cosine, ior) };
+
+        scatteredDirection = is_specular ? specular : transmitted;
+        attenuation = basecolor; // TODO: implement absorption
+    }
+    else // BRDF
+    {
+        const vec3 specularcolor{ lerp(vec3{ .85f }, basecolor, metalness) };
+
+        const vec3 scattered{ normal + random_on_unit_sphere(random_ctx) };
+        const vec3 reflected{ reflect(raydir, normal) };
+        const vec3 specular{ lerp(reflected, scattered, roughness) };
+
+        const float VdotN{ dot(raydir, normal) };
+        
+        const float materialspecularchance{ lerp(.1f, 1.f, metalness) };
+        const float fresnelspecularchance{ lerp(materialspecularchance, 1.f, (1.f - roughness) * schlick(-VdotN, 1.f)) };
+        
+        const bool is_specular{ fastrand(random_ctx) < fresnelspecularchance };
+        
+        scatteredDirection = is_specular ? specular : scattered;
+        attenuation = is_specular ? specularcolor : basecolor;
+    }
+
     out_scattered = Ray(scatteredOrigin + kRayOffset * scatteredDirection, scatteredDirection);
     out_attenuation = attenuation;
     out_emission = emissive;
 }
 
-CUDA_DEVICE_CALL vec3 Material::GetBaseColor(const collision::HitData& hit) const
+CUDA_DEVICE_CALL constexpr vec3 Material::GetBaseColor(const collision::HitData& hit) const
 {
-    vec3 result = albedo_;
-
-    if (base_color_map_.IsValid())
-    {
-       result = base_color_map_.GetPixel(hit.uv).rgb;
-    }
-
-    return result;
+    return (HasTexture(TextureID::eBASECOLOR) ? base_color_map_.GetPixel(hit.uv).rgb : albedo_);
 }
 
-CUDA_DEVICE_CALL vec3 Material::GetNormal(const collision::HitData& hit) const
+CUDA_DEVICE_CALL constexpr float Material::GetRoughness(const collision::HitData& hit) const
 {
-    if (normal_map_.IsValid())
+    return (HasTexture(TextureID::eROUGHNESS) ? roughness_map_.GetPixel(hit.uv).r : roughness_);
+}
+
+CUDA_DEVICE_CALL constexpr float Material::GetMetalness(const collision::HitData& hit) const
+{
+    return (HasTexture(TextureID::eMETALNESS) ? metalness_map_.GetPixel(hit.uv).r : metalness_);
+}
+
+CUDA_DEVICE_CALL constexpr vec3 Material::GetEmissive(const collision::HitData& hit) const
+{
+    return (HasTexture(TextureID::eEMISSIVE) ? emissive_map_.GetPixel(hit.uv).rgb : emissive_);
+}
+
+CUDA_DEVICE_CALL constexpr vec3 Material::GetNormal(const collision::HitData& hit) const
+{
+    if (HasTexture(TextureID::eNORMAL))
     {
         vec3 normal = vec3{ normal_map_.GetPixel(hit.uv).rgb } * 2.f - 1.f;
         vec3 bitangent = cross(hit.normal, normalize(hit.tangent - dot(hit.tangent, hit.normal) * hit.normal));
@@ -110,40 +140,8 @@ CUDA_DEVICE_CALL vec3 Material::GetNormal(const collision::HitData& hit) const
         
         return normalize(tbn * normal);
     }
-
-    return hit.normal;
-}
-
-CUDA_DEVICE_CALL float Material::GetRoughness(const collision::HitData& hit) const
-{
-    float result = roughness_;
-
-    if (roughness_map_.IsValid())
+    else
     {
-        result = roughness_map_.GetPixel(hit.uv).r;
+        return hit.normal;
     }
-
-    return result;
-}
-
-CUDA_DEVICE_CALL float Material::GetMetalness(const collision::HitData& hit) const
-{
-    if (metalness_map_.IsValid())
-    {
-        return metalness_map_.GetPixel(hit.uv).r;
-    }
-
-    return metalness_;
-}
-
-CUDA_DEVICE_CALL vec3 Material::GetEmissive(const collision::HitData& hit) const
-{
-    vec3 result = emissive_;
-
-    if (emissive_map_.IsValid())
-    {
-        result = emissive_map_.GetPixel(hit.uv).rgb;
-    }
-
-    return result;
 }

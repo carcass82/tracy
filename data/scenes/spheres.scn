@@ -2,12 +2,12 @@
 # Scene to test triangular mesh mixed with builtin shapes
 #
 SCN Spheres
-OUT 800 600
+OUT 1024 768
 
 #
 # CAM Eye Center Up fov
 #
-CAM (0, 0.5, 2.5) (0.0, 0.5, 0.0) (0.0, 1.0, 0.0) 45.0
+CAM (0, 0.5, 3.5) (0.0, 0.5, 0.0) (0.0, 1.0, 0.0) 45.0
 
 #
 # MTL Name ALBEDO ROUGHNESS METALNESS [IOR] [EMISSIVE] [TRANSLUCENCY]
@@ -15,25 +15,36 @@ CAM (0, 0.5, 2.5) (0.0, 0.5, 0.0) (0.0, 1.0, 0.0) 45.0
 # optional IOR (defaults to 1)
 # optional EMISSIVE multiplier
 #
-MTL Light (1, 1, 1) 0 0 0 5
 
-MTL MetalRoughness1 (1, 1, 1) 0.0 1
-MTL MetalRoughness2 (1, 1, 1) 0.25 1
-MTL MetalRoughness3 (1, 1, 1) 0.5 1
-MTL MetalRoughness4 (1, 1, 1) 0.75 1
-MTL MetalRoughness5 (1, 1, 1) 1.0 1
+MTL MetalRoughness1 (0.95, 0.93, 0.88) 0.0 1
+MTL MetalRoughness2 (0.95, 0.93, 0.88) 0.25 1
+MTL MetalRoughness3 (0.95, 0.93, 0.88) 0.5 1
+MTL MetalRoughness4 (0.95, 0.93, 0.88) 0.75 1
+MTL MetalRoughness5 (0.95, 0.93, 0.88) 1.0 1
 
-MTL Translucency1 (1, 1, 1) 0 0 1.5 0 0
-MTL Translucency2 (1, 1, 1) 0 0 1.5 0 0.25
-MTL Translucency3 (1, 1, 1) 0 0 1.5 0 0.5
-MTL Translucency4 (1, 1, 1) 0 0 1.5 0 0.75
-MTL Translucency5 (1, 1, 1) 0 0 1.5 0 1
+MTL MetalDielectric1 (0.95, 0.93, 0.88) 0 1.0
+MTL MetalDielectric2 (0.95, 0.93, 0.88) 0 0.75
+MTL MetalDielectric3 (0.95, 0.93, 0.88) 0 0.5
+MTL MetalDielectric4 (0.95, 0.93, 0.88) 0 0.25
+MTL MetalDielectric5 (0.95, 0.93, 0.88) 0 0.0
 
-MTL DielectricToMetal1 (1, 1, 1) 0.0 0
-MTL DielectricToMetal2 (1, 1, 1) 0.25 0
-MTL DielectricToMetal3 (1, 1, 1) 0.5 0
-MTL DielectricToMetal4 (1, 1, 1) 0.75 0
-MTL DielectricToMetal5 (1, 1, 1) 1.0 0
+MTL DielectricRoughness1 (0.85, 0, 0) 0.0 0
+MTL DielectricRoughness2 (0.85, 0, 0) 0.25 0
+MTL DielectricRoughness3 (0.85, 0, 0) 0.5 0
+MTL DielectricRoughness4 (0.85, 0, 0) 0.75 0
+MTL DielectricRoughness5 (0.85, 0, 0) 1.0 0
+
+MTL TranslucencyRoughness1 (1, 1, 1) 0.0 0 1.5 0 1
+MTL TranslucencyRoughness2 (1, 1, 1) 0.05 0 1.5 0 1
+MTL TranslucencyRoughness3 (1, 1, 1) 0.1 0 1.5 0 1
+MTL TranslucencyRoughness4 (1, 1, 1) 0.15 0 1.5 0 1
+MTL TranslucencyRoughness5 (1, 1, 1) 0.2 0 1.5 0 1
+
+MTL TranslucencyIOR1 (1, 1, 1) 0 0 1.0 0 1
+MTL TranslucencyIOR2 (1, 1, 1) 0 0 1.25 0 1
+MTL TranslucencyIOR3 (1, 1, 1) 0 0 1.5 0 1
+MTL TranslucencyIOR4 (1, 1, 1) 0 0 1.75 0 1
+MTL TranslucencyIOR5 (1, 1, 1) 0 0 2.0 0 1
 
 #
 # TEX <MTL> TYPE PATH [SRGB]
@@ -63,20 +74,32 @@ SKY data/sky.hdr
 # - B MIN MAX  (box)
 # - T V1 V2 V3 (triangle)
 #
-OBJ S (-1.0, 1.0, 0) 0.2 MetalRoughness1
-OBJ S (-0.5, 1.0, 0) 0.2 MetalRoughness2
-OBJ S ( 0.0, 1.0, 0) 0.2 MetalRoughness3
-OBJ S ( 0.5, 1.0, 0) 0.2 MetalRoughness4
-OBJ S ( 1.0, 1.0, 0) 0.2 MetalRoughness5
+OBJ S (-1.0, 1.5, 0) 0.2 MetalRoughness1
+OBJ S (-0.5, 1.5, 0) 0.2 MetalRoughness2
+OBJ S ( 0.0, 1.5, 0) 0.2 MetalRoughness3
+OBJ S ( 0.5, 1.5, 0) 0.2 MetalRoughness4
+OBJ S ( 1.0, 1.5, 0) 0.2 MetalRoughness5
 
-OBJ S (-1.0, 0.5, 0) 0.2 Translucency1
-OBJ S (-0.5, 0.5, 0) 0.2 Translucency2
-OBJ S ( 0.0, 0.5, 0) 0.2 Translucency3
-OBJ S ( 0.5, 0.5, 0) 0.2 Translucency4
-OBJ S ( 1.0, 0.5, 0) 0.2 Translucency5
+OBJ S (-1.0, 1.0, 0) 0.2 MetalDielectric1
+OBJ S (-0.5, 1.0, 0) 0.2 MetalDielectric2
+OBJ S ( 0.0, 1.0, 0) 0.2 MetalDielectric3
+OBJ S ( 0.5, 1.0, 0) 0.2 MetalDielectric4
+OBJ S ( 1.0, 1.0, 0) 0.2 MetalDielectric5
 
-OBJ S (-1.0, 0, 0) 0.2 DielectricToMetal1
-OBJ S (-0.5, 0, 0) 0.2 DielectricToMetal2
-OBJ S ( 0.0, 0, 0) 0.2 DielectricToMetal3
-OBJ S ( 0.5, 0, 0) 0.2 DielectricToMetal4
-OBJ S ( 1.0, 0, 0) 0.2 DielectricToMetal5
+OBJ S (-1.0, 0.5, 0) 0.2 DielectricRoughness1
+OBJ S (-0.5, 0.5, 0) 0.2 DielectricRoughness2
+OBJ S ( 0.0, 0.5, 0) 0.2 DielectricRoughness3
+OBJ S ( 0.5, 0.5, 0) 0.2 DielectricRoughness4
+OBJ S ( 1.0, 0.5, 0) 0.2 DielectricRoughness5
+
+OBJ S (-1.0, 0.0, 0) 0.2 TranslucencyRoughness1
+OBJ S (-0.5, 0.0, 0) 0.2 TranslucencyRoughness2
+OBJ S ( 0.0, 0.0, 0) 0.2 TranslucencyRoughness3
+OBJ S ( 0.5, 0.0, 0) 0.2 TranslucencyRoughness4
+OBJ S ( 1.0, 0.0, 0) 0.2 TranslucencyRoughness5
+
+OBJ S (-1.0, -0.5, 0) 0.2 TranslucencyIOR1
+OBJ S (-0.5, -0.5, 0) 0.2 TranslucencyIOR2
+OBJ S ( 0.0, -0.5, 0) 0.2 TranslucencyIOR3
+OBJ S ( 0.5, -0.5, 0) 0.2 TranslucencyIOR4
+OBJ S ( 1.0, -0.5, 0) 0.2 TranslucencyIOR5

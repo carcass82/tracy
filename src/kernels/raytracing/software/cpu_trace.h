@@ -12,7 +12,7 @@ class Scene;
 class Ray;
 class Camera;
 
-class CpuTrace : public TracyModule<CpuTrace>
+class CpuTrace final : public TracyModule<CpuTrace>
 {
 	friend class TracyModule<CpuTrace>;
 
@@ -35,7 +35,6 @@ private:
 #endif
 
 	static constexpr uint32_t kTileSize{ 4 };
-	static constexpr uint32_t kBounces{ 5 };
 	
 	int raycount_{};
 };
