@@ -100,7 +100,7 @@ Mesh& Scene::AddSphere(const vec3& in_center, float in_radius, uint32_t steps /*
 	return objects_.emplace_back(vertices, indices).ComputeBoundingBox().ComputeTangentsAndBitangents();
 }
 
-Mesh& Scene::AddBox(const vec3& bottom, const vec3& top)
+Mesh& Scene::AddBox(const vec3& bottom, const vec3& top, const mat4& transform /* = Identity */)
 {
 	const vec3 vertices[] = {
 		{ top.x,    top.y,    bottom.z },
@@ -113,15 +113,12 @@ Mesh& Scene::AddBox(const vec3& bottom, const vec3& top)
 		{ bottom.x, bottom.y, top.z    }
 	};
 
-	//
-	// TODO: set UVs
-	//
-	//const vec2 uv[] = {
-	//	vec2{ 0.0f, 0.0f },
-	//	vec2{ 1.0f, 0.0f },
-	//	vec2{ 1.0f, 1.0f },
-	//	vec2{ 0.0f, 1.0f }
-	//};
+	const vec2 uv[] = {
+			{ 0.0f, 0.0f },
+			{ 1.0f, 0.0f },
+			{ 0.0f, 1.0f },
+			{ 1.0f, 1.0f }
+	};
 
 	const vec3 normals[] = {
 		vec3{  0.0f,  1.0f,  0.0f },
@@ -135,55 +132,55 @@ Mesh& Scene::AddBox(const vec3& bottom, const vec3& top)
 	vector<Vertex> boxvertices;
 	vector<Index> boxindices;
 
-	boxvertices.emplace_back(vertices[4], normals[0]); // 0
-	boxvertices.emplace_back(vertices[2], normals[0]); // 1
-	boxvertices.emplace_back(vertices[0], normals[0]); // 2
+	boxvertices.emplace_back(vertices[4], normals[0], uv[0]); // 0
+	boxvertices.emplace_back(vertices[2], normals[0], uv[3]); // 1
+	boxvertices.emplace_back(vertices[0], normals[0], uv[1]); // 2
 	boxindices.push_back(0); boxindices.push_back(1); boxindices.push_back(2);
 
-	boxvertices.emplace_back(vertices[2], normals[1]); // 3
-	boxvertices.emplace_back(vertices[7], normals[1]); // 4
-	boxvertices.emplace_back(vertices[3], normals[1]); // 5
+	boxvertices.emplace_back(vertices[2], normals[1], uv[1]); // 3
+	boxvertices.emplace_back(vertices[7], normals[1], uv[2]); // 4
+	boxvertices.emplace_back(vertices[3], normals[1], uv[3]); // 5
 	boxindices.push_back(3); boxindices.push_back(4); boxindices.push_back(5);
 
-	boxvertices.emplace_back(vertices[6], normals[2]); // 6
-	boxvertices.emplace_back(vertices[5], normals[2]); // 7
-	boxvertices.emplace_back(vertices[7], normals[2]); // 8
+	boxvertices.emplace_back(vertices[6], normals[2], uv[1]); // 6
+	boxvertices.emplace_back(vertices[5], normals[2], uv[2]); // 7
+	boxvertices.emplace_back(vertices[7], normals[2], uv[3]); // 8
 	boxindices.push_back(6); boxindices.push_back(7); boxindices.push_back(8);
 
-	boxvertices.emplace_back(vertices[1], normals[3]); // 9
-	boxvertices.emplace_back(vertices[7], normals[3]); // 10
-	boxvertices.emplace_back(vertices[5], normals[3]); // 11
+	boxvertices.emplace_back(vertices[1], normals[3], uv[3]); // 9
+	boxvertices.emplace_back(vertices[7], normals[3], uv[0]); // 10
+	boxvertices.emplace_back(vertices[5], normals[3], uv[2]); // 11
 	boxindices.push_back(9); boxindices.push_back(10); boxindices.push_back(11);
 
-	boxvertices.emplace_back(vertices[0], normals[4]); // 12
-	boxvertices.emplace_back(vertices[3], normals[4]); // 13
-	boxvertices.emplace_back(vertices[1], normals[4]); // 14
+	boxvertices.emplace_back(vertices[0], normals[4], uv[1]); // 12
+	boxvertices.emplace_back(vertices[3], normals[4], uv[2]); // 13
+	boxvertices.emplace_back(vertices[1], normals[4], uv[3]); // 14
 	boxindices.push_back(12); boxindices.push_back(13); boxindices.push_back(14);
 
-	boxvertices.emplace_back(vertices[4], normals[5]); // 15
-	boxvertices.emplace_back(vertices[1], normals[5]); // 16
-	boxvertices.emplace_back(vertices[5], normals[5]); // 17
+	boxvertices.emplace_back(vertices[4], normals[5], uv[1]); // 15
+	boxvertices.emplace_back(vertices[1], normals[5], uv[2]); // 16
+	boxvertices.emplace_back(vertices[5], normals[5], uv[3]); // 17
 	boxindices.push_back(15); boxindices.push_back(16); boxindices.push_back(17);
 
-	boxvertices.emplace_back(vertices[6], normals[0]); // 18
+	boxvertices.emplace_back(vertices[6], normals[0], uv[2]); // 18
 	boxindices.push_back(0); boxindices.push_back(18); boxindices.push_back(1);
 
-	boxvertices.emplace_back(vertices[6], normals[1]); // 19
+	boxvertices.emplace_back(vertices[6], normals[1], uv[0]); // 19
 	boxindices.push_back(3); boxindices.push_back(19); boxindices.push_back(4);
 
-	boxvertices.emplace_back(vertices[4], normals[2]); // 20
+	boxvertices.emplace_back(vertices[4], normals[2], uv[0]); // 20
 	boxindices.push_back(6); boxindices.push_back(20); boxindices.push_back(7);
 
-	boxvertices.emplace_back(vertices[3], normals[3]); // 21
+	boxvertices.emplace_back(vertices[3], normals[3], uv[1]); // 21
 	boxindices.push_back(9); boxindices.push_back(21); boxindices.push_back(10);
 
-	boxvertices.emplace_back(vertices[2], normals[4]); // 22
+	boxvertices.emplace_back(vertices[2], normals[4], uv[0]); // 22
 	boxindices.push_back(12); boxindices.push_back(22); boxindices.push_back(13);
 
-	boxvertices.emplace_back(vertices[0], normals[5]); // 23
+	boxvertices.emplace_back(vertices[0], normals[5], uv[0]); // 23
 	boxindices.push_back(15); boxindices.push_back(23); boxindices.push_back(16);
 
-	return objects_.emplace_back(boxvertices, boxindices).ComputeBoundingBox().ComputeTangentsAndBitangents();
+	return objects_.emplace_back(boxvertices, boxindices).Transform(transform).ComputeBoundingBox().ComputeTangentsAndBitangents();
 }
 
 Mesh& Scene::AddTriangle(const vec3& v1, const vec3& v2, const vec3& v3)
@@ -194,16 +191,11 @@ Mesh& Scene::AddTriangle(const vec3& v1, const vec3& v2, const vec3& v3)
 	return objects_.emplace_back(v, i).ComputeBoundingBox().ComputeNormals().ComputeTangentsAndBitangents();
 }
 
-Mesh& Scene::AddMesh(Mesh&& mesh, bool compute_normals /* = false */)
+Mesh& Scene::AddMesh(Mesh&& mesh, const mat4& transform /* = Identity */, bool compute_normals /* = false */)
 {
-	if (compute_normals)
-	{
-		return objects_.emplace_back(std::move(mesh)).ComputeBoundingBox().ComputeNormals().ComputeTangentsAndBitangents();
-	}
-	else
-	{
-		return objects_.emplace_back(std::move(mesh)).ComputeBoundingBox().ComputeTangentsAndBitangents();
-	}
+	auto&& result = objects_.emplace_back(std::move(mesh)).Transform(transform).ComputeBoundingBox();
+
+	return (compute_normals) ? result.ComputeNormals().ComputeTangentsAndBitangents() : result.ComputeTangentsAndBitangents();
 }
 
 bool Scene::Init(const char* scene_path, uint32_t& inout_width, uint32_t& inout_height)
@@ -404,11 +396,23 @@ bool Scene::Init(const char* scene_path, uint32_t& inout_width, uint32_t& inout_
 							{
 								vec3 min_box;
 								vec3 max_box;
+								vec3 rotation;
 
 								char mat_name[16];
-								if (sscanf(subparams, "(%f,%f,%f) (%f,%f,%f) %s", &min_box.x, &min_box.y, &min_box.z,
-									&max_box.x, &max_box.y, &max_box.z,
-									mat_name) == 7)
+								if (sscanf(subparams, "(%f,%f,%f) (%f,%f,%f) (%f,%f,%f) %s", &min_box.x, &min_box.y, &min_box.z, &max_box.x, &max_box.y, &max_box.z, &rotation.x, &rotation.y, &rotation.z, mat_name) == 10)
+								{
+									BBox object{ min_box, max_box };
+
+									mat4 transform{ 1.f };
+									transform = translate(transform, object.GetCenter());
+									transform = rotate(transform, radians(rotation.x), { 1, 0, 0 });
+									transform = rotate(transform, radians(rotation.y), { 0, 1, 0 });
+									transform = rotate(transform, radians(rotation.z), { 0, 0, 1 });
+									transform = translate(transform, -object.GetCenter());
+
+									AddBox(min_box, max_box, transform).SetMaterial(&materials_[mat_name]);
+								}
+								else if (sscanf(subparams, "(%f,%f,%f) (%f,%f,%f) %s", &min_box.x, &min_box.y, &min_box.z, &max_box.x, &max_box.y, &max_box.z, mat_name) == 7)
 								{
 									AddBox(min_box, max_box).SetMaterial(&materials_[mat_name]);
 								}
@@ -439,7 +443,13 @@ bool Scene::Init(const char* scene_path, uint32_t& inout_width, uint32_t& inout_
 					{
 						char file_name[MAX_PATH];
 						char mat_name[16];
-						if (sscanf(params, "%s %s", file_name, mat_name) == 2)
+						vec3 translation;
+						vec3 rotation;
+						float scaling{ 1.f };
+						if (sscanf(params, "%s %s (%f, %f, %f) (%f, %f, %f) %f", file_name, mat_name,
+						                                                         &translation.x, &translation.y, &translation.z,
+						                                                         &rotation.x, &rotation.y, &rotation.z,
+						                                                         &scaling) >= 2)
 						{
 							tinyobj::attrib_t attrib;
 							vector<tinyobj::shape_t> obj_shapes;
@@ -448,6 +458,13 @@ bool Scene::Init(const char* scene_path, uint32_t& inout_width, uint32_t& inout_
 
 							if (tinyobj::LoadObj(&attrib, &obj_shapes, &obj_materials, &warn, &err, file_name))
 							{
+								mat4 transform{ 1.f };
+								transform = rotate(transform, radians(rotation.x), { 1, 0, 0 });
+								transform = rotate(transform, radians(rotation.y), { 0, 1, 0 });
+								transform = rotate(transform, radians(rotation.z), { 0, 0, 1 });
+								transform = translate(transform, translation);
+								transform = scale(transform, scaling);
+
 								for (const tinyobj::shape_t& shape : obj_shapes)
 								{
 									vector<Vertex> m_Vertices;
@@ -488,7 +505,7 @@ bool Scene::Init(const char* scene_path, uint32_t& inout_width, uint32_t& inout_
 										indices_remap[index.vertex_index] = last_inserted;
 									}
 
-									AddMesh({m_Vertices, m_Indices}, recompute_normals).SetMaterial(&materials_[mat_name]);
+									AddMesh({m_Vertices, m_Indices}, transform, recompute_normals).SetMaterial(&materials_[mat_name]);
 								}
 							}
 						}

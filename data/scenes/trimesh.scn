@@ -55,6 +55,6 @@ OBJ S (0.5, 0, -1.0) 0.3 Glass
 OBJ B (-10.0, -0.51, -10.0) (10.0, -0.3, 10.0) Grey
 
 #
-# TRI PATH MTL
+# TRI PATH MTL [TRANSLATION] [ROTATION] [SCALE]
 #
 TRI data/teapot.obj Copper

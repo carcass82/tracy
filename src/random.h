@@ -48,9 +48,9 @@ inline float fastrand(RandomCtx ctx)
     static constexpr uint32_t multiplier{ 1103515245u };
     static constexpr uint32_t increment{ 12345u };
 
-    uint32_t x{ ctx };
-    x *= multiplier;
-    x += increment;
+    // Advance internal state
+    uint32_t x{ ctx * multiplier + increment };
+
     ctx = x;
 
     return x / static_cast<float>(UINT32_MAX);
@@ -72,12 +72,14 @@ inline float fastrand(RandomCtx ctx)
     static constexpr uint64_t increment{ 1442695040888963407ull };
 
     // Advance internal state
-    ctx = ctx * multiplier + increment;
+    uint64_t x{ ctx * multiplier + increment };
+
+    ctx = x;
     
     // Calculate output function (XSH RR), uses old state for max ILP
-    uint32_t xorshifted = static_cast<uint32_t>(((ctx >> 18u) ^ ctx) >> 27u);
+    uint32_t xorshifted = static_cast<uint32_t>(((x >> 18u) ^ x) >> 27u);
 
-    uint32_t rot = ctx >> 59u;
+    uint32_t rot = x >> 59u;
     
     uint32_t result = (xorshifted >> rot) | (xorshifted << (-(static_cast<int32_t>(rot)) & 31));
 

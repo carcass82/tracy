@@ -113,6 +113,10 @@ using cc::math::clamp;
 using cc::math::lerp;
 using cc::math::perspective;
 using cc::math::inverse;
+using cc::math::translate;
+using cc::math::rotate;
+using cc::math::scale;
+using cc::math::normalize;
 #define cosf(x) cc::math::cosf(x)
 #define sinf(x) cc::math::sinf(x)
 #define sincosf(x, s, c) cc::math::sincosf(x, s, c)

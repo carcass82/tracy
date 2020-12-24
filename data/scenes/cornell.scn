@@ -2,7 +2,7 @@
 # Classic Cornell Box
 #
 SCN Cornell
-OUT 640 480
+OUT 800 800
 
 #
 # CAM Eye Center Up fov
@@ -19,8 +19,6 @@ MTL Light (1,1,1) 0 0 0 15
 MTL White (0.73, 0.73, 0.73) 1 0
 MTL Green (0.12, 0.45, 0.15) 1 0
 MTL Red (0.65, 0.05, 0.05) 1 0
-MTL Glass (1, 1, 1) 0 0 1.5 0 1
-MTL Gold (1.0, 0.71, 0.29) 0.05 1
 
 #
 # TEX <MTL> TYPE PATH [SRGB]
@@ -46,9 +44,9 @@ SKY (0, 0, 0)
 #
 # OBJ TYPE COORD1 [COORD2] [COORD3] MTL
 #
-# - S RADIUS   (sphere)
-# - B MIN MAX  (box)
-# - T V1 V2 V3 (triangle)
+# - S CENTER RADIUS      (sphere)
+# - B MIN MAX [ROTATION] (box)
+# - T V1 V2 V3           (triangle)
 #
 OBJ B (213, 554, 227) (343, 555, 332) Light
 OBJ B (555, 0, 0) (556, 555, 555) Green
@@ -56,7 +54,5 @@ OBJ B (-1, 0, 0) (0, 555, 555) Red
 OBJ B (0, -1, 0) (555, 0, 555) White
 OBJ B (0, 555, 0) (555, 556, 555) White
 OBJ B (0, 0, 554) (555, 555, 555) White
-OBJ B (265, 0, 295) (430, 330, 460) White
-OBJ B (130, 0, 65) (295, 165, 230) White
-OBJ S (212.5, 215, 147.5) 50 Glass
-OBJ S (347.5, 380, 377.5) 50 Gold
+OBJ B (265, 0, 295) (430, 330, 460) (0, 15, 0) White
+OBJ B (130, 0, 65) (295, 165, 230) (0, -18, 0) White

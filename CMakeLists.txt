@@ -115,6 +115,9 @@ if(TRACY_ACCUMULATE_SAMPLES)
 	add_definitions(-DACCUMULATE_SAMPLES)
 endif()
 
+set(TRACY_MAX_BOUNCES "5" CACHE STRING "Max Ray Bounces") 
+add_definitions(-DTRACY_MAX_BOUNCES=${TRACY_MAX_BOUNCES})
+
 option(TRACY_RUSSIAN_ROULETTE "Use Russian roulette for early ray termination" ON)
 if(TRACY_RUSSIAN_ROULETTE)
 	add_definitions(-DUSE_RUSSIAN_ROULETTE)
@@ -155,7 +158,6 @@ set(main_includes "./src/mesh.h"
                   "./src/timer.h"
                   "./src/random.h"
                   "./src/vertex.h"
-				  "./src/triangle.h"
 				  "./src/container.h"
 				  "./src/aabb.h"
 				  "./src/collision.h"
@@ -185,7 +187,7 @@ if(TRACY_RENDER_MODULE STREQUAL "CPU (RayTracing)")
 
 	include_directories(./src/kernels/raytracing/software/)
 
-	set(CPU_RAND_ALGORITHM "LCG" CACHE STRING "Random Algorithm to use")
+	set(CPU_RAND_ALGORITHM "PCG" CACHE STRING "Random Algorithm to use")
 	set_property(CACHE CPU_RAND_ALGORITHM PROPERTY STRINGS "rand()" "XorShift" "LCG" "PCG")
 	
 	option(CPU_NO_OPENMP "Disable OpenMP in CPU Trace loop" OFF)
@@ -223,60 +225,61 @@ if(TRACY_RENDER_MODULE STREQUAL "CPU (RayTracing)")
 	endif()
 	
 
-#elseif(TRACY_RENDER_MODULE STREQUAL "CUDA (RayTracing)")
-#
-#	add_definitions(-DCUDA_KERNEL=1)
-#	add_definitions(-DRANDOM_CUDA=1)
-#
-#	find_package(OpenGL REQUIRED)
-#	list(APPEND tracy_libraries ${OPENGL_LIBRARIES})
-#
-#	enable_language(C)
-#	add_definitions(-DGLEW_STATIC)
-#	include_directories(./ext/glew/include)
-#	set(glew_source "./ext/glew/glew.c")
-#	source_group("ext\\glew" FILES ${glew_source})
-#	list(APPEND tracy_sources ${glew_source})
-#
-#	enable_language(CUDA)
-#	set(CMAKE_CUDA_STANDARD 17)
-#	set(CMAKE_CUDA_EXTENSIONS OFF)
-#
-#	set(target_properties "CUDA_SEPARABLE_COMPILATION ON")
-#	list(APPEND target_properties "CUDA_RESOLVE_DEVICE_SYMBOLS ON")
-#
-#	include_directories(./src/kernels/raytracing/cuda/)
-#	include_directories(${CMAKE_CUDA_TOOLKIT_INCLUDE_DIRECTORIES}) 
-#
-#	set(CUDA_ARCH Auto CACHE STRING "Cuda Arch Compile Option (Default: Autodetected)")
-#	
-#	# deprecated but currently the only way to detect cuda arch
-#	include(FindCUDA)
-#	cuda_select_nvcc_arch_flags(CUDA_COMPUTE_ARCH_FLAGS ${CUDA_ARCH})
-#	string (REPLACE ";" " " CUDA_COMPUTE_ARCH_FLAGS_STRING "${CUDA_COMPUTE_ARCH_FLAGS}")
-#	message(STATUS "CUDA architecture Compile Flags: ${CUDA_COMPUTE_ARCH_FLAGS_STRING}")
-#	
-#	set(CMAKE_CUDA_FLAGS "-lineinfo -DCUDA_CALL=\"__host__ __device__\" -DCUDA_DEVICE_CALL=__device__ -D_FORCE_INLINES ${CUDA_COMPUTE_ARCH_FLAGS_STRING}")
-#	set(CMAKE_CUDA_FLAGS_DEBUG "-g -G -D_DEBUG")
-#	set(CMAKE_CUDA_FLAGS_RELEASE "-O3 --use_fast_math -DNDEBUG")
-#
-#	set(cuda_sources "./src/kernels/raytracing/cuda/cuda_trace.cpp"
-#	                 "./src/kernels/raytracing/cuda/cuda_details.cpp"
-#	                 "./src/kernels/raytracing/cuda/cuda_trace.cu")
-#	source_group("kernel\\cuda\\src" FILES ${cuda_sources})
-#	list(APPEND tracy_sources ${cuda_sources})
-#
-#	set(cuda_includes "./src/kernels/raytracing/cuda/cuda_trace.h"
-#	                  "./src/kernels/raytracing/cuda/cuda_details.h"
-#	                  "./src/kernels/raytracing/cuda/cuda_scene.h"
-#	                  "./src/kernels/raytracing/cuda/cuda_device.h"
-#	                  "./src/kernels/raytracing/cuda/cuda_log.h"
-#	                  "./src/kernels/raytracing/cuda/cuda_specific.h")
-#	source_group("kernel\\cuda\\include" FILES ${cuda_includes})
-#	list(APPEND tracy_includes ${cuda_includes})
-#
-#	set_source_files_properties("./src/material.cpp" PROPERTIES LANGUAGE CUDA)
-#
+elseif(TRACY_RENDER_MODULE STREQUAL "CUDA (RayTracing)")
+
+	add_definitions(-DCUDA_KERNEL=1)
+	add_definitions(-DRANDOM_CUDA=1)
+
+	find_package(OpenGL REQUIRED)
+	list(APPEND tracy_libraries ${OPENGL_LIBRARIES})
+
+	enable_language(C)
+	add_definitions(-DGLEW_STATIC)
+	include_directories(./ext/glew/include)
+	set(glew_source "./ext/glew/glew.c")
+	source_group("ext\\glew" FILES ${glew_source})
+	list(APPEND tracy_sources ${glew_source})
+
+	enable_language(CUDA)
+	set(CMAKE_CUDA_STANDARD 17)
+	set(CMAKE_CUDA_EXTENSIONS OFF)
+
+	set(target_properties "CUDA_SEPARABLE_COMPILATION ON")
+	list(APPEND target_properties "CUDA_RESOLVE_DEVICE_SYMBOLS ON")
+
+	include_directories(./src/kernels/raytracing/cuda/)
+	include_directories(${CMAKE_CUDA_TOOLKIT_INCLUDE_DIRECTORIES}) 
+
+	set(CUDA_ARCH Auto CACHE STRING "Cuda Arch Compile Option (Default: Autodetected)")
+	
+	# deprecated but currently the only way to detect cuda arch
+	include(FindCUDA)
+	cuda_select_nvcc_arch_flags(CUDA_COMPUTE_ARCH_FLAGS ${CUDA_ARCH})
+	string (REPLACE ";" " " CUDA_COMPUTE_ARCH_FLAGS_STRING "${CUDA_COMPUTE_ARCH_FLAGS}")
+	message(STATUS "CUDA architecture Compile Flags: ${CUDA_COMPUTE_ARCH_FLAGS_STRING}")
+	
+	set(CMAKE_CUDA_FLAGS "-DCUDA_CALL=\"__host__ __device__\" -DCUDA_DEVICE_CALL=__device__ -D_FORCE_INLINES ${CUDA_COMPUTE_ARCH_FLAGS_STRING}")
+	set(CMAKE_CUDA_FLAGS_DEBUG "-g -G -D_DEBUG")
+	set(CMAKE_CUDA_FLAGS_RELEASE "-O3 --use_fast_math -DNDEBUG -lineinfo")
+
+	set(cuda_sources "./src/kernels/raytracing/cuda/cuda_trace.cpp"
+	                 "./src/kernels/raytracing/cuda/cuda_details.cpp"
+	                 "./src/kernels/raytracing/cuda/cuda_trace.cu")
+	source_group("kernel\\cuda\\src" FILES ${cuda_sources})
+	list(APPEND tracy_sources ${cuda_sources})
+
+	set(cuda_includes "./src/kernels/raytracing/cuda/cuda_trace.h"
+	                  "./src/kernels/raytracing/cuda/cuda_details.h"
+	                  "./src/kernels/raytracing/cuda/cuda_scene.h"
+	                  "./src/kernels/raytracing/cuda/cuda_device.h"
+	                  "./src/kernels/raytracing/cuda/cuda_log.h"
+	                  "./src/kernels/raytracing/cuda/cuda_specific.h"
+					  "./src/kernels/raytracing/cuda/cuda_trace.cuh")
+	source_group("kernel\\cuda\\include" FILES ${cuda_includes})
+	list(APPEND tracy_includes ${cuda_includes})
+
+	set_source_files_properties("./src/material.cpp" PROPERTIES LANGUAGE CUDA)
+
 #elseif(TRACY_RENDER_MODULE STREQUAL "OpenGL (Raster)")
 #
 #	add_definitions(-DOPENGL_KERNEL=1)

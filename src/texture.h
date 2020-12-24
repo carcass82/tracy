@@ -14,22 +14,19 @@ public:
     CUDA_DEVICE_CALL Texture()
     {}
 
-    CUDA_DEVICE_CALL Texture(int32_t in_width, int32_t in_height, uint8_t* in_pixels, bool sRGB = false)
+    template<typename T>
+    CUDA_DEVICE_CALL Texture(int32_t in_width, int32_t in_height, T* in_pixels, bool sRGB = false)
         : width{ in_width }, height{ in_height }, pixels{ new vec4[in_width * in_height] }, valid{ true }
     {
-        for (int32_t i = 0; i < width * height; ++i)
-        {
-            vec4 pixel = vec4(in_pixels[i * bpp], in_pixels[i * bpp + 1], in_pixels[i * bpp + 2], in_pixels[i * bpp + 3]) / 255.f;
-            pixels[i] = sRGB ? linear(pixel) : pixel;
-        }
-    }
+        // only handle unsigned char and float types
+        static_assert(std::is_same_v<T, uint8_t> || std::is_same_v<T, float>);
 
-    CUDA_DEVICE_CALL Texture(int32_t in_width, int32_t in_height, float* in_pixels, bool sRGB = false)
-        : width{ in_width }, height{ in_height }, pixels{ new vec4[width * height] }, valid{ true }
-    {
+        // floating point texture are expected to have a value of 0...1, no need to remap from 0...255 range
+        static constexpr float kRemap = std::is_same_v<T, float>? 1.f : 255.f;
+
         for (int32_t i = 0; i < width * height; ++i)
         {
-            vec4 pixel = vec4(in_pixels[i * bpp], in_pixels[i * bpp + 1], in_pixels[i * bpp + 2], in_pixels[i * bpp + 3]);
+            vec4 pixel = vec4(in_pixels[i * bpp], in_pixels[i * bpp + 1], in_pixels[i * bpp + 2], in_pixels[i * bpp + 3]) / kRemap;
             pixels[i] = sRGB ? linear(pixel) : pixel;
         }
     }
@@ -62,6 +59,7 @@ public:
 
     CUDA_DEVICE_CALL constexpr const vec4& GetPixel(const vec2& uv) const
     {
+        // TODO: assuming "GL_REPEAT" mode, implement other behaviors
         using cc::math::frac;
 
         uint32_t i = static_cast<uint32_t>(clamp(frac(uv.x) * width, 0.f, width - 1.f));

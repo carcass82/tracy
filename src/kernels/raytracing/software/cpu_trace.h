@@ -35,6 +35,7 @@ private:
 #endif
 
 	static constexpr uint32_t kTileSize{ 4 };
+	static constexpr uint32_t kMaxBounces{ TRACY_MAX_BOUNCES };
 	
 	int raycount_{};
 };

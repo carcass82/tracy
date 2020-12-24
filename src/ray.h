@@ -15,14 +15,14 @@ public:
     CUDA_DEVICE_CALL Ray(const vec3& origin, const vec3& direction)
         : origin_{ origin }
         , direction_{ normalize(direction) }
-        , inv_direction_{ 1.f / direction_ }
+        , inv_direction_{rcp(direction_) }
     {}
 
     // make sure we don't copy rays around
     Ray(const Ray&) = delete;
     Ray& operator=(const Ray&) = delete;
 
-    CUDA_DEVICE_CALL Ray(Ray&& other)
+    CUDA_DEVICE_CALL Ray(Ray&& other) noexcept
         : Ray(other.origin_, other.direction_)
     {}
 

@@ -106,8 +106,6 @@ void CpuTrace::RenderTile(uint32_t tile_x, uint32_t tile_y, const Scene& scene, 
 
 vec3 CpuTrace::Trace(Ray&& ray, const Scene& scene, RandomCtx random_ctx)
 {
-	static constexpr uint32_t kMaxBounces{ TRACY_MAX_BOUNCES };
-
 	Ray current_ray{ std::move(ray) };
 	vec3 throughput{ 1.f, 1.f, 1.f };
 	vec3 pixel;
@@ -154,13 +152,13 @@ vec3 CpuTrace::Trace(Ray&& ray, const Scene& scene, RandomCtx random_ctx)
 		}
 
 #if USE_RUSSIAN_ROULETTE
-		float p = max(throughput.r, max(throughput.g, throughput.b));
+		float p = EPS + max(throughput.r, max(throughput.g, throughput.b));
 		if (fastrand(random_ctx) > p)
 		{
 			break;
 		}
 		
-		throughput *= rcp(max(EPS, p));
+		throughput *= rcp(p);
 #endif
 	}
 

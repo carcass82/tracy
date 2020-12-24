@@ -26,11 +26,11 @@ public:
 
 	Mesh& AddSphere(const vec3& in_center, float in_radius, uint32_t steps = 32);
 
-	Mesh& AddBox(const vec3& bottom, const vec3& top);
+	Mesh& AddBox(const vec3& bottom, const vec3& top, const mat4& transform = mat4{ 1 });
 
 	Mesh& AddTriangle(const vec3& v1, const vec3& v2, const vec3& v3);
 
-	Mesh& AddMesh(Mesh&& mesh, bool compute_normals = false);
+	Mesh& AddMesh(Mesh&& mesh, const mat4& transform = mat4{ 1 }, bool compute_normals = false);
 
 	bool Init(const char* scene_path, uint32_t& width, uint32_t& height);
 

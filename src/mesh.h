@@ -75,6 +75,8 @@ public:
         return *this;
     }
 
+	Mesh& Transform(const mat4& transform);
+
 	Mesh& ComputeNormals();
 	
 	template<typename VertexType = Vertex, bool enabled = VertexType::VertexHasTangents>
@@ -118,6 +120,17 @@ private:
 };
 
 
+inline Mesh& Mesh::Transform(const mat4& transform)
+{
+	for (uint32_t i = 0; i < vertexcount_; ++i)
+	{
+		vertices_[i].pos = (transform * vec4(vertices_[i].pos, 1.f)).xyz;
+		vertices_[i].normal = normalize((transpose(inverse(transform)) * vec4(vertices_[i].normal, 1.f)).xyz);
+	}
+
+	return *this;
+}
+
 inline Mesh& Mesh::ComputeNormals()
 {
 	for (uint32_t i = 0; i < indexcount_; i += 3)
@@ -135,7 +148,7 @@ inline Mesh& Mesh::ComputeNormals()
 
 inline Mesh& Mesh::ComputeBoundingBox()
 {
-	aabb_ = { FLT_MAX, -FLT_MAX };
+	aabb_.Reset();
 	for (uint32_t i = 0; i < vertexcount_; ++i)
 	{
 		aabb_.minbound = pmin(aabb_.minbound, vertices_[i].pos);

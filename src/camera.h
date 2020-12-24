@@ -42,8 +42,6 @@ public:
 
 		projection_ = perspective(radians(fov_), ratio_, near_far_.x, near_far_.y);
 		view_projection_inv_ = inverse(projection_ * view_);
-
-		dirty_ = true;
 	}
 
 	CUDA_DEVICE_CALL void UpdateView(const vec3& eye, const vec3& center, const vec3& up)
@@ -54,11 +52,7 @@ public:
 
 		view_ = lookAt(eye_, center_, up_);
 		view_projection_inv_ = inverse(projection_ * view_);
-
-		dirty_ = true;
 	}
-
-	CUDA_DEVICE_CALL bool IsDirty() const { return dirty_; }
 
 	CUDA_DEVICE_CALL const mat4& GetView() const { return view_; }
 
@@ -70,18 +64,11 @@ public:
 
 	CUDA_DEVICE_CALL const vec3& GetTarget() const { return center_; }
 
-	CUDA_DEVICE_CALL uint64_t BeginFrame() const
-	{
-		if (dirty_)
-		{
-			frame_counter_ = 0;
-			dirty_ = false;
-		}
-		
-		return frame_counter_++;
-	}
+	CUDA_DEVICE_CALL const vec3& GetViewDirection() const { return center_ - eye_; }
 
-	CUDA_DEVICE_CALL void EndFrame() const { }
+	CUDA_DEVICE_CALL void BeginFrame() const {}
+	
+	CUDA_DEVICE_CALL void EndFrame() const {}
 
 private:
 	vec3 eye_{};
@@ -95,7 +82,4 @@ private:
 	mat4 view_{};
 	mat4 projection_{};
 	mat4 view_projection_inv_{};
-
-	mutable bool dirty_{ false };
-	mutable uint64_t frame_counter_{ 0 };
 };
