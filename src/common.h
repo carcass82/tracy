@@ -86,7 +86,14 @@ using glm::min;
 using glm::clamp;
 using glm::lerp;
 using glm::perspective;
+using glm::inverse;
+using glm::transpose;
+using glm::translate;
+using glm::rotate;
+using glm::scale;
 using glm::lookAt;
+using glm::normalize;
+#define frac(x) glm::fract(x)
 #define cosf(x) glm::fastCos(x)
 #define sinf(x) glm::fastSin(x)
 CUDA_CALL inline void sincosf(float x, float* s, float* c) { *s = sinf(x); *c = cosf(x); }
@@ -95,7 +102,7 @@ CUDA_CALL inline vec3 pmax(const vec3& a, const vec3& b) { return { max(a.x, b.x
 constexpr float PI = 3.1415926535897932f;
 constexpr float EPS = 1.e-8f;
 template<typename T, size_t N> constexpr inline uint32_t array_size(const T(&)[N]) { return N; }
-constexpr inline float rcp(float x) { return 1.f / x; }
+template<typename T> constexpr inline T rcp(const T& x) { return 1.f / x; }
 #define srgb(x) convertLinearToSRGB(x)
 #define linear(x) convertSRGBToLinear(x)
 #else
@@ -113,6 +120,7 @@ using cc::math::clamp;
 using cc::math::lerp;
 using cc::math::perspective;
 using cc::math::inverse;
+using cc::math::transpose;
 using cc::math::translate;
 using cc::math::rotate;
 using cc::math::scale;
@@ -122,6 +130,7 @@ using cc::math::normalize;
 #define sincosf(x, s, c) cc::math::sincosf(x, s, c)
 #define powf(x, y) cc::math::pow(x, y)
 #define sqrtf(x) cc::math::sqrtf(x)
+using cc::math::frac;
 using cc::math::PI;
 using cc::math::EPS;
 using cc::array_size;

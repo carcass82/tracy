@@ -112,6 +112,7 @@ vec3 CpuTrace::Trace(Ray&& ray, const Scene& scene, RandomCtx random_ctx)
 
 	for (uint32_t t = 0; t < kMaxBounces; ++t)
 	{
+		#pragma omp atomic
 		++raycount_;
 
 		collision::HitData intersection_data;

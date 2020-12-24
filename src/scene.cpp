@@ -463,7 +463,7 @@ bool Scene::Init(const char* scene_path, uint32_t& inout_width, uint32_t& inout_
 								transform = rotate(transform, radians(rotation.y), { 0, 1, 0 });
 								transform = rotate(transform, radians(rotation.z), { 0, 0, 1 });
 								transform = translate(transform, translation);
-								transform = scale(transform, scaling);
+								transform = scale(transform, vec3(scaling));
 
 								for (const tinyobj::shape_t& shape : obj_shapes)
 								{

@@ -60,8 +60,6 @@ public:
     CUDA_DEVICE_CALL constexpr const vec4& GetPixel(const vec2& uv) const
     {
         // TODO: assuming "GL_REPEAT" mode, implement other behaviors
-        using cc::math::frac;
-
         uint32_t i = static_cast<uint32_t>(clamp(frac(uv.x) * width, 0.f, width - 1.f));
         uint32_t j = static_cast<uint32_t>(clamp(frac(1.f - uv.y) * height, 0.f, height - 1.f));
 

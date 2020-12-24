@@ -44,8 +44,8 @@ struct BBox
 
     CUDA_DEVICE_CALL void Reset()
     {
-        minbound = FLT_MAX;
-        maxbound = -FLT_MAX;
+        minbound = vec3(FLT_MAX);
+        maxbound = vec3(-FLT_MAX);
     }
 
 	vec3 minbound;

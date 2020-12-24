@@ -147,10 +147,6 @@ CUDA_DEVICE_CALL inline bool RayAABB(const Ray& in_ray, const BBox& in_aabb, flo
 	return RayAABB(in_ray.GetOrigin(), in_ray.GetDirectionInverse(), in_aabb.minbound, in_aabb.maxbound, in_tmax);
 }
 
-#if USE_INTRINSICS
-
-#endif
-
 // triangle - box test using separating axis theorem (https://fileadmin.cs.lth.se/cs/Personal/Tomas_Akenine-Moller/pubs/tribox.pdf)
 // code adapted from http://fileadmin.cs.lth.se/cs/Personal/Tomas_Akenine-Moller/code/tribox3.txt
 CUDA_DEVICE_CALL inline bool TriangleAABB(const vec3& in_v0, const vec3& in_v1, const vec3& in_v2, const BBox& in_aabb)

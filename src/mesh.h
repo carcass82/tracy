@@ -125,7 +125,7 @@ inline Mesh& Mesh::Transform(const mat4& transform)
 	for (uint32_t i = 0; i < vertexcount_; ++i)
 	{
 		vertices_[i].pos = (transform * vec4(vertices_[i].pos, 1.f)).xyz;
-		vertices_[i].normal = normalize((transpose(inverse(transform)) * vec4(vertices_[i].normal, 1.f)).xyz);
+		vertices_[i].normal = normalize(vec3((transpose(inverse(transform)) * vec4(vertices_[i].normal, 1.f)).xyz));
 	}
 
 	return *this;
