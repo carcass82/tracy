@@ -2,19 +2,23 @@
 # Damaged Helmet
 # source model: https://github.com/KhronosGroup/glTF-Sample-Models/tree/master/sourceModels/DamagedHelmet
 #
+# SCN <Name>
+# OUT WIDTH HEIGHT
+#
 SCN Damaged Helmet
 OUT 800 600
 
 #
-# CAM Eye Center Up fov
+# CAM EYE CENTER UP FOV
 #
 CAM (0, 0.2, -3) (0.0, -0.2, 0.0) (0.0, 1.0, 0.0) 45.0
 
 #
-# MTL Name ALBEDO ROUGHNESS METALNESS [IOR] [EMISSIVE] [TRANSLUCENCY]
+# MTL <Name> ALBEDO ROUGHNESS METALNESS [IOR] [EMISSIVE] [TRANSLUCENCY]
 #
 # optional IOR (defaults to 1)
-# optional EMISSIVE multiplier
+# optional EMISSIVE multiplier (defaults to 0)
+# optional TRANSLUCENCY (defaults to 0)
 #
 MTL Light E (5.0, 5.0, 5.0)
 MTL Grey L (0.2, 0.2, 0.2)
@@ -31,7 +35,7 @@ MTL Textured L (3.0, 3.0, 3.0)
 # - E (emissive map)
 #
 # use SRGB option to convert pixels to linear
-# 
+#
 TEX Textured B data/helmet_albedo.jpg SRGB
 TEX Textured N data/helmet_normal.jpg
 TEX Textured R data/helmet_roughness.jpg
@@ -39,24 +43,23 @@ TEX Textured M data/helmet_metal.jpg
 TEX Textured E data/helmet_emissive.jpg SRGB
 
 #
-# SKY (ALBEDO|PATH [SRGB])
+# SKY (ALBEDO | PATH [SRGB])
 #
 # sky is just an emissive material used when rays miss
 # all objects in the scene. It defaults to solid black
+# Dual paraboloid maps are supported
 #
 SKY data/sky.hdr
 
 #
-# OBJ TYPE COORD1 [COORD2] [COORD3] <MTL>
+# OBJ TYPE COORD1 [COORD2] [COORD3] MTL
 #
-# - S RADIUS   (sphere)
-# - B MIN MAX  (box)
-# - T V1 V2 V3 (triangle)
+# - S CENTER RADIUS      (sphere)
+# - B MIN MAX [ROTATION] (box)
+# - T V1 V2 V3           (triangle)
 #
-#OBJ B (-5.0, 15, -10.0) (5.0, 15.5, 10.0) Light
-#OBJ B (-20.0, -1,  -20.0) (20.0, -1, 20.0) Grey
 
 #
-# TRI PATH <MTL>
+# TRI PATH <MTL> [TRANSLATION ROTATION SCALE]
 #
 TRI data/helmet.obj Textured

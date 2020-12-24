@@ -1,16 +1,14 @@
 #
-# The Stanford Bunny (70K tris)
-#
 # SCN <Name>
 # OUT WIDTH HEIGHT
 #
-SCN Stanford Bunny
+SCN Example
 OUT 1024 768
 
 #
 # CAM EYE CENTER UP FOV
 #
-CAM (0, 10, 15) (0.0, 3.0, 0.0) (0.0, 1.0, 0.0) 60.0
+CAM (0, 0, 5) (0, 0, 0) (0, 1, 0) 45
 
 #
 # MTL <Name> ALBEDO ROUGHNESS METALNESS [IOR] [EMISSIVE] [TRANSLUCENCY]
@@ -19,9 +17,8 @@ CAM (0, 10, 15) (0.0, 3.0, 0.0) (0.0, 1.0, 0.0) 60.0
 # optional EMISSIVE multiplier (defaults to 0)
 # optional TRANSLUCENCY (defaults to 0)
 #
-MTL Light (1,1,1) 0 0 0 5
-MTL Grey (0.2, 0.2, 0.2) 1 0
-MTL Jade (0.1, 0.9, 0.1) 0 0 1.5 0 1
+MTL DefaultLight (1,1,1) 0 0 0 5
+MTL DefaultMaterial (1,0,0) 0.2 0 
 
 #
 # TEX <MTL> TYPE PATH [SRGB]
@@ -35,6 +32,8 @@ MTL Jade (0.1, 0.9, 0.1) 0 0 1.5 0 1
 #
 # use SRGB option to convert pixels to linear
 #
+TEX DefaultMaterial B some/path/basecolor.jpg SRGB
+TEX DefaultMaterial N some/path/normals.jpg
 
 #
 # SKY (ALBEDO | PATH [SRGB])
@@ -43,7 +42,7 @@ MTL Jade (0.1, 0.9, 0.1) 0 0 1.5 0 1
 # all objects in the scene. It defaults to solid black
 # Dual paraboloid maps are supported
 #
-SKY (0, 0, 0)
+SKY some/path/sky.hdr
 
 #
 # OBJ TYPE COORD1 [COORD2] [COORD3] MTL
@@ -52,10 +51,13 @@ SKY (0, 0, 0)
 # - B MIN MAX [ROTATION] (box)
 # - T V1 V2 V3           (triangle)
 #
-OBJ B (-10.0, 15, -10.0) (10.0, 15.5, 10.0) Light
-OBJ B (-20.0, 0,  -20.0) (20.0, 0, 20.0) Grey
+OBJ S (0, 0, 0) 1.0 DefaultMaterial
+OBJ B (-1, 0, 0) (1, 0, 0) DefaultMaterial
+OBJ B (-1, 0, 0) (1, 0, 0) (0, 90, 0) DefaultMaterial
+OBJ T (-1, 0, 0) (1, 0, 0) (-1, 1, 0) DefaultMaterial
 
 #
 # TRI PATH <MTL> [TRANSLATION ROTATION SCALE]
 #
-TRI data/stanford_bunny.obj Jade
+TRI some/path/model.obj
+TRI some/path/model2.obj (0, 10, 0) (0, 0, 0) 1.5

@@ -1,19 +1,24 @@
 #
-# Furnace Test
+# Furnace Test to check energy conservation:
+# sphere color should be exactly 0.18
+#
+# SCN <Name>
+# OUT WIDTH HEIGHT
 #
 SCN Furnace Test
 OUT 800 600
 
 #
-# CAM Eye Center Up fov
+# CAM EYE CENTER UP FOV
 #
 CAM (0, 5, 5) (0.0, 0.0, 0.0) (0.0, 1.0, 0.0) 60.0
 
 #
-# MTL Name ALBEDO ROUGHNESS METALNESS [IOR] [EMISSIVE] [TRANSLUCENCY]
+# MTL <Name> ALBEDO ROUGHNESS METALNESS [IOR] [EMISSIVE] [TRANSLUCENCY]
 #
 # optional IOR (defaults to 1)
-# optional EMISSIVE multiplier
+# optional EMISSIVE multiplier (defaults to 0)
+# optional TRANSLUCENCY (defaults to 0)
 #
 MTL Grey (0.18, 0.18, 0.18) 1.0 0.0
 
@@ -28,25 +33,26 @@ MTL Grey (0.18, 0.18, 0.18) 1.0 0.0
 # - E (emissive map)
 #
 # use SRGB option to convert pixels to linear
-# 
+#
 
 #
-# SKY (ALBEDO|PATH [SRGB])
+# SKY (ALBEDO | PATH [SRGB])
 #
 # sky is just an emissive material used when rays miss
 # all objects in the scene. It defaults to solid black
+# Dual paraboloid maps are supported
 #
 SKY (1, 1, 1)
 
 #
 # OBJ TYPE COORD1 [COORD2] [COORD3] MTL
 #
-# - S RADIUS   (sphere)
-# - B MIN MAX  (box)
-# - T V1 V2 V3 (triangle)
+# - S CENTER RADIUS      (sphere)
+# - B MIN MAX [ROTATION] (box)
+# - T V1 V2 V3           (triangle)
 #
 OBJ S (0, 0, 0) 2.0 Grey
 
 #
-# TRI PATH <MTL>
+# TRI PATH <MTL> [TRANSLATION ROTATION SCALE]
 #

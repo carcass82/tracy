@@ -1,19 +1,23 @@
 #
 # Scene to test triangular mesh mixed with builtin shapes
 #
+# SCN <Name>
+# OUT WIDTH HEIGHT
+#
 SCN TriMesh Test
 OUT 640 480
 
 #
-# CAM Eye Center Up fov
+# CAM EYE CENTER UP FOV
 #
 CAM (0.5, 0.5, 1.5) (0.0, 0.0, 0.0) (0.0, 1.0, 0.0) 60.0
 
 #
-# MTL Name ALBEDO ROUGHNESS METALNESS [IOR] [EMISSIVE] [TRANSLUCENCY]
+# MTL <Name> ALBEDO ROUGHNESS METALNESS [IOR] [EMISSIVE] [TRANSLUCENCY]
 #
 # optional IOR (defaults to 1)
-# optional EMISSIVE multiplier
+# optional EMISSIVE multiplier (defaults to 0)
+# optional TRANSLUCENCY (defaults to 0)
 #
 MTL Light (1,1,1) 0 0 0 5
 MTL Grey (0.2, 0.2, 0.2) 1 0
@@ -32,22 +36,23 @@ MTL Glass (1.0, 1.0, 1.0) 0 0 1.5 0 1
 # - E (emissive map)
 #
 # use SRGB option to convert pixels to linear
-# 
+#
 
 #
-# SKY (ALBEDO|PATH [SRGB])
+# SKY (ALBEDO | PATH [SRGB])
 #
 # sky is just an emissive material used when rays miss
 # all objects in the scene. It defaults to solid black
+# Dual paraboloid maps are supported
 #
 SKY (0,0,0)
 
 #
 # OBJ TYPE COORD1 [COORD2] [COORD3] MTL
 #
-# - S RADIUS   (sphere)
-# - B MIN MAX  (box)
-# - T V1 V2 V3 (triangle)
+# - S CENTER RADIUS      (sphere)
+# - B MIN MAX [ROTATION] (box)
+# - T V1 V2 V3           (triangle)
 #
 OBJ S ( 2.0, 5.0, -1.0) 2.0 Light
 OBJ S (-1.0, 0.2, -1.0) 0.5 Gold
@@ -55,6 +60,6 @@ OBJ S (0.5, 0, -1.0) 0.3 Glass
 OBJ B (-10.0, -0.51, -10.0) (10.0, -0.3, 10.0) Grey
 
 #
-# TRI PATH MTL [TRANSLATION] [ROTATION] [SCALE]
+# TRI PATH <MTL> [TRANSLATION ROTATION SCALE]
 #
 TRI data/teapot.obj Copper

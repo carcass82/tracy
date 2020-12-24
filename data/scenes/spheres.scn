@@ -1,21 +1,24 @@
 #
-# Scene to test triangular mesh mixed with builtin shapes
+# Scene to test material
+#
+# SCN <Name>
+# OUT WIDTH HEIGHT
 #
 SCN Spheres
-OUT 1024 768
+OUT 800 600
 
 #
-# CAM Eye Center Up fov
+# CAM EYE CENTER UP FOV
 #
 CAM (0, 0.5, 3.5) (0.0, 0.5, 0.0) (0.0, 1.0, 0.0) 45.0
 
 #
-# MTL Name ALBEDO ROUGHNESS METALNESS [IOR] [EMISSIVE] [TRANSLUCENCY]
+# MTL <Name> ALBEDO ROUGHNESS METALNESS [IOR] [EMISSIVE] [TRANSLUCENCY]
 #
 # optional IOR (defaults to 1)
-# optional EMISSIVE multiplier
+# optional EMISSIVE multiplier (defaults to 0)
+# optional TRANSLUCENCY (defaults to 0)
 #
-
 MTL MetalRoughness1 (0.95, 0.93, 0.88) 0.0 1
 MTL MetalRoughness2 (0.95, 0.93, 0.88) 0.25 1
 MTL MetalRoughness3 (0.95, 0.93, 0.88) 0.5 1
@@ -57,22 +60,23 @@ MTL TranslucencyIOR5 (1, 1, 1) 0 0 2.0 0 1
 # - E (emissive map)
 #
 # use SRGB option to convert pixels to linear
-# 
+#
 
 #
-# SKY (ALBEDO|PATH [SRGB])
+# SKY (ALBEDO | PATH [SRGB])
 #
 # sky is just an emissive material used when rays miss
 # all objects in the scene. It defaults to solid black
+# Dual paraboloid maps are supported
 #
 SKY data/sky.hdr
 
 #
 # OBJ TYPE COORD1 [COORD2] [COORD3] MTL
 #
-# - S RADIUS   (sphere)
-# - B MIN MAX  (box)
-# - T V1 V2 V3 (triangle)
+# - S CENTER RADIUS      (sphere)
+# - B MIN MAX [ROTATION] (box)
+# - T V1 V2 V3           (triangle)
 #
 OBJ S (-1.0, 1.5, 0) 0.2 MetalRoughness1
 OBJ S (-0.5, 1.5, 0) 0.2 MetalRoughness2
@@ -103,3 +107,7 @@ OBJ S (-0.5, -0.5, 0) 0.2 TranslucencyIOR2
 OBJ S ( 0.0, -0.5, 0) 0.2 TranslucencyIOR3
 OBJ S ( 0.5, -0.5, 0) 0.2 TranslucencyIOR4
 OBJ S ( 1.0, -0.5, 0) 0.2 TranslucencyIOR5
+
+#
+# TRI PATH <MTL> [TRANSLATION ROTATION SCALE]
+#

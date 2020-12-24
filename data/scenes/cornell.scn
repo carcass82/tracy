@@ -1,19 +1,23 @@
 #
-# Classic Cornell Box
+# The Cornell Box, unmodified
+#
+# SCN <Name>
+# OUT WIDTH HEIGHT
 #
 SCN Cornell
 OUT 800 800
 
 #
-# CAM Eye Center Up fov
+# CAM EYE CENTER UP FOV
 #
 CAM (278, 278, -800) (278, 278, 0) (0, 1, 0) 40
 
 #
-# MTL Name ALBEDO ROUGHNESS METALNESS [IOR] [EMISSIVE] [TRANSLUCENCY]
+# MTL <Name> ALBEDO ROUGHNESS METALNESS [IOR] [EMISSIVE] [TRANSLUCENCY]
 #
 # optional IOR (defaults to 1)
-# optional EMISSIVE multiplier
+# optional EMISSIVE multiplier (defaults to 0)
+# optional TRANSLUCENCY (defaults to 0)
 #
 MTL Light (1,1,1) 0 0 0 15
 MTL White (0.73, 0.73, 0.73) 1 0
@@ -31,15 +35,15 @@ MTL Red (0.65, 0.05, 0.05) 1 0
 # - E (emissive map)
 #
 # use SRGB option to convert pixels to linear
-# 
+#
 
 #
-# SKY (ALBEDO|PATH [SRGB])
+# SKY (ALBEDO | PATH [SRGB])
 #
 # sky is just an emissive material used when rays miss
 # all objects in the scene. It defaults to solid black
+# Dual paraboloid maps are supported
 #
-SKY (0, 0, 0)
 
 #
 # OBJ TYPE COORD1 [COORD2] [COORD3] MTL
@@ -56,3 +60,7 @@ OBJ B (0, 555, 0) (555, 556, 555) White
 OBJ B (0, 0, 554) (555, 555, 555) White
 OBJ B (265, 0, 295) (430, 330, 460) (0, 15, 0) White
 OBJ B (130, 0, 65) (295, 165, 230) (0, -18, 0) White
+
+#
+# TRI PATH <MTL> [TRANSLATION ROTATION SCALE]
+#

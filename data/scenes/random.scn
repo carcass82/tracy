@@ -1,19 +1,23 @@
 #
 # Scene to test some materials with builtin shapes
 #
+# SCN <Name>
+# OUT WIDTH HEIGHT
+#
 SCN Random
 OUT 640 480
 
 #
-# CAM Eye Center Up fov
+# CAM EYE CENTER UP FOV
 #
 CAM (-0.5, 1.2, 1.5) (0, 0, -1) (0, 1, 0) 60
 
 #
-# MTL Name ALBEDO ROUGHNESS METALNESS [IOR] [EMISSIVE] [TRANSLUCENCY]
+# MTL <Name> ALBEDO ROUGHNESS METALNESS [IOR] [EMISSIVE] [TRANSLUCENCY]
 #
 # optional IOR (defaults to 1)
-# optional EMISSIVE multiplier
+# optional EMISSIVE multiplier (defaults to 0)
+# optional TRANSLUCENCY (defaults to 0)
 #
 MTL Light (1, 1, 1) 0 0 0 5
 MTL Blue (0.1, 0.2, 0.5) 1 0
@@ -36,22 +40,23 @@ MTL Gold (1.0, 0.71, 0.29) 0.05 1
 # - E (emissive map)
 #
 # use SRGB option to convert pixels to linear
-# 
+#
 
 #
-# SKY (ALBEDO|PATH [SRGB])
+# SKY (ALBEDO | PATH [SRGB])
 #
 # sky is just an emissive material used when rays miss
 # all objects in the scene. It defaults to solid black
+# Dual paraboloid maps are supported
 #
 SKY (0, 0, 0)
 
 #
 # OBJ TYPE COORD1 [COORD2] [COORD3] MTL
 #
-# - S RADIUS   (sphere)
-# - B MIN MAX  (box)
-# - T V1 V2 V3 (triangle)
+# - S CENTER RADIUS      (sphere)
+# - B MIN MAX [ROTATION] (box)
+# - T V1 V2 V3           (triangle)
 #
 OBJ S (0, 150, -1.0) 100 Light
 OBJ B (-1.8, 1, -3) (1.8, 1.1, -2.9) Light
@@ -71,3 +76,7 @@ OBJ B (-4.1, -0.5, -3) (-4, 2, 1.7) Grey
 OBJ B (4, -0.5, -3) (4.1, 2, 1.7) Grey
 
 OBJ T (-1, 0.5, -2.5) (1, 0.5, -2.5) (1, 1.5, -2.5) Green
+
+#
+# TRI PATH <MTL> [TRANSLATION ROTATION SCALE]
+#
