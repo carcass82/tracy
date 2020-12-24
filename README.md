@@ -16,6 +16,20 @@ Tracy only deals with triangle meshes (even builtin shapes like sphere or box ar
 
 ![dragon](doc/dragon.jpg)
 
+Tracy material parametrization is *Unreal-ish*, with the usual *roughness* and *metalness* controlling metals and dielectrics and *translucent, IOR* parameters used for translucent materials. Here are the usual spheres collection:
+
+![materials](doc/materials.jpg)
+
+  - 1st row shows metal spheres with roughness going from 0 to 1
+  - in 2nd row spheres drop their metalness from 1 to 0
+  - 3rd row shows a dielectric with its roughness growing from 0 to 1
+  - 4th row shows a translucent object with a IOR of 1.5 and roughness ranging from 0 to 1
+  - last row shows again translucent objects with different IORs, going from 1 to 2
+
+Finally Tracy supports textured meshes and HDR sky probes, as shown in the following *wonderful* proof-of-concept animation:
+
+![textured](doc/textured.gif)
+
 ### Building
 
 Tracy uses CMake to handle different modules and dependencies. It defaults to the standard CPU raytracer with no external dependencies and (hopefully) sensible defaults.
