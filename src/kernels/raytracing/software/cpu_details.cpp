@@ -64,21 +64,8 @@ bool CPUDetails::ProcessScene(const Scene& scene)
 	// utility wrapper for Object-AABB intersection
 	auto ObjectAABBTester = [&scene](const auto& in_object, const BBox& in_aabb)
 	{
-		// super slow but super accurate method: test every mesh triangle against aabb
 		const auto& mesh = scene.GetObject(in_object.object_id);
-		for (uint32_t t = 0; t < mesh.GetTriCount(); ++t)
-		{
-			vec3 v0{ mesh.GetVertex(mesh.GetIndex(t * 3 + 0)).pos };
-			vec3 v1{ mesh.GetVertex(mesh.GetIndex(t * 3 + 1)).pos };
-			vec3 v2{ mesh.GetVertex(mesh.GetIndex(t * 3 + 2)).pos };
-
-			if (collision::TriangleAABB(v0, v1, v2, in_aabb))
-			{
-				return true;
-			}
-		}
-
-		return false;
+		return in_aabb.Contains(mesh.GetAABB().GetCenter());
 	};
 
 	// utility wrapper for Triangle-AABB intersection
@@ -98,7 +85,7 @@ bool CPUDetails::ProcessScene(const Scene& scene)
 	accel::Node<Obj> TempObjectsTree;
 	TempObjectsTree.GetElements().reserve(scene.GetObjectCount());
 
-	BBox scene_bbox{ FLT_MAX, -FLT_MAX };
+	BBox scene_bbox;
 	for (uint16_t i = 0; i < scene.GetObjectCount(); ++i)
 	{
 		const Mesh& mesh = scene.GetObject(i);
@@ -120,11 +107,8 @@ bool CPUDetails::ProcessScene(const Scene& scene)
 		accel::FlattenTree<Tri>(TempTrianglesTree, BLAS_tree_[i]);
 
 		TempObjectsTree.GetElements().emplace_back(i);
-		scene_bbox.minbound = pmin(mesh.GetAABB().minbound, scene_bbox.minbound);
-		scene_bbox.maxbound = pmax(mesh.GetAABB().maxbound, scene_bbox.maxbound);
+		scene_bbox.Extend(mesh.GetAABB());
 	}
-	scene_bbox.minbound -= .5f;
-	scene_bbox.maxbound += .5f;
 
 	TempObjectsTree.SetAABB(scene_bbox);
 	accel::BuildTree<Obj>(&TempObjectsTree, ObjectAABBTester);

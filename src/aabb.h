@@ -30,6 +30,13 @@ struct BBox
         return maxbound - minbound;
     }
 
+    CUDA_DEVICE_CALL bool Contains(const vec3& point) const
+    {
+        return point.x >= minbound.x && point.x <= maxbound.x &&
+               point.y >= minbound.y && point.y <= maxbound.y &&
+               point.z >= minbound.z && point.z <= maxbound.z;
+    }
+
     CUDA_DEVICE_CALL void Extend(const vec3& point)
     {
         minbound = pmin(minbound, point);

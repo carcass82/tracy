@@ -57,7 +57,7 @@ public:
         return *this;
     }
 
-    CUDA_DEVICE_CALL constexpr const vec4& GetPixel(const vec2& uv) const
+    CUDA_DEVICE_CALL const vec4& GetPixel(const vec2& uv) const
     {
         // TODO: assuming "GL_REPEAT" mode, implement other behaviors
         uint32_t i = static_cast<uint32_t>(clamp(frac(uv.x) * width, 0.f, width - 1.f));
@@ -71,7 +71,7 @@ public:
         return pixels;
     }
 
-    CUDA_DEVICE_CALL constexpr bool IsValid() const
+    CUDA_DEVICE_CALL bool IsValid() const
     {
         return valid;
     }

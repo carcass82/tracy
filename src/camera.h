@@ -64,7 +64,7 @@ public:
 
 	CUDA_DEVICE_CALL const vec3& GetTarget() const { return center_; }
 
-	CUDA_DEVICE_CALL const vec3& GetViewDirection() const { return center_ - eye_; }
+	CUDA_DEVICE_CALL vec3 GetViewDirection() const { return center_ - eye_; }
 
 	CUDA_DEVICE_CALL void BeginFrame() const {}
 	

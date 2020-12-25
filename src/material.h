@@ -45,6 +45,8 @@ public:
         case TextureID::eEMISSIVE:
             emissive_map_ = std::move(in_texture);
             break;
+        default:
+            return;
         }
 
         texture_flag_[in_texture_id] = true;
@@ -52,15 +54,15 @@ public:
 
     CUDA_DEVICE_CALL void Scatter(const Ray& ray, const collision::HitData& hit, vec3& out_attenuation, vec3& out_emission, Ray& out_scattered, RandomCtx random_ctx) const;
 
-    CUDA_DEVICE_CALL constexpr vec3 GetBaseColor(const collision::HitData& hit) const;
+    CUDA_DEVICE_CALL vec3 GetBaseColor(const collision::HitData& hit) const;
 
-    CUDA_DEVICE_CALL constexpr vec3 GetNormal(const collision::HitData& hit) const;
+    CUDA_DEVICE_CALL vec3 GetNormal(const collision::HitData& hit) const;
 
-    CUDA_DEVICE_CALL constexpr float GetRoughness(const collision::HitData& hit) const;
+    CUDA_DEVICE_CALL float GetRoughness(const collision::HitData& hit) const;
 
-    CUDA_DEVICE_CALL constexpr float GetMetalness(const collision::HitData& hit) const;
+    CUDA_DEVICE_CALL float GetMetalness(const collision::HitData& hit) const;
 
-    CUDA_DEVICE_CALL constexpr vec3 GetEmissive(const collision::HitData& hit) const;
+    CUDA_DEVICE_CALL vec3 GetEmissive(const collision::HitData& hit) const;
 
     CUDA_DEVICE_CALL constexpr bool HasTexture(TextureID in_texture_id) const
     {

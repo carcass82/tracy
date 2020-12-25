@@ -165,7 +165,7 @@ inline unsigned int SplitAndGetDuplicationPercentage(const NodeType& current_nod
 #if defined(DISABLE_SAH)
 
 	uint32_t axis = current_node.GetDepth() % 3;
-	float split = (current_node.GetAABB().GetSize()[axis] / 2.f) + ROUND;
+	float split = (current_node.GetAABB().GetSize()[axis] / 2.f) - ROUND;
 
 	BBox left_bbox(current_node.GetAABB());
 	left_bbox.maxbound[axis] -= split;
