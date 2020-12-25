@@ -28,7 +28,7 @@ Tracy material system parametrization is [Unreal](https://docs.unrealengine.com/
   - 4th row contains translucent objects with a [*IOR*](https://en.wikipedia.org/wiki/List_of_refractive_indices) of 1.5 and roughness ranging from 0 to 1
   - last row materials have different *IORs*, from 1 to 2
 
-Finally Tracy supports textured meshes and HDR sky probes, as shown in the following *wonderful* proof-of-concept animation:
+Finally Tracy supports textured meshes and HDR sky probes, as shown below:
 
 ![textured](doc/textured.gif)
 
