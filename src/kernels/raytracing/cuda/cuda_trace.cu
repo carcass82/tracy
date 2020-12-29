@@ -16,7 +16,7 @@
 #include "camera.h"
 #include "scene.h"
 
-__device__ static const uint32_t kMaxBounces{ TRACY_MAX_BOUNCES };
+constexpr uint32_t kMaxBounces{ TRACY_MAX_BOUNCES };
 
 __device__ bool Intersects(const Ray& ray, const KernelData& data, HitData& intersection)
 {
@@ -60,6 +60,7 @@ __device__ bool Intersects(const Ray& ray, const KernelData& data, HitData& inte
     
         intersection.point = ray.GetPoint(intersection.t);
         intersection.normal = normalize((1.f - uv.x - uv.y) * v0.normal + uv.x * v1.normal + uv.y * v2.normal);
+        intersection.tangent = (1.f - uv.x - uv.y) * v0.tangent + uv.x * v1.tangent + uv.y * v2.tangent;
         intersection.uv = (1.f - uv.x - uv.y) * v0.uv0 + uv.x * v1.uv0 + uv.y * v2.uv0;
         intersection.material = mesh.GetMaterial();
     }
