@@ -20,9 +20,7 @@ CAM (0, 0.2, -3) (0.0, -0.2, 0.0) (0.0, 1.0, 0.0) 45.0
 # optional EMISSIVE multiplier (defaults to 0)
 # optional TRANSLUCENCY (defaults to 0)
 #
-MTL Light E (5.0, 5.0, 5.0)
-MTL Grey L (0.2, 0.2, 0.2)
-MTL Textured L (3.0, 3.0, 3.0)
+MTL Textured (1.0, 1.0, 1.0) 1 0 
 
 #
 # TEX <MTL> TYPE PATH [SRGB]

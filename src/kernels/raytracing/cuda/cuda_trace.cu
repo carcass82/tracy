@@ -4,418 +4,318 @@
  *
  * (c) Carlo Casta, 2018
  */
-#include <cfloat>
-
-#include <cuda_runtime.h>
-#include <curand.h>
-#include <curand_kernel.h>
-
-#include "common.h"
+#include "cuda_trace.cuh"
+#include "cuda_details.h"
 #include "cuda_log.h"
 
-#include "ray.h"
+#include <cuda_runtime.h>
+#include <cuda_gl_interop.h>
+#include <device_launch_parameters.h>
+#include <curand.h>
+
 #include "camera.h"
-#include "material.h"
 #include "scene.h"
-#include "cuda_scene.h"
-#include "collision.h"
 
-// static material map initialization
-unordered_map<const Material*, Material*> CUDAScene::device_materials_;
+__device__ static const uint32_t kMaxBounces{ TRACY_MAX_BOUNCES };
 
-// max depth for ray bounces
-constexpr int MAX_DEPTH = 5;
-
-// max sample per kernel launch
-constexpr int MAX_SAMPLES = 1;
-
-
-#if USE_KDTREE
-__device__ bool ComputeIntersection(Mesh* in_objects, int objectcount, CUDATree* in_scenetree, const Ray& ray, HitData& intersection_data)
-#else
-__device__ bool ComputeIntersection(Mesh* in_objects, int objectcount, const Ray& ray, HitData& intersection_data)
-#endif
+__device__ bool Intersects(const Ray& ray, const KernelData& data, collision::HitData& intersection)
 {
-    bool hit_any_mesh = false;
+    bool hit_any_mesh{ false };
 
-#if USE_KDTREE
+    const vec3 ray_origin{ ray.GetOrigin() };
+    const vec3 ray_invdir{ ray.GetDirectionInverse() };
 
-    auto TriangleRayTester = [&in_objects](const auto* in_triangles, unsigned int in_first, unsigned int in_count, const Ray& in_ray, HitData& intersection_data)
+    for (uint32_t i = 0; i < data.GetMeshCount(); ++i)
     {
-        bool hit_triangle = false;
+        auto& object = data.GetMesh(i);
+        auto& aabb = object.GetAABB();
 
-        const vec3 ray_direction = in_ray.GetDirection();
-        const vec3 ray_origin = in_ray.GetOrigin();
-
-        for (size_t idx = in_first; idx < in_count; ++idx)
+        if (collision::RayAABB(ray_origin, ray_invdir, aabb.minbound, aabb.maxbound, intersection.t))
         {
-            const uint32_t mesh_id = in_triangles[idx].GetMeshId();
-            const uint32_t triangle_id = in_triangles[idx].GetTriangleId() * 3;
-
-            const auto& mesh = in_objects[mesh_id];
-
-            const vec3 v0 = mesh.GetVertex(mesh.GetIndex(triangle_id + 0)).pos;
-            const vec3 v1 = mesh.GetVertex(mesh.GetIndex(triangle_id + 1)).pos;
-            const vec3 v2 = mesh.GetVertex(mesh.GetIndex(triangle_id + 2)).pos;
-
-            collision::TriangleHitData tri_hit_data(intersection_data.t);
-            if (collision::RayTriangle(in_ray, v0, v1, v2, tri_hit_data))
+            collision::MeshHitData mesh_hit(intersection.t);
+            if (collision::RayMesh(ray, object, mesh_hit))
             {
-                intersection_data.t = tri_hit_data.RayT;
-                intersection_data.uv = tri_hit_data.TriangleUV;
-                intersection_data.triangle_index = triangle_id;
-                intersection_data.object_index = mesh_id;
-                hit_triangle = true;
-            }
-        }
-
-        return hit_triangle;
-    };
-
-    hit_any_mesh = accel::IntersectsWithTree<TriInfo>(in_scenetree->GetChild(0), ray, intersection_data, TriangleRayTester);
-
-#else
-
-    for (int i = 0; i < objectcount; ++i)
-    {
-        if (collision::RayAABB(ray, in_objects[i].GetAABB(), intersection_data.t))
-        {
-            collision::MeshHitData mesh_hit(intersection_data.t);
-            if (collision::RayMesh(ray, in_objects[i], mesh_hit))
-            {
-                intersection_data.t = mesh_hit.RayT;
-                intersection_data.uv = mesh_hit.TriangleUV;
-                intersection_data.triangle_index = mesh_hit.TriangleIndex;
-                intersection_data.object_index = i;
+                intersection.t = mesh_hit.RayT;
+                intersection.uv = mesh_hit.TriangleUV;
+                intersection.triangle_index = mesh_hit.TriangleIndex;
+                intersection.object_index = i;
                 hit_any_mesh = true;
             }
         }
     }
 
-#endif
-
     if (hit_any_mesh)
     {
-        const auto& m = in_objects[intersection_data.object_index];
-
-        const Index i0 = m.GetIndex(intersection_data.triangle_index + 0);
-        const Index i1 = m.GetIndex(intersection_data.triangle_index + 1);
-        const Index i2 = m.GetIndex(intersection_data.triangle_index + 2);
-
-        const Vertex v0 = m.GetVertex(i0);
-        const Vertex v1 = m.GetVertex(i1);
-        const Vertex v2 = m.GetVertex(i2);
-
-        intersection_data.point = ray.GetPoint(intersection_data.t);
-        intersection_data.normal = normalize((1.f - intersection_data.uv.x - intersection_data.uv.y) * v0.normal + intersection_data.uv.x * v1.normal + intersection_data.uv.y * v2.normal);
-        intersection_data.uv = (1.f - intersection_data.uv.x - intersection_data.uv.y) * v0.uv0 + intersection_data.uv.x * v1.uv0 + intersection_data.uv.y * v2.uv0;
-        intersection_data.material = m.GetMaterial();
+        const Mesh& mesh = data.GetMesh(intersection.object_index);
+    
+        const Index i0 = mesh.GetIndex(intersection.triangle_index + 0);
+        const Index i1 = mesh.GetIndex(intersection.triangle_index + 1);
+        const Index i2 = mesh.GetIndex(intersection.triangle_index + 2);
+    
+        const Vertex v0 = mesh.GetVertex(i0);
+        const Vertex v1 = mesh.GetVertex(i1);
+        const Vertex v2 = mesh.GetVertex(i2);
+    
+        const vec2 uv = intersection.uv;
+    
+        intersection.point = ray.GetPoint(intersection.t);
+        intersection.normal = normalize((1.f - uv.x - uv.y) * v0.normal + uv.x * v1.normal + uv.y * v2.normal);
+        intersection.uv = (1.f - uv.x - uv.y) * v0.uv0 + uv.x * v1.uv0 + uv.y * v2.uv0;
+        intersection.material = mesh.GetMaterial();
     }
-
+    
     return hit_any_mesh;
 }
 
-__device__ inline vec3 TraceInternal(const Camera& in_camera,
-                                     const Ray& in_ray,
-                                     Mesh* in_objects,
-                                     int objectcount,
-#if USE_KDTREE
-                                     CUDATree* in_scenetree,
-#endif
-                                     const Material* in_skymaterial,
-                                     int& inout_raycount,
-                                     RandomCtx fastrand_ctx)
+
+__device__ vec3 Trace(Ray&& ray, const KernelData& data, RandomCtx random_ctx)
 {
-    vec3 current_color = { 1.f, 1.f, 1.f };
-    Ray current_ray = { in_ray };
+    Ray current_ray{ std::move(ray) };
+    vec3 throughput{ 1.f, 1.f, 1.f };
+    vec3 pixel;
 
-    for (int i = 0; i < MAX_DEPTH; ++i)
+    uint32_t raycount{};
+
+    for (uint32_t t = 0; t < kMaxBounces; ++t)
     {
-        HitData hit_data;
-        hit_data.t = FLT_MAX;
+        ++raycount;
 
-        ++inout_raycount;
+        collision::HitData intersection_data;
+        intersection_data.t = FLT_MAX;
 
-#if USE_KDTREE
-        if (ComputeIntersection(in_objects, objectcount, in_scenetree, current_ray, hit_data))
-#else
-        if (ComputeIntersection(in_objects, objectcount, current_ray, hit_data))
-#endif
+        vec3 attenuation;
+        vec3 emission;
+
+        if (Intersects(current_ray, data, intersection_data))
         {
 
-#if DEBUG_SHOW_NORMALS
-            current_color = .5f * normalize(1.f + (mat3(in_camera.GetView()) * hit_data.normal));
-            return current_color;
-#else
-            Ray scattered;
-            vec3 attenuation;
-            vec3 emission;
-            if (hit_data.material->Scatter(current_ray, hit_data, attenuation, emission, scattered, fastrand_ctx))
-            {
-                current_color *= attenuation;
-                current_ray = scattered;
-            }
-            else
-            {
-                current_color *= emission;
-                return current_color;
-            }
+#if DEBUG_SHOW_BASECOLOR
+            return data.GetMaterial(intersection_data.material).GetBaseColor(data, intersection_data);
+#elif DEBUG_SHOW_NORMALS
+            return .5f * normalize((1.f + mat3(data.GetCamera().GetView()) * data.GetMaterial(intersection_data.material).GetNormal(data, intersection_data)));
+#elif DEBUG_SHOW_METALNESS
+            return vec3(data.GetMaterial(intersection_data.material).GetMetalness(data, intersection_data));
+#elif DEBUG_SHOW_ROUGHNESS
+            return vec3(data.GetMaterial(intersection_data.material).GetRoughness(data, intersection_data));
+#elif DEBUG_SHOW_EMISSIVE
+            return data.GetMaterial(intersection_data.material).GetEmissive(data, intersection_data);
 #endif
+
+            data.GetMaterial(intersection_data.material).Scatter(data, current_ray, intersection_data, attenuation, emission, current_ray, random_ctx);
+            {
+                pixel += emission * throughput;
+                throughput *= attenuation;
+            }
         }
         else
         {
-            Ray dummy_ray;
-            vec3 dummy_vec;
-            vec3 sky_color;
-            in_skymaterial->Scatter(current_ray, hit_data, dummy_vec, sky_color, dummy_ray, fastrand_ctx);
+            const vec3 v{ current_ray.GetDirection() };
+            intersection_data.uv = vec2(atan2f(v.z, v.x) / (2 * PI), asinf(v.y) / PI) + 0.5f;
+            emission = data.GetMaterial(Scene::SKY_MATERIAL_ID).GetEmissive(data, intersection_data);
 
-            current_color *= sky_color;
-            return current_color;
+            pixel += emission * throughput;
+            break;
         }
+
+#if USE_RUSSIAN_ROULETTE
+        float p = EPS + max(throughput.r, max(throughput.g, throughput.b));
+        if (fastrand(random_ctx) > p)
+        {
+            break;
+        }
+
+        throughput *= rcp(p);
+#endif
     }
 
-    current_color = {};
-    return current_color;
+    atomicAdd(data.raycount_, raycount);
+    return pixel;
 }
 
-__global__ void Trace(Camera* in_camera,
-                      Mesh* in_objects,
-                      int in_objectcount,
-#if USE_KDTREE
-                      CUDATree* in_scenetree,
-#endif
-                      Material* in_skymaterial,
-                      vec4* out_tempresult,
-                      int in_width,
-                      int in_height,
-                      curandState* inout_rand_state,
-                      int* inout_raycount,
-                      int in_framecount)
+//
+// Kernels
+//
+__global__ void TraceKernel(cudaSurfaceObject_t surface, KernelData data, uint32_t w, uint32_t h, uint32_t frame_count)
 {
-    const int i = (blockIdx.x * blockDim.x) + threadIdx.x;
-    const int j = (blockIdx.y * blockDim.y) + threadIdx.y;
+    const uint32_t i = (blockIdx.x * blockDim.x) + threadIdx.x;
+    const uint32_t j = (blockIdx.y * blockDim.y) + threadIdx.y;
+    const uint32_t idx = j * w + i;
 
-    const int idx = j * in_width + i;
-
-    if (i >= in_width || j >= in_height)
+    if (LIKELY(i < w && j < h))
     {
-        return;
-    }
+        RandomCtxData curand = data.randctx_[idx];
+        RandomCtx curand_ctx = &curand;
 
-    curandState curand_ctx = inout_rand_state[idx];
-    
-    int cur_raycount = 0;
+        const float s = ((i + fastrand(curand_ctx)) / static_cast<float>(w));
+        const float t = ((j + fastrand(curand_ctx)) / static_cast<float>(h));
+        const vec4 color{ Trace(data.GetCamera().GetRayFrom(s, t), data, curand_ctx), 1.f };
+        
+        data.randctx_[idx] = curand;
 
-    vec3 cur_color{};
-    for (int sample = 0; sample < MAX_SAMPLES; ++sample)
-    {
-        float s = ((i + fastrand(&curand_ctx)) / (float)in_width);
-        float t = ((j + fastrand(&curand_ctx)) / (float)in_height);
-    
-        Ray r = in_camera->GetRayFrom(s, t);
+#if ACCUMULATE_SAMPLES
 
-#if USE_KDTREE
-        cur_color += TraceInternal(*in_camera, r, in_objects, in_objectcount, in_scenetree, in_skymaterial, cur_raycount, &curand_ctx);
+        const float blend_factor{ frame_count / (frame_count + 1.f) };
+        
+        const vec4 prev_color{ surf2Dread<float4>(surface, i * sizeof(float4), j) };
+
+        surf2Dwrite<float4>(lerp(color, prev_color, blend_factor), surface, i * sizeof(float4), j);
+
 #else
-        cur_color += TraceInternal(*in_camera, r, in_objects, in_objectcount, in_skymaterial, cur_raycount, &curand_ctx);
-#endif
-    }
-    cur_color /= MAX_SAMPLES;
-    
-    // update random seed
-    inout_rand_state[idx] = curand_ctx;
 
-    // update raycount
-    atomicAdd(inout_raycount, cur_raycount);
-
-	float blend_factor = in_framecount / float(in_framecount + 1);
-    vec3 old_color = out_tempresult[idx].rgb;
-    out_tempresult[idx] = vec4(lerp(cur_color, old_color, blend_factor), 1.f);
-}
-
-__global__ void InitRandom(curandState* rand_state, int width, int height)
-{
-    const int i = (blockIdx.x * blockDim.x) + threadIdx.x;
-    const int j = (blockIdx.y * blockDim.y) + threadIdx.y;
-
-    if (i >= width || j >= height)
-    {
-        return;
-    }
-
-    curand_init(0x12345, j * width + i, 0, &rand_state[j * width + i]);
-}
-
-extern "C" void cuda_setup(const Scene& in_scene, CUDAScene* out_scene)
-{
-    int gpucount;
-    CUDAAssert(cudaGetDeviceCount(&gpucount));
-
-#if CUDA_FORCE_SINGLE_DEVICE
-    out_scene->num_gpus = 1;
-#else
-    out_scene->num_gpus = min(gpucount, MAX_GPU);
-#endif
-
-    TracyLog("Found %d %s, %d will be used\n\n", gpucount, ((gpucount > 1) ? "devices" : "device"), out_scene->num_gpus);
-
-    
-    cudaDeviceProp gpu_properties[MAX_GPU];
-    for (int i = 0; i < out_scene->num_gpus; i++)
-    {
-        CUDAAssert(cudaGetDeviceProperties(&gpu_properties[i], i));
-
-        CUDALog("Device %d (%s):\n"
-                "\t%d threads\n"
-                "\tblocksize: %dx%dx%d\n"
-                "\tshmem per block: %dKb\n"
-                "\tgridsize: %dx%dx%d\n",
-                i,
-                gpu_properties[i].name,
-                gpu_properties[i].maxThreadsPerBlock,
-                gpu_properties[i].maxThreadsDim[0], gpu_properties[i].maxThreadsDim[1], gpu_properties[i].maxThreadsDim[2],
-                gpu_properties[i].sharedMemPerBlock / 1024,
-                gpu_properties[i].maxGridSize[0], gpu_properties[i].maxGridSize[1], gpu_properties[i].maxGridSize[2]);
-
-        for (int j = 0; j < out_scene->num_gpus; j++)
-        {
-            if (i != j)
-            {
-                CUDAAssert(cudaSetDevice(i));
-
-                int result = -1;
-                cudaDeviceCanAccessPeer(&result, i, j);
-
-                CUDAAssert(cudaDeviceEnablePeerAccess(j, 0));
-
-                TracyLog("\t* enabled p2p access to Device %d\n", i, j);
-            }
-        }
-
-        TracyLog("\n\n");
-    }
-
-    CUDAAssert(cudaSetDevice(0));
-
-    // copy camera to device
-    {
-        CUDAAssert(cudaMalloc(&out_scene->d_camera_, sizeof(Camera)));
-        CUDAAssert(cudaMemcpy(out_scene->d_camera_, &in_scene.GetCamera(), sizeof(Camera), cudaMemcpyHostToDevice));
-    }
-    
-    // copy all meshes and materials to device
-    {
-        out_scene->objectcount_ = in_scene.GetObjectCount();
-        CUDAAssert(cudaMalloc(&out_scene->d_objects_, out_scene->objectcount_ * sizeof(Mesh)));
-        for (int i = 0; i < out_scene->objectcount_; ++i)
-        {
-            const Mesh& cpumesh = in_scene.GetObject(i);
-
-            uint32_t vertexcount = cpumesh.GetVertexCount();
-            Vertex* vertices;
-            CUDAAssert(cudaMalloc(&vertices, vertexcount * sizeof(Vertex)));
-            CUDAAssert(cudaMemcpy(vertices, &cpumesh.GetVertices()[0], vertexcount * sizeof(Vertex), cudaMemcpyHostToDevice));
-
-            uint32_t indexcount = cpumesh.GetIndexCount();
-            Index* indices;
-            CUDAAssert(cudaMalloc(&indices, indexcount * sizeof(Index)));
-            CUDAAssert(cudaMemcpy(indices, &cpumesh.GetIndices()[0], indexcount * sizeof(Index), cudaMemcpyHostToDevice));
-
-            Mesh* cudamesh = new Mesh(vertices, vertexcount, indices, indexcount, CUDAScene::ConvertMaterial(cpumesh.GetMaterial()));
-            cudamesh->SetAABB(cpumesh.GetAABB());
-
-            CUDAAssert(cudaMemcpy(&out_scene->d_objects_[i], cudamesh, sizeof(Mesh), cudaMemcpyHostToDevice));
-        }
-
-        out_scene->d_sky_ = CUDAScene::ConvertMaterial(in_scene.GetSkyMaterial());
-    }
-
-#if USE_KDTREE
-
-    // copy the tree to the device
-    {
-        CUDATree helper;
-        helper.nodes_num = out_scene->h_scenetree.nodes_num;
-        helper.elements_num = out_scene->h_scenetree.elements_num;
-
-        CUDAAssert(cudaMalloc(&helper.elements, helper.elements_num * sizeof(TriInfo)));
-        CUDAAssert(cudaMemcpy(helper.elements, out_scene->h_scenetree.elements, helper.elements_num * sizeof(TriInfo), cudaMemcpyHostToDevice));
-
-        CUDAAssert(cudaMalloc(&out_scene->d_scenetree, sizeof(CUDATree)));
-        for (uint32_t i = 0; i < helper.nodes_num; ++i)
-        {
-            out_scene->h_scenetree.nodes[i].root = out_scene->d_scenetree;
-        }
-        CUDAAssert(cudaMalloc(&helper.nodes, helper.nodes_num * sizeof(CUDANode)));
-        CUDAAssert(cudaMemcpy(helper.nodes, out_scene->h_scenetree.nodes, helper.nodes_num * sizeof(CUDANode), cudaMemcpyHostToDevice));
-
-        CUDAAssert(cudaMemcpy(out_scene->d_scenetree, &helper, sizeof(CUDATree), cudaMemcpyHostToDevice));
-    }
+        surf2Dwrite<float4>(color, surface, i * sizeof(float4), j);
 
 #endif
-
-    // rand seed generation on device
-    {
-        CUDAAssert(cudaMalloc(&out_scene->d_rand_state, out_scene->width * out_scene->height * sizeof(curandState)));
-
-        dim3 block(8, 8, 1);
-        dim3 grid(out_scene->width / block.x + 1, out_scene->height / block.y + 1, 1);
-        InitRandom<<<grid, block>>>(out_scene->d_rand_state, out_scene->width, out_scene->height);
-
-        CUDAAssert(cudaGetLastError());
-    }
-
-    // prepare raycount
-    {
-        CUDAAssert(cudaMalloc(&out_scene->d_raycount, sizeof(int)));
-        CUDAAssert(cudaMemset(out_scene->d_raycount, 0, sizeof(int)));
-    }
-    
-    // prepare output buffer
-    {
-    	CUDAAssert(cudaMalloc(&out_scene->d_output_, out_scene->width * out_scene->height * sizeof(vec4)));
-    	CUDAAssert(cudaMemset(out_scene->d_output_, 0, out_scene->width * out_scene->height * sizeof(vec4)));
     }
 }
 
-extern "C" void cuda_trace(CUDAScene* scene, int framecount)
+__global__ void InitRandom(KernelData data, uint32_t w, uint32_t h)
 {
-    dim3 block(8, 8, 1);
-    dim3 grid(scene->width / block.x + 1, scene->height / block.y + 1, 1);
+    const uint32_t i = (blockIdx.x * blockDim.x) + threadIdx.x;
+    const uint32_t j = (blockIdx.y * blockDim.y) + threadIdx.y;
+    const uint32_t idx = j * w + i;
 
-    CUDAAssert(cudaSetDevice(0));
-    Trace<<<grid, block>>>(scene->d_camera_,
-                           scene->d_objects_,
-                           scene->objectcount_,
-#if USE_KDTREE
-                           scene->d_scenetree,
-#endif
-                           scene->d_sky_,
-                           scene->d_output_,
-                           scene->width,
-                           scene->height,
-                           scene->d_rand_state,
-                           scene->d_raycount,
-                           framecount);
+    if (LIKELY(i < w && j < h))
+    {
+        curand_init(0x12345, idx, 0, &data.randctx_[idx]);
+    }
+}
+//
+// End Kernels
+//
+
+void CUDATraceKernel::Trace()
+{
+    CUDAAssert(cudaGraphicsMapResources(1, &host_data_.output_resource, 0));
     
-    CUDAAssert(cudaGetLastError());
+    cudaArray_t output_array{};
+    CUDAAssert(cudaGraphicsSubResourceGetMappedArray(&output_array, host_data_.output_resource, 0, 0));
+    
+    cudaResourceDesc description{};
+    description.resType = cudaResourceTypeArray;
+    description.res.array.array = output_array;
+    
+    cudaSurfaceObject_t surface_object;
+    CUDAAssert(cudaCreateSurfaceObject(&surface_object, &description));
+    
+    TraceKernel<<<host_data_.grid, host_data_.block>>>(surface_object, kernel_data_, host_data_.width, host_data_.height, host_data_.frame_counter_++);
+
+    CUDAAssert(cudaDestroySurfaceObject(surface_object));
+    
+    CUDAAssert(cudaGraphicsUnmapResources(1, &host_data_.output_resource, 0));
+    
+    // TODO: find something better to keep track of raycount
+    uint32_t raycount;
+    CUDAAssert(cudaMemcpy(&raycount, kernel_data_.raycount_, sizeof(uint32_t), cudaMemcpyDeviceToHost));
+    host_data_.raycount += raycount;
+
+    CUDAAssert(cudaStreamSynchronize(0));
+
+    CUDAAssert(cudaMemsetAsync(kernel_data_.raycount_, 0, sizeof(uint32_t)));
 }
 
-extern "C" void cuda_shutdown(CUDAScene* scene)
+void CUDATraceKernel::UpdateCamera(const Camera& in_Camera)
 {
-    for (int i = 0; i < scene->num_gpus; i++)
+    host_data_.frame_counter_ = 0;
+    CUDAAssert(cudaMemcpy(kernel_data_.camera_, &in_Camera, sizeof(Camera), cudaMemcpyHostToDevice));
+}
+
+bool CUDATraceKernel::Setup(RenderData* in_RenderData)
+{
+    if (in_RenderData)
     {
-        for (int j = 0; j < scene->num_gpus; j++)
-        {
-            if (i != j)
-            {
-                CUDAAssert(cudaSetDevice(i));
+        const uint32_t w{ in_RenderData->width };
+        const uint32_t h{ in_RenderData->height };
+        const dim3 block{ 8, 8 };
+        const dim3 grid{ (w + block.x - 1) / block.x, (h + block.y - 1) / block.y };
 
-                int result = -1;
-                cudaDeviceCanAccessPeer(&result, i, j);
+        host_data_.width = w;
+        host_data_.height = h;
+        host_data_.block = block;
+        host_data_.grid = grid;
 
-                CUDAAssert(cudaDeviceDisablePeerAccess(j));
-            }
-        }
+        CUDAAssert(cudaGraphicsGLRegisterImage(&host_data_.output_resource,
+                                               in_RenderData->output_texture,
+                                               GL_TEXTURE_2D,
+                                               cudaGraphicsRegisterFlagsSurfaceLoadStore));
+
+        // rand seed generation on device
+        CUDAAssert(cudaMalloc(&kernel_data_.randctx_, host_data_.width * host_data_.height * sizeof(curandState)));
+
+        InitRandom<<<host_data_.grid, host_data_.block>>>(kernel_data_, host_data_.width, host_data_.height);
+
+        CUDAAssert(cudaMalloc(&kernel_data_.raycount_, sizeof(uint32_t)));
+        CUDAAssert(cudaMemset(kernel_data_.raycount_, 0, sizeof(uint32_t)));
+        
+        CUDAAssert(cudaDeviceSynchronize());
+
+        return true;
     }
+
+    return false;
+}
+
+bool CUDATraceKernel::SetupScene(const Scene& in_Scene)
+{
+    CUDAAssert(cudaMalloc(&kernel_data_.camera_, sizeof(Camera)));
+    CUDAAssert(cudaMemcpy(kernel_data_.camera_, &in_Scene.GetCamera(), sizeof(Camera), cudaMemcpyHostToDevice));
+
+    kernel_data_.meshcount_ = in_Scene.GetObjectCount();
+    CUDAAssert(cudaMalloc(&kernel_data_.meshes_, kernel_data_.meshcount_ * sizeof(Mesh)));
+    for (uint32_t i = 0; i < kernel_data_.meshcount_; ++i)
+    {
+        auto& host_mesh = in_Scene.GetObject(i);
+
+        Vertex* vertices{};
+        uint32_t vertexcount{ host_mesh.GetVertexCount() };
+        CUDAAssert(cudaMalloc(&vertices, vertexcount * sizeof(Vertex)));
+        CUDAAssert(cudaMemcpy(vertices, host_mesh.GetVertices(), vertexcount * sizeof(Vertex), cudaMemcpyHostToDevice));
+
+        Index* indices{};
+        uint32_t indexcount{ host_mesh.GetIndexCount() };
+        CUDAAssert(cudaMalloc(&indices, indexcount * sizeof(Index)));
+        CUDAAssert(cudaMemcpy(indices, host_mesh.GetIndices(), indexcount * sizeof(Index), cudaMemcpyHostToDevice));
+
+        Mesh* mesh = new Mesh(vertices, vertexcount, indices, indexcount, host_mesh.GetAABB(), host_mesh.GetMaterial());
+        CUDAAssert(cudaMemcpy(&kernel_data_.meshes_[i], mesh, sizeof(Mesh), cudaMemcpyHostToDevice));
+    }
+
+    kernel_data_.materialcount_ = static_cast<uint32_t>(in_Scene.GetMaterials().size());
+    CUDAAssert(cudaMalloc(&kernel_data_.materials_, kernel_data_.materialcount_ * sizeof(Material)));
+    CUDAAssert(cudaMemcpy(kernel_data_.materials_, in_Scene.GetMaterials().data(), kernel_data_.materialcount_ * sizeof(Material), cudaMemcpyHostToDevice));
+
+    kernel_data_.texturecount_ = static_cast<uint32_t>(in_Scene.GetTextures().size());
+    CUDAAssert(cudaMalloc(&kernel_data_.textures_, kernel_data_.texturecount_ * sizeof(Texture)));
+    for (uint32_t i = 0; i < kernel_data_.texturecount_; ++i)
+    {
+        auto&& host_texture = in_Scene.GetTexture(i);
+        uint32_t host_texture_size = host_texture.GetWidth() * host_texture.GetHeight();
+
+        vec4* pixels{};
+        CUDAAssert(cudaMalloc(&pixels, host_texture_size * sizeof(vec4)));
+        CUDAAssert(cudaMemcpy(pixels, host_texture.GetPixels(), host_texture_size * sizeof(vec4), cudaMemcpyHostToDevice));
+
+        Texture* texture = new Texture(host_texture.GetWidth(), host_texture.GetHeight(), pixels);
+        CUDAAssert(cudaMemcpy(&kernel_data_.textures_[i], texture, sizeof(Texture), cudaMemcpyHostToDevice));
+    }
+
+    CUDAAssert(cudaDeviceSynchronize());
+
+    return true;
+}
+
+void CUDATraceKernel::Shutdown()
+{
+    CUDAAssert(cudaGraphicsUnregisterResource(host_data_.output_resource));
+
+    CUDAAssert(cudaFree(kernel_data_.raycount_));
+
+    CUDAAssert(cudaFree(kernel_data_.randctx_));
+
+    CUDAAssert(cudaFree(kernel_data_.textures_));
+
+    CUDAAssert(cudaFree(kernel_data_.materials_));
+
+    CUDAAssert(cudaFree(kernel_data_.meshes_));
+
+    CUDAAssert(cudaFree(kernel_data_.camera_));
 }

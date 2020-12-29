@@ -84,20 +84,20 @@ private:
 template <typename T, typename NodeRoot>
 struct FlatNode
 {
-	CUDA_CALL bool IsEmpty() const                        { return first == last; }
-	CUDA_CALL const T* GetData() const                    { return &root->elements[0]; }
-	CUDA_CALL uint32_t Begin() const                      { return first; }
-	CUDA_CALL uint32_t End() const                        { return last; }
+	bool IsEmpty() const                        { return first == last; }
+	const T* GetData() const                    { return &root->elements[0]; }
+	uint32_t Begin() const                      { return first; }
+	uint32_t End() const                        { return last; }
 #if USE_INTRINSICS
-	CUDA_CALL __m128 GetAABBMin() const                   { return aabb_min; }
-	CUDA_CALL __m128 GetAABBMax() const                   { return aabb_max; }
+	__m128 GetAABBMin() const                   { return aabb_min; }
+	__m128 GetAABBMax() const                   { return aabb_max; }
 #else
-	CUDA_CALL const BBox& GetAABB() const                 { return aabb; }
-	CUDA_CALL const vec3& GetAABBMin() const              { return aabb.minbound; }
-	CUDA_CALL const vec3& GetAABBMax() const              { return aabb.maxbound; }
+	const BBox& GetAABB() const                 { return aabb; }
+	const vec3& GetAABBMin() const              { return aabb.minbound; }
+	const vec3& GetAABBMax() const              { return aabb.maxbound; }
 #endif
-	CUDA_CALL const FlatNode* GetChild(Child child) const { return root->GetChild(children[child]); }
-	CUDA_CALL FlatNode* GetChild(Child child)             { return root->GetChild(children[child]); }
+	const FlatNode* GetChild(Child child) const { return root->GetChild(children[child]); }
+	FlatNode* GetChild(Child child)             { return root->GetChild(children[child]); }
 
 	FlatNode(const NodeRoot* in_root = nullptr)
 		: first{ 0 }
@@ -124,7 +124,7 @@ struct FlatNode
 template <typename T>
 struct FlatTree
 {
-	CUDA_CALL const FlatNode<T, FlatTree>* GetChild(uint32_t idx) const { return (idx < nodes_num)? &nodes[idx] : nullptr; }
+	const FlatNode<T, FlatTree>* GetChild(uint32_t idx) const { return (idx < nodes_num)? &nodes[idx] : nullptr; }
 
 	uint32_t nodes_num;
 	FlatNode<T, FlatTree>* nodes;
@@ -346,11 +346,11 @@ inline void FlattenTree(NodeType& in_SrcTree, FlatTreeType& out_FlatTree)
 
 	out_FlatTree.nodes_num = static_cast<uint32_t>(nodes.size());
 	out_FlatTree.nodes = new FlatNodeType[nodes.size()];
-	memcpy(out_FlatTree.nodes, &nodes[0], nodes.size() * sizeof(FlatNodeType));
+	memcpy(out_FlatTree.nodes, nodes.data(), nodes.size() * sizeof(FlatNodeType));
 
 	out_FlatTree.elements_num = static_cast<uint32_t>(elements.size());
 	out_FlatTree.elements = new FlatNodeElementType[elements.size()];
-	memcpy(out_FlatTree.elements, &elements[0], elements.size() * sizeof(FlatNodeElementType));
+	memcpy(out_FlatTree.elements, elements.data(), elements.size() * sizeof(FlatNodeElementType));
 }
 
 
@@ -365,11 +365,11 @@ template <typename T, int32_t FIXED_SIZE>
 class FixedSizeStack
 {
 public:
-	CUDA_DEVICE_CALL void Push(T item)    { array_[++head_] = item; }
-	CUDA_DEVICE_CALL T    Pop()           { return array_[head_--]; }
-	CUDA_DEVICE_CALL bool IsEmpty() const { return head_ == -1; }
-	CUDA_DEVICE_CALL bool IsFull() const  { return head_ + 1 == FIXED_SIZE; }
-	CUDA_DEVICE_CALL void Clear()         { head_ = -1; }
+	void Push(T item)    { array_[++head_] = item; }
+	T    Pop()           { return array_[head_--]; }
+	bool IsEmpty() const { return head_ == -1; }
+	bool IsFull() const  { return head_ + 1 == FIXED_SIZE; }
+	void Clear()         { head_ = -1; }
 
 private:
 	int32_t head_{ -1 };
@@ -383,7 +383,7 @@ template <typename ElemType,
           template<class...> class Container = std::vector,
           typename NodeType = Node<ElemType, Container>,
           uint32_t STACK_SIZE = TREE_MAXDEPTH + 1>
-CUDA_DEVICE_CALL bool IntersectsWithTree(const NodeType* tree, const Ray& ray, collision::HitData& inout_intersection, const ObjectsRayTesterFunction<ElemType>& ObjectTester)
+bool IntersectsWithTree(const NodeType* tree, const Ray& ray, collision::HitData& inout_intersection, const ObjectsRayTesterFunction<ElemType>& ObjectTester)
 {
 	FixedSizeStack<const NodeType*, STACK_SIZE> traversal_helper;
 

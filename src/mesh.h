@@ -30,24 +30,32 @@ class Mesh
 public:
 	Mesh() {}
 
-	Mesh(const vector<Vertex>& in_vertices, const vector<Index>& in_indices, const Material* in_material = nullptr)
-		: material_(in_material)
+	Mesh(const vector<Vertex>& in_vertices, const vector<Index>& in_indices, uint32_t in_material = UINT32_MAX)
+		: material_id_{ in_material }
 	{
-		DEBUG_ASSERT(in_vertices.size() < UINT32_MAX && in_indices.size() < UINT32_MAX);
-
 		vertexcount_ = static_cast<uint32_t>(in_vertices.size());
 		vertices_ = new Vertex[vertexcount_];
-		memcpy(vertices_, &in_vertices[0], vertexcount_ * sizeof(Vertex));
+		memcpy(vertices_, in_vertices.data(), vertexcount_ * sizeof(Vertex));
 
 		indexcount_ = static_cast<uint32_t>(in_indices.size());
 		indices_ = new Index[indexcount_];
-		memcpy(indices_, &in_indices[0], indexcount_ * sizeof(Index));
+		memcpy(indices_, in_indices.data(), indexcount_ * sizeof(Index));
+	}
+
+	Mesh(Vertex* in_vertices, uint32_t in_vertexcount, Index* in_indices, uint32_t in_indexcount, const BBox& in_aabb, uint32_t in_material)
+		: vertices_{ in_vertices }
+		, vertexcount_{ in_vertexcount }
+		, indices_{ in_indices }
+		, indexcount_{ in_indexcount }
+		, material_id_{ in_material }
+		, aabb_{ in_aabb }
+	{
 	}
 
 	~Mesh()
 	{
-		delete [] vertices_;
-		delete [] indices_;
+		delete[] vertices_;
+		delete[] indices_;
 	}
 
 	Mesh(const Mesh& other) = delete;
@@ -59,7 +67,7 @@ public:
 		, vertexcount_(std::exchange(other.vertexcount_, 0))
 		, indices_(std::exchange(other.indices_, nullptr))
 		, indexcount_(std::exchange(other.indexcount_, 0))
-		, material_(std::exchange(other.material_, nullptr))
+		, material_id_(std::exchange(other.material_id_, 0))
 		, aabb_(std::move(other.aabb_))
     {
     }
@@ -70,7 +78,7 @@ public:
 		vertexcount_ = std::exchange(other.vertexcount_, 0);
 		indices_ = std::exchange(other.indices_, nullptr);
 		indexcount_ = std::exchange(other.indexcount_, 0);
-		material_ = std::exchange(other.material_, nullptr);
+		material_id_ = std::exchange(other.material_id_, 0);
 		aabb_ = std::move(other.aabb_);
         return *this;
     }
@@ -87,35 +95,35 @@ public:
 
 	Mesh& ComputeBoundingBox();
 
-	CUDA_CALL uint32_t GetVertexCount() const               { return vertexcount_; }
+	constexpr uint32_t GetVertexCount() const        { return vertexcount_; }
 
-	CUDA_CALL uint32_t GetTriCount() const                  { return indexcount_ / 3; }
+	constexpr uint32_t GetTriCount() const           { return indexcount_ / 3; }
 
-	CUDA_CALL uint32_t GetIndexCount() const                { return indexcount_; }
+	constexpr uint32_t GetIndexCount() const         { return indexcount_; }
+										             
+	const Vertex* GetVertices() const                { return vertices_; }
 
-	CUDA_CALL const Vertex* GetVertices() const             { return vertices_; }
+	constexpr Vertex& GetVertex(uint32_t i) const    { return vertices_[i]; }
 
-	CUDA_CALL Vertex& GetVertex(int i) const                { return vertices_[i]; }
+	const Index* GetIndices() const                  { return indices_; }
 
-	CUDA_CALL const Index* GetIndices() const               { return indices_; }
+	constexpr Index& GetIndex(uint32_t i) const      { return indices_[i]; }
 
-	CUDA_CALL Index& GetIndex(int i) const                  { return indices_[i]; }
+	void SetMaterial(uint32_t in_material)           { material_id_ = in_material; }
+										             
+	constexpr uint32_t GetMaterial() const           { return material_id_; }
+										             
+	constexpr const BBox& GetAABB() const            { return aabb_; }
+										             
+	void SetAABB(const BBox& bbox)                   { aabb_ = bbox; }
 
-	CUDA_CALL void SetMaterial(const Material* in_material) { material_ = in_material; }
-
-	CUDA_CALL const Material* GetMaterial() const           { return material_; }
-
-	CUDA_CALL const BBox& GetAABB() const                   { return aabb_; }
-
-	CUDA_CALL void SetAABB(const BBox& in_box)              { aabb_ = in_box; }
-	
 
 private:
 	Vertex* vertices_{};
 	uint32_t vertexcount_{};
 	Index* indices_{};
 	uint32_t indexcount_{};
-	const Material* material_{};
+	uint32_t material_id_{};
 	BBox aabb_{};
 };
 

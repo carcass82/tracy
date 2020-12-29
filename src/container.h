@@ -15,14 +15,14 @@ private:
     T* buffer_;
 
 public:
-    CUDA_DEVICE_CALL explicit Vector(unsigned int capacity = 0)
+    explicit Vector(unsigned int capacity = 0)
         : size_(0)
         , capacity_(capacity)
         , buffer_(static_cast<T*>(::operator new(capacity_ * sizeof(T))))
     {
     }
 
-    CUDA_DEVICE_CALL ~Vector()
+    ~Vector()
     {
         for (unsigned int i = 0; i < size_; ++i)
         {
@@ -31,7 +31,7 @@ public:
         ::operator delete(buffer_);
     }
 
-    CUDA_DEVICE_CALL Vector(const Vector& other)
+    Vector(const Vector& other)
         : size_(0)
         , capacity_(other.capacity_)
         , buffer_(static_cast<T*>(::operator new(capacity_ * sizeof(T))))
@@ -42,7 +42,7 @@ public:
         }
     }
 
-    CUDA_DEVICE_CALL Vector& operator=(Vector& other)
+    Vector& operator=(Vector& other)
     {
         if (buffer_ != other.buffer_)
         {
@@ -52,7 +52,7 @@ public:
         return *this;
     }
 
-    CUDA_DEVICE_CALL Vector(Vector&& other) noexcept
+    Vector(Vector&& other) noexcept
         : size_(0)
         , capacity_(0)
         , buffer_(nullptr)
@@ -60,49 +60,49 @@ public:
         other.swap(*this);
     }
 
-    CUDA_DEVICE_CALL Vector& operator=(Vector&& other) noexcept
+    Vector& operator=(Vector&& other) noexcept
     {
         other.swap(*this);
         return *this;
     }
 
-    CUDA_DEVICE_CALL T& operator[](unsigned int index)
+    T& operator[](unsigned int index)
     {
         return buffer_[index];
     }
 
-    CUDA_DEVICE_CALL const T& operator[](unsigned int index) const
+    const T& operator[](unsigned int index) const
     {
         return buffer_[index];
     }
 
-    CUDA_DEVICE_CALL T* begin() const
+    T* begin() const
     {
         return buffer_;
     }
 
-    CUDA_DEVICE_CALL T* end() const
+    T* end() const
     {
         return buffer_ + size_;
     }
 
-    CUDA_DEVICE_CALL unsigned int size() const
+    unsigned int size() const
     {
         return size_;
     }
 
-    CUDA_DEVICE_CALL bool empty() const
+    bool empty() const
     {
         return size_ == 0;
     }
 
-    CUDA_DEVICE_CALL void push_back(const T& value)
+    void push_back(const T& value)
     {
         emplace_back(value);
     }
 
     template<typename ... Args>
-    CUDA_DEVICE_CALL T& emplace_back(Args&& ... args)
+    T& emplace_back(Args&& ... args)
     {
         if (size_ == capacity_)
         {
@@ -114,23 +114,23 @@ public:
         return buffer_[size_++];
     }
 
-    CUDA_DEVICE_CALL void pop_back()
+    void pop_back()
     {
         buffer_[size_].~T();
         --size_;
     }
 
-    CUDA_DEVICE_CALL const T& front() const
+    const T& front() const
     {
         return buffer_[0];
     }
 
-    CUDA_DEVICE_CALL const T& back() const
+    const T& back() const
     {
         return buffer_[size_ - 1];
     }
 
-    CUDA_DEVICE_CALL void clear()
+    void clear()
     {
         for (unsigned int i = 0; i < size_; ++i)
         {
@@ -138,7 +138,7 @@ public:
         }
     }
 
-    CUDA_DEVICE_CALL void swap(Vector& other) noexcept
+    void swap(Vector& other) noexcept
     {
         SwapInternal(capacity_, other.capacity_);
         SwapInternal(size_, other.size_);
@@ -148,14 +148,14 @@ public:
 private:
 
     template<typename AnyType>
-    CUDA_DEVICE_CALL void SwapInternal(AnyType& a, AnyType& b)
+    void SwapInternal(AnyType& a, AnyType& b)
     {
         AnyType temp(std::move(a));
         a = std::move(b);
         b = std::move(temp);
     }
 
-    CUDA_DEVICE_CALL void realloc()
+    void realloc()
     {
         Vector<T> expanded(capacity_);
         for (unsigned int i = 0; i < size_; ++i)

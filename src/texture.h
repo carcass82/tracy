@@ -11,11 +11,11 @@
 class Texture
 {
 public:
-    CUDA_DEVICE_CALL Texture()
+    Texture()
     {}
 
     template<typename T>
-    CUDA_DEVICE_CALL Texture(int32_t in_width, int32_t in_height, T* in_pixels, bool sRGB = false)
+    Texture(int32_t in_width, int32_t in_height, T* in_pixels, bool sRGB = false)
         : width{ in_width }, height{ in_height }, pixels{ new vec4[in_width * in_height] }, valid{ true }
     {
         // only handle unsigned char and float types
@@ -31,20 +31,26 @@ public:
         }
     }
 
-    CUDA_DEVICE_CALL ~Texture()
+    template<>
+    Texture(int32_t in_width, int32_t in_height, vec4* in_pixels, bool sRGB)
+        : width{ in_width }, height{ in_height }, pixels{ in_pixels }, valid{ true }
+    {
+    }
+
+    ~Texture()
     {
         delete[] pixels;
     }
 
     // disable copying
-    CUDA_DEVICE_CALL Texture(const Texture&) = delete;
-    CUDA_DEVICE_CALL Texture& operator=(const Texture&) = delete;
+    Texture(const Texture&) = delete;
+    Texture& operator=(const Texture&) = delete;
 
-    CUDA_DEVICE_CALL Texture(Texture&& other) noexcept
+    Texture(Texture&& other) noexcept
         : width{ other.width }, height{ other.height }, bpp{ other.bpp }, pixels{ std::exchange(other.pixels, nullptr) }, valid{ other.valid }
     {}
 
-    CUDA_DEVICE_CALL Texture& operator=(Texture&& other) noexcept
+    Texture& operator=(Texture&& other) noexcept
     {
         if (this != &other)
         {
@@ -57,7 +63,7 @@ public:
         return *this;
     }
 
-    CUDA_DEVICE_CALL const vec4& GetPixel(const vec2& uv) const
+    CUDA_DEVICE const vec4& GetPixel(const vec2& uv) const
     {
         // TODO: assuming "GL_REPEAT" mode, implement other behaviors
         uint32_t i = static_cast<uint32_t>(clamp(frac(uv.x) * width, 0.f, width - 1.f));
@@ -66,12 +72,27 @@ public:
         return pixels[j * width + i];
     }
 
-    CUDA_DEVICE_CALL vec4* Pixels()
+    constexpr uint32_t GetWidth() const
+    {
+        return width;
+    }
+
+    constexpr uint32_t GetHeight() const
+    {
+        return height;
+    }
+
+    constexpr uint32_t GetBPP() const
+    {
+        return 4;
+    }
+
+    constexpr vec4* GetPixels() const
     {
         return pixels;
     }
 
-    CUDA_DEVICE_CALL bool IsValid() const
+    constexpr bool IsValid() const
     {
         return valid;
     }

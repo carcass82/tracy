@@ -22,12 +22,12 @@ struct alignas(64) HitData
 	vec3 point;
 	vec3 normal;
 	vec3 tangent;
-	const Material* material;
+	uint32_t material;
 };
 
 struct TriangleHitData
 {
-	CUDA_DEVICE_CALL TriangleHitData(float t = 0) : RayT{ t } {}
+	constexpr TriangleHitData(float t = 0) : RayT{ t } {}
 
 	float RayT{};
 	vec2 TriangleUV{};
@@ -35,14 +35,14 @@ struct TriangleHitData
 
 struct MeshHitData : public TriangleHitData
 {
-	CUDA_DEVICE_CALL MeshHitData(float t = 0) : TriangleHitData(t) {}
+	constexpr MeshHitData(float t = 0) : TriangleHitData(t) {}
 
 	uint32_t TriangleIndex{};
 };
 
 
 // test ray against triangle and store result in TriangleHitData
-CUDA_DEVICE_CALL inline bool RayTriangle(const vec3& ray_origin, const vec3& ray_direction, const vec3& in_v0, const vec3& in_v1, const vec3& in_v2, TriangleHitData& inout_hit)
+constexpr inline bool RayTriangle(const vec3& ray_origin, const vec3& ray_direction, const vec3& in_v0, const vec3& in_v1, const vec3& in_v2, TriangleHitData& inout_hit)
 {
 	const vec3 v0v1 = in_v1 - in_v0;
 	const vec3 v0v2 = in_v2 - in_v0;
@@ -85,18 +85,18 @@ CUDA_DEVICE_CALL inline bool RayTriangle(const vec3& ray_origin, const vec3& ray
 	return true;
 }
 
-CUDA_DEVICE_CALL inline bool RayTriangle(const vec3& in_ray_origin, const vec3& in_ray_direction, const vec3 in_vertices[3], TriangleHitData& inout_hit)
+constexpr inline bool RayTriangle(const vec3& in_ray_origin, const vec3& in_ray_direction, const vec3 in_vertices[3], TriangleHitData& inout_hit)
 {
 	return RayTriangle(in_ray_origin, in_ray_direction, in_vertices[0], in_vertices[1], in_vertices[2], inout_hit);
 }
 
-CUDA_DEVICE_CALL inline bool RayTriangle(const Ray& in_ray, const vec3 in_vertices[3], TriangleHitData& inout_hit)
+constexpr inline bool RayTriangle(const Ray& in_ray, const vec3 in_vertices[3], TriangleHitData& inout_hit)
 {
 	return RayTriangle(in_ray.GetOrigin(), in_ray.GetDirection(), in_vertices, inout_hit);
 }
 
 // test ray against triangle mesh and store result in MeshHitData
-CUDA_DEVICE_CALL inline bool RayMesh(const Ray& in_ray, const Mesh& in_mesh, MeshHitData& inout_hit)
+constexpr inline bool RayMesh(const Ray& in_ray, const Mesh& in_mesh, MeshHitData& inout_hit)
 {
 	bool result = false;
 
@@ -128,7 +128,7 @@ CUDA_DEVICE_CALL inline bool RayMesh(const Ray& in_ray, const Mesh& in_mesh, Mes
 
 // Fast, Branchless Ray/Bounding Box Intersections
 // https://tavianator.com/fast-branchless-raybounding-box-intersections/
-CUDA_DEVICE_CALL inline bool RayAABB(const vec3& in_ray_origin, const vec3& in_ray_inv_dir, const vec3& in_aabb_min, const vec3& in_aabb_max, float in_tmax = FLT_MAX)
+CUDA_ANY inline bool RayAABB(const vec3& in_ray_origin, const vec3& in_ray_inv_dir, const vec3& in_aabb_min, const vec3& in_aabb_max, float in_tmax = FLT_MAX)
 {
 	const vec3 minbound = (in_aabb_min - in_ray_origin) * in_ray_inv_dir;
 	const vec3 maxbound = (in_aabb_max - in_ray_origin) * in_ray_inv_dir;
@@ -142,14 +142,14 @@ CUDA_DEVICE_CALL inline bool RayAABB(const vec3& in_ray_origin, const vec3& in_r
 	return (tmax >= max(EPS, tmin) && tmin < in_tmax);
 }
 
-CUDA_DEVICE_CALL inline bool RayAABB(const Ray& in_ray, const BBox& in_aabb, float in_tmax = FLT_MAX)
+CUDA_ANY inline bool RayAABB(const Ray& in_ray, const BBox& in_aabb, float in_tmax = FLT_MAX)
 {
 	return RayAABB(in_ray.GetOrigin(), in_ray.GetDirectionInverse(), in_aabb.minbound, in_aabb.maxbound, in_tmax);
 }
 
 // triangle - box test using separating axis theorem (https://fileadmin.cs.lth.se/cs/Personal/Tomas_Akenine-Moller/pubs/tribox.pdf)
 // code adapted from http://fileadmin.cs.lth.se/cs/Personal/Tomas_Akenine-Moller/code/tribox3.txt
-CUDA_DEVICE_CALL inline bool TriangleAABB(const vec3& in_v0, const vec3& in_v1, const vec3& in_v2, const BBox& in_aabb)
+inline bool TriangleAABB(const vec3& in_v0, const vec3& in_v1, const vec3& in_v2, const BBox& in_aabb)
 {
 	const vec3 v0 = in_v0;
 	const vec3 v1 = in_v1;

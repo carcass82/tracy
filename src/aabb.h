@@ -10,46 +10,46 @@
 
 struct BBox
 {
-    CUDA_DEVICE_CALL BBox(const float in_minbound = FLT_MAX, const float in_maxbound = -FLT_MAX)
+    BBox(const float in_minbound = FLT_MAX, const float in_maxbound = -FLT_MAX)
         : minbound{ in_minbound }
         , maxbound{ in_maxbound }
     {}
 
-	CUDA_DEVICE_CALL BBox(const vec3& in_minbound, const vec3& in_maxbound)
+	BBox(const vec3& in_minbound, const vec3& in_maxbound)
 		: minbound{ in_minbound }
 		, maxbound{ in_maxbound }
 	{}
 
-    CUDA_DEVICE_CALL vec3 GetCenter() const
+    vec3 GetCenter() const
     {
         return (minbound + maxbound) * .5f;
     }
 
-    CUDA_DEVICE_CALL vec3 GetSize() const
+    vec3 GetSize() const
     {
         return maxbound - minbound;
     }
 
-    CUDA_DEVICE_CALL bool Contains(const vec3& point) const
+    bool Contains(const vec3& point) const
     {
         return point.x >= minbound.x && point.x <= maxbound.x &&
                point.y >= minbound.y && point.y <= maxbound.y &&
                point.z >= minbound.z && point.z <= maxbound.z;
     }
 
-    CUDA_DEVICE_CALL void Extend(const vec3& point)
+    void Extend(const vec3& point)
     {
         minbound = pmin(minbound, point);
         maxbound = pmax(maxbound, point);
     }
 
-    CUDA_DEVICE_CALL void Extend(const BBox& bbox)
+    void Extend(const BBox& bbox)
     {
         minbound = pmin(minbound, bbox.minbound);
         maxbound = pmax(maxbound, bbox.maxbound);
     }
 
-    CUDA_DEVICE_CALL void Reset()
+    void Reset()
     {
         minbound = vec3(FLT_MAX);
         maxbound = vec3(-FLT_MAX);

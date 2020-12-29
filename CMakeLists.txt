@@ -55,18 +55,21 @@ elseif(DEBUG_VIEW STREQUAL "Emissive")
 	add_definitions(-DDEBUG_SHOW_EMISSIVE)
 endif()
 
-option(TRACY_ACCELERATION_STRUCTURE "Use Kd-Tree to speed up tracing" ON)
-if(TRACY_ACCELERATION_STRUCTURE)
+set(TRACY_ACCELERATION_STRUCTURE "None" CACHE STRING "Use Acceleration Structure")
+set_property(CACHE TRACY_ACCELERATION_STRUCTURE PROPERTY STRINGS "None" "Kd-Tree" "BVH")
+if(TRACY_ACCELERATION_STRUCTURE STREQUAL "Kd-Tree")
 	add_definitions(-DUSE_KDTREE)
+elseif(TRACY_ACCELERATION_STRUCTURE STREQUAL "BVH")
+	add_definitions(-DUSE_BVH)
 endif()
 
 option(DEBUG_KDTREE_DISABLE_SAH "Disable SAH (Surface Area Heuristic) when building Kd-Tree" ON)
-if(DEBUG_KDTREE_DISABLE_SAH)
+if(TRACY_ACCELERATION_STRUCTURE STREQUAL "Kd-Tree" AND DEBUG_KDTREE_DISABLE_SAH)
 	add_definitions(-DDISABLE_SAH)
 endif()
 
-option(DEBUG_KDTREE_SHOW "Draw Kd-Tree only (no geometry)" OFF)
-if(DEBUG_KDTREE_SHOW)
+option(DEBUG_ACCELERATION_STRUCTURE_SHOW "Draw Acceleration Structure only (no geometry)" OFF)
+if(NOT TRACY_ACCELERATION_STRUCTURE STREQUAL "None" AND DEBUG_ACCELERATION_STRUCTURE_SHOW)
 	add_definitions(-DDEBUG_SHOW_TREE)
 endif()
 
@@ -139,8 +142,7 @@ source_group("ext\\" FILES ${ext_includes})
 list(APPEND tracy_includes ${ext_includes})
 
 set(main_sources "./src/win_raytracer.cpp"
-                 "./src/scene.cpp"
-                 "./src/material.cpp")
+                 "./src/scene.cpp")
 
 source_group("src\\" FILES ${main_sources})
 
@@ -162,6 +164,7 @@ set(main_includes "./src/mesh.h"
 				  "./src/aabb.h"
 				  "./src/collision.h"
 				  "./src/kdtree.h"
+				  "./src/bvh.h"
 				  "./src/log.h"
 				  "./src/input.h")
 
@@ -178,7 +181,7 @@ set(TRACY_RENDER_MODULE "CPU (RayTracing)" CACHE STRING "Render Module")
 #if(WIN32)
 #	set_property(CACHE TRACY_RENDER_MODULE PROPERTY STRINGS "CPU (RayTracing)" "CUDA (RayTracing)" "OpenGL (Raster)" "D3D12 + DXR (RayTracing)")
 #else()
-	set_property(CACHE TRACY_RENDER_MODULE PROPERTY STRINGS "CPU (RayTracing)")
+	set_property(CACHE TRACY_RENDER_MODULE PROPERTY STRINGS "CPU (RayTracing)" "CUDA (RayTracing)")
 #endif()
 
 if(TRACY_RENDER_MODULE STREQUAL "CPU (RayTracing)")
@@ -258,7 +261,7 @@ elseif(TRACY_RENDER_MODULE STREQUAL "CUDA (RayTracing)")
 	string (REPLACE ";" " " CUDA_COMPUTE_ARCH_FLAGS_STRING "${CUDA_COMPUTE_ARCH_FLAGS}")
 	message(STATUS "CUDA architecture Compile Flags: ${CUDA_COMPUTE_ARCH_FLAGS_STRING}")
 	
-	set(CMAKE_CUDA_FLAGS "-DCUDA_CALL=\"__host__ __device__\" -DCUDA_DEVICE_CALL=__device__ -D_FORCE_INLINES ${CUDA_COMPUTE_ARCH_FLAGS_STRING}")
+	set(CMAKE_CUDA_FLAGS "-D_FORCE_INLINES --expt-relaxed-constexpr ${CUDA_COMPUTE_ARCH_FLAGS_STRING}")
 	set(CMAKE_CUDA_FLAGS_DEBUG "-g -G -D_DEBUG")
 	set(CMAKE_CUDA_FLAGS_RELEASE "-O3 --use_fast_math -DNDEBUG -lineinfo")
 
@@ -270,15 +273,11 @@ elseif(TRACY_RENDER_MODULE STREQUAL "CUDA (RayTracing)")
 
 	set(cuda_includes "./src/kernels/raytracing/cuda/cuda_trace.h"
 	                  "./src/kernels/raytracing/cuda/cuda_details.h"
-	                  "./src/kernels/raytracing/cuda/cuda_scene.h"
-	                  "./src/kernels/raytracing/cuda/cuda_device.h"
 	                  "./src/kernels/raytracing/cuda/cuda_log.h"
 	                  "./src/kernels/raytracing/cuda/cuda_specific.h"
 					  "./src/kernels/raytracing/cuda/cuda_trace.cuh")
 	source_group("kernel\\cuda\\include" FILES ${cuda_includes})
 	list(APPEND tracy_includes ${cuda_includes})
-
-	set_source_files_properties("./src/material.cpp" PROPERTIES LANGUAGE CUDA)
 
 #elseif(TRACY_RENDER_MODULE STREQUAL "OpenGL (Raster)")
 #

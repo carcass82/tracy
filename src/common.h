@@ -24,12 +24,20 @@
  #define UNLIKELY(x) (x) /* placeholders, replace with proper impl (perhaps [[unlikely]]?) */
 #endif
 
-#if !defined(CUDA_CALL) 
- #define CUDA_CALL
-#endif
-
-#if !defined(CUDA_DEVICE_CALL)
- #define CUDA_DEVICE_CALL
+#if defined(__CUDACC__)
+ #if !defined(CUDA_ANY)
+  #define CUDA_ANY __host__ __device__
+ #endif
+ #if !defined(CUDA_DEVICE)
+  #define CUDA_DEVICE __device__
+ #endif
+ #if !defined(CUDA_HOST)
+  #define CUDA_HOST __host__
+ #endif
+#else
+ #define CUDA_ANY
+ #define CUDA_DEVICE
+ #define CUDA_HOST
 #endif
 
 #if !defined(TRACY_EXPOSURE)
@@ -96,9 +104,9 @@ using glm::normalize;
 #define frac(x) glm::fract(x)
 #define cosf(x) glm::fastCos(x)
 #define sinf(x) glm::fastSin(x)
-CUDA_CALL inline void sincosf(float x, float* s, float* c) { *s = sinf(x); *c = cosf(x); }
-CUDA_CALL inline vec3 pmin(const vec3& a, const vec3& b) { return { min(a.x, b.x), min(a.y, b.y), min(a.z, b.z) }; }
-CUDA_CALL inline vec3 pmax(const vec3& a, const vec3& b) { return { max(a.x, b.x), max(a.y, b.y), max(a.z, b.z) }; }
+CUDA_ANY inline void sincosf(float x, float* s, float* c) { *s = sinf(x); *c = cosf(x); }
+CUDA_ANY inline vec3 pmin(const vec3& a, const vec3& b) { return { min(a.x, b.x), min(a.y, b.y), min(a.z, b.z) }; }
+CUDA_ANY inline vec3 pmax(const vec3& a, const vec3& b) { return { max(a.x, b.x), max(a.y, b.y), max(a.z, b.z) }; }
 constexpr float PI = 3.1415926535897932f;
 constexpr float EPS = 1.e-8f;
 template<typename T, size_t N> constexpr inline uint32_t array_size(const T(&)[N]) { return N; }

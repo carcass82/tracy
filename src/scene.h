@@ -12,8 +12,6 @@ using std::vector;
 #include <string>
 using std::string;
 
-#include <unordered_map>
-using std::unordered_map;
 
 #include "log.h"
 #include "material.h"
@@ -23,6 +21,11 @@ using std::unordered_map;
 class Scene
 {
 public:
+
+	static constexpr uint32_t SKY_MATERIAL_ID{ 0 };
+
+
+	uint32_t AddTexture(const char* path, bool sRGB = false);
 
 	Mesh& AddSphere(const vec3& in_center, float in_radius, uint32_t steps = 32);
 
@@ -34,43 +37,42 @@ public:
 
 	bool Init(const char* scene_path, uint32_t& width, uint32_t& height);
 
-	Camera& GetCamera()                    { return camera_; }
+	Camera& GetCamera()                           { return camera_; }
 
-	const Camera& GetCamera() const        { return camera_; }
+	const Camera& GetCamera() const               { return camera_; }
 
-	const vector<Mesh>& GetObjects() const { return objects_; }
+	const vector<Mesh>& GetObjects() const        { return objects_; }
 
-	const Mesh& GetObject(int i) const     { return objects_[i]; }
+	const Mesh& GetObject(uint32_t i) const       { return objects_[i]; }
 
-	const string& GetName() const          { return scene_name_; }
+	const string& GetName() const                 { return scene_name_; }
 
-	uint32_t GetObjectCount() const        { return static_cast<uint32_t>(objects_.size()); }
+	uint32_t GetObjectCount() const               { return static_cast<uint32_t>(objects_.size()); }
 
 	uint32_t GetTriCount() const;
 	
-	uint32_t Width() const                 { return width_; }
+	uint32_t Width() const                        { return width_; }
+										          
+	uint32_t Height() const                       { return height_; }
 
-	uint32_t Height() const                { return height_; }
+	const Material& GetMaterial(uint32_t i) const { return materials_[i]; }
 
-	const Material* GetSkyMaterial() const
-	{
-		if (UNLIKELY(!sky_material_))
-		{
-			sky_material_ = &materials_.at(SKY_MATERIAL_NAME);
-		}
+	const vector<Material>& GetMaterials() const  { return materials_; }
 
-		return sky_material_;
-	}
+	const Texture& GetTexture(uint32_t i) const   { return textures_[i]; }
+
+	const vector<Texture>& GetTextures() const    { return textures_; }
+
 
 private:
+
 	Camera camera_{};
 	vector<Mesh> objects_{};
-	unordered_map<string, Material> materials_{};
-	mutable const Material* sky_material_{};
+	vector<Material> materials_{ 1 };
+	vector<Texture> textures_{};
 	uint32_t width_{};
 	uint32_t height_{};
 	string scene_name_{};
-	static constexpr const char* SKY_MATERIAL_NAME{ "__sky__" };
 };
 
 //

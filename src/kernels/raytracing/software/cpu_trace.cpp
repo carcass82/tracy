@@ -125,30 +125,33 @@ vec3 CpuTrace::Trace(Ray&& ray, const Scene& scene, RandomCtx random_ctx)
 		{
 
 #if DEBUG_SHOW_BASECOLOR
-			return intersection_data.material->GetBaseColor(intersection_data);
+			return scene.GetMaterial(intersection_data.material).GetBaseColor(scene, intersection_data);
 #elif DEBUG_SHOW_NORMALS
-			return .5f * normalize((1.f + mat3(scene.GetCamera().GetView()) * intersection_data.material->GetNormal(intersection_data)));
+			return .5f * normalize((1.f + mat3(scene.GetCamera().GetView()) * scene.GetMaterial(intersection_data.material).GetNormal(scene, intersection_data)));
 #elif DEBUG_SHOW_METALNESS
-			return vec3(intersection_data.material->GetMetalness(intersection_data));
+			return vec3(scene.GetMaterial(intersection_data.material).GetMetalness(scene, intersection_data));
 #elif DEBUG_SHOW_ROUGHNESS
-			return vec3(intersection_data.material->GetRoughness(intersection_data));
+			return vec3(scene.GetMaterial(intersection_data.material).GetRoughness(scene, intersection_data));
 #elif DEBUG_SHOW_EMISSIVE
-			return intersection_data.material->GetEmissive(intersection_data);
+			return scene.GetMaterial(intersection_data.material).GetEmissive(scene, intersection_data);
 #endif
 
-			intersection_data.material->Scatter(current_ray, intersection_data, attenuation, emission, current_ray, random_ctx);
-			{
-				pixel += emission * throughput;
-				throughput *= attenuation;
-			}
+			scene.GetMaterial(intersection_data.material).Scatter(scene, current_ray, intersection_data, attenuation, emission, current_ray, random_ctx);
+			
+			pixel += emission * throughput;
+			
+			throughput *= attenuation;
+
 		}
 		else
 		{
 			const vec3 v{ current_ray.GetDirection() };
 			intersection_data.uv = vec2(atan2f(v.z, v.x) / (2 * PI), asinf(v.y) / PI) + 0.5f;
-			emission = scene.GetSkyMaterial()->GetEmissive(intersection_data);
+			
+			emission = scene.GetMaterial(Scene::SKY_MATERIAL_ID).GetEmissive(scene, intersection_data);
 			
 			pixel += emission * throughput;
+
 			break;
 		}
 

@@ -6,6 +6,9 @@
  */
 #include "scene.h"
 
+#include <unordered_map>
+using std::unordered_map;
+
 #define TINYOBJLOADER_IMPLEMENTATION
 #include "ext/tiny_obj_loader.h"
 
@@ -15,6 +18,33 @@
 constexpr inline uint32_t make_id(char a, char b, char c = '\0', char d = '\0')
 {
 	return a | b << 8 | c << 16 | d << 24;
+}
+
+uint32_t Scene::AddTexture(const char* path, bool sRGB)
+{
+	uint32_t result{ UINT32_MAX };
+
+	int w, h, bpp;
+	if (stbi_is_hdr(path))
+	{
+		if (float* pixels = stbi_loadf(path, &w, &h, &bpp, 4))
+		{
+			result = static_cast<uint32_t>(textures_.size());
+			textures_.emplace_back(w, h, pixels, sRGB);
+			stbi_image_free(pixels);
+		}
+	}
+	else
+	{
+		if (uint8_t* pixels = stbi_load(path, &w, &h, &bpp, 4))
+		{
+			result = static_cast<uint32_t>(textures_.size());
+			textures_.emplace_back(w, h, pixels, sRGB);
+			stbi_image_free(pixels);
+		}
+	}
+
+	return result;
 }
 
 Mesh& Scene::AddSphere(const vec3& in_center, float in_radius, uint32_t steps /* = 32 */)
@@ -209,6 +239,12 @@ bool Scene::Init(const char* scene_path, uint32_t& inout_width, uint32_t& inout_
 	static constexpr uint32_t ID_OBJ = make_id('O', 'B', 'J', '\0');
 	static constexpr uint32_t ID_TRI = make_id('T', 'R', 'I', '\0');
 
+	// helper to reference materials by name
+	unordered_map<string, uint32_t> material_id;
+
+	// helper to reference textures by name
+	unordered_map<string, uint32_t> texture_id;
+
 	if (FILE* fp = fopen(scene_path, "r"))
 	{
 		TracyLog("reading from scene file '%s'\n", scene_path);
@@ -278,7 +314,8 @@ bool Scene::Init(const char* scene_path, uint32_t& inout_width, uint32_t& inout_
 						                                                             &albedo.x, &albedo.y, &albedo.z,
 						                                                             &roughness, &metalness, &ior, &emissive, &translucency) >= 6)
 						{
-							materials_[mat_name] = Material(albedo, roughness, metalness, ior, emissive, translucency);
+							material_id[mat_name] = static_cast<uint32_t>(materials_.size());
+							materials_.emplace_back(albedo, roughness, metalness, ior, emissive, translucency);
 						}
 					}
 					break;
@@ -312,23 +349,12 @@ bool Scene::Init(const char* scene_path, uint32_t& inout_width, uint32_t& inout_
 								break;
 							}
 
-							int w, h, bpp;
-							if (stbi_is_hdr(file_name))
+							if (texture_id.count(file_name) == 0)
 							{
-								if (float* pixels = stbi_loadf(file_name, &w, &h, &bpp, 4))
-								{
-									materials_[mat_name].SetTexture({ w, h, pixels, (num == 4 && strncmp(srgb_flag, "SRGB", 4) == 0) }, tex_id);
-									stbi_image_free(pixels);
-								}
+								texture_id[file_name] = AddTexture(file_name, (num == 4 && strncmp(srgb_flag, "SRGB", 4) == 0));
 							}
-							else
-							{
-								if (uint8_t* pixels = stbi_load(file_name, &w, &h, &bpp, 4))
-								{
-									materials_[mat_name].SetTexture({ w, h, pixels, (num == 4 && strncmp(srgb_flag, "SRGB", 4) == 0) }, tex_id);
-									stbi_image_free(pixels);
-								}
-							}
+
+							materials_[material_id[mat_name]].SetTexture(texture_id[file_name], tex_id);
 						}
 					}
 					break;
@@ -339,31 +365,20 @@ bool Scene::Init(const char* scene_path, uint32_t& inout_width, uint32_t& inout_
 						vec3 albedo;
 						if (sscanf(params, "(%f,%f,%f)", &albedo.x, &albedo.y, &albedo.z) == 3)
 						{
-							materials_[SKY_MATERIAL_NAME] = Material(albedo, .0f, .0f, .0f, 1.f);
+							materials_[SKY_MATERIAL_ID] = Material(albedo, .0f, .0f, .0f, 1.f);
 						}
-
-						char file_name[MAX_PATH];
-						char srgb_flag[5]{};
-						int num = sscanf(params, "%s %s", file_name, srgb_flag);
+						else
 						{
-							int w, h, bpp;
-							if (stbi_is_hdr(file_name))
+							char file_name[MAX_PATH];
+							char srgb_flag[5]{};
+							int num = sscanf(params, "%s %s", file_name, srgb_flag);
 							{
-								if (float* pixels = stbi_loadf(file_name, &w, &h, &bpp, 4))
+								if (texture_id.count(file_name) == 0)
 								{
-									materials_[SKY_MATERIAL_NAME] = Material({ 1, 1, 1 });
-									materials_[SKY_MATERIAL_NAME].SetTexture({ w, h, pixels, (num == 2 && strncmp(srgb_flag, "SRGB", 4) == 0) }, Material::TextureID::eEMISSIVE);
-									stbi_image_free(pixels);
+									texture_id[file_name] = AddTexture(file_name, (num == 2 && strncmp(srgb_flag, "SRGB", 4) == 0));
 								}
-							}
-							else
-							{
-								if (uint8_t* pixels = stbi_load(file_name, &w, &h, &bpp, 4))
-								{
-									materials_[SKY_MATERIAL_NAME] = Material({ 1, 1, 1 });
-									materials_[SKY_MATERIAL_NAME].SetTexture({ w, h, pixels, (num == 2 && strncmp(srgb_flag, "SRGB", 4) == 0) }, Material::TextureID::eEMISSIVE);
-									stbi_image_free(pixels);
-								}
+								
+								materials_[SKY_MATERIAL_ID].SetTexture(texture_id[file_name], Material::TextureID::eEMISSIVE);
 							}
 						}
 					}
@@ -387,7 +402,7 @@ bool Scene::Init(const char* scene_path, uint32_t& inout_width, uint32_t& inout_
 								char mat_name[16];
 								if (sscanf(subparams, "(%f,%f,%f) %f %s", &center.x, &center.y, &center.z, &radius, mat_name) == 5)
 								{
-									AddSphere(center, radius).SetMaterial(&materials_[mat_name]);
+									AddSphere(center, radius).SetMaterial(material_id[mat_name]);
 								}
 							}
 							break;
@@ -410,11 +425,11 @@ bool Scene::Init(const char* scene_path, uint32_t& inout_width, uint32_t& inout_
 									transform = rotate(transform, radians(rotation.z), { 0, 0, 1 });
 									transform = translate(transform, -object.GetCenter());
 
-									AddBox(min_box, max_box, transform).SetMaterial(&materials_[mat_name]);
+									AddBox(min_box, max_box, transform).SetMaterial(material_id[mat_name]);
 								}
 								else if (sscanf(subparams, "(%f,%f,%f) (%f,%f,%f) %s", &min_box.x, &min_box.y, &min_box.z, &max_box.x, &max_box.y, &max_box.z, mat_name) == 7)
 								{
-									AddBox(min_box, max_box).SetMaterial(&materials_[mat_name]);
+									AddBox(min_box, max_box).SetMaterial(material_id[mat_name]);
 								}
 							}
 							break;
@@ -429,7 +444,7 @@ bool Scene::Init(const char* scene_path, uint32_t& inout_width, uint32_t& inout_
 									&v3.x, &v3.y, &v3.z,
 									mat_name) == 10)
 								{
-									AddTriangle(v1, v2, v3).SetMaterial(&materials_[mat_name]);
+									AddTriangle(v1, v2, v3).SetMaterial(material_id[mat_name]);
 								}
 							}
 							break;
@@ -505,7 +520,7 @@ bool Scene::Init(const char* scene_path, uint32_t& inout_width, uint32_t& inout_
 										indices_remap[index.vertex_index] = last_inserted;
 									}
 
-									AddMesh({m_Vertices, m_Indices}, transform, recompute_normals).SetMaterial(&materials_[mat_name]);
+									AddMesh({m_Vertices, m_Indices}, transform, recompute_normals).SetMaterial(material_id[mat_name]);
 								}
 							}
 						}
@@ -520,12 +535,6 @@ bool Scene::Init(const char* scene_path, uint32_t& inout_width, uint32_t& inout_
 			}
 		}
 		fclose(fp);
-
-		// create default black sky material
-		if (materials_.count(SKY_MATERIAL_NAME) == 0)
-		{
-			materials_[SKY_MATERIAL_NAME] = Material();
-		}
 
 		return true;
 	}

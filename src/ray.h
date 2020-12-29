@@ -9,24 +9,26 @@
 class Ray
 {
 public:
-    CUDA_DEVICE_CALL Ray()
+    constexpr Ray()
     {}
 
-    CUDA_DEVICE_CALL Ray(const vec3& origin, const vec3& direction)
+    constexpr Ray(const vec3& origin, const vec3& direction)
         : origin_{ origin }
-        , direction_{ normalize(direction) }
-        , inv_direction_{rcp(direction_) }
+        , direction_{ direction }
+        , inv_direction_{ rcp(direction_) }
     {}
 
     // make sure we don't copy rays around
     Ray(const Ray&) = delete;
     Ray& operator=(const Ray&) = delete;
 
-    CUDA_DEVICE_CALL Ray(Ray&& other) noexcept
-        : Ray(other.origin_, other.direction_)
+    constexpr Ray(Ray&& other) noexcept
+        : origin_{ std::move(other.origin_) }
+        , direction_{ std::move(other.direction_) }
+        , inv_direction_{ std::move(other.inv_direction_) }
     {}
 
-    CUDA_DEVICE_CALL Ray& operator=(Ray&& other) noexcept
+    constexpr Ray& operator=(Ray&& other) noexcept
     {
         if (this != &other)
         {
@@ -38,10 +40,10 @@ public:
         return *this;
     }
 
-    CUDA_DEVICE_CALL constexpr const vec3& GetOrigin() const            { return origin_; }
-    CUDA_DEVICE_CALL constexpr const vec3& GetDirection() const         { return direction_; }
-	CUDA_DEVICE_CALL constexpr const vec3& GetDirectionInverse() const  { return inv_direction_; }
-    CUDA_DEVICE_CALL constexpr const vec3  GetPoint(float t) const      { return origin_ + t * direction_; }
+    constexpr const vec3& GetOrigin() const            { return origin_; }
+    constexpr const vec3& GetDirection() const         { return direction_; }
+	constexpr const vec3& GetDirectionInverse() const  { return inv_direction_; }
+    constexpr const vec3  GetPoint(float t) const      { return origin_ + t * direction_; }
 
 private:
     vec3 origin_{};
