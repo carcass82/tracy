@@ -18,7 +18,7 @@
 
 __device__ static const uint32_t kMaxBounces{ TRACY_MAX_BOUNCES };
 
-__device__ bool Intersects(const Ray& ray, const KernelData& data, collision::HitData& intersection)
+__device__ bool Intersects(const Ray& ray, const KernelData& data, HitData& intersection)
 {
     bool hit_any_mesh{ false };
 
@@ -80,7 +80,7 @@ __device__ vec3 Trace(Ray&& ray, const KernelData& data, RandomCtx random_ctx)
     {
         ++raycount;
 
-        collision::HitData intersection_data;
+        HitData intersection_data;
         intersection_data.t = FLT_MAX;
 
         vec3 attenuation;

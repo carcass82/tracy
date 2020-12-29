@@ -13,18 +13,6 @@ class Material;
 
 namespace collision
 {
-struct alignas(64) HitData
-{
-	uint32_t object_index;
-	uint32_t triangle_index;
-	float t;
-	vec2 uv;
-	vec3 point;
-	vec3 normal;
-	vec3 tangent;
-	uint32_t material;
-};
-
 struct TriangleHitData
 {
 	constexpr TriangleHitData(float t = 0) : RayT{ t } {}

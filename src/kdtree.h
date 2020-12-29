@@ -27,7 +27,7 @@ using ObjectAABBTesterFunction = function<bool(const T&, const BBox&)>;
 
 // signature for needed Element vs Ray tester function
 template <typename T>
-using ObjectsRayTesterFunction = function<bool(const T* elems, uint32_t first, uint32_t last, const Ray&, collision::HitData&)>;
+using ObjectsRayTesterFunction = function<bool(const T* elems, uint32_t first, uint32_t last, const Ray&, HitData&)>;
 
 
 //////////////////////////////////////////////////////////////////////////////
@@ -383,7 +383,7 @@ template <typename ElemType,
           template<class...> class Container = std::vector,
           typename NodeType = Node<ElemType, Container>,
           uint32_t STACK_SIZE = TREE_MAXDEPTH + 1>
-bool IntersectsWithTree(const NodeType* tree, const Ray& ray, collision::HitData& inout_intersection, const ObjectsRayTesterFunction<ElemType>& ObjectTester)
+bool IntersectsWithTree(const NodeType* tree, const Ray& ray, HitData& inout_intersection, const ObjectsRayTesterFunction<ElemType>& ObjectTester)
 {
 	FixedSizeStack<const NodeType*, STACK_SIZE> traversal_helper;
 

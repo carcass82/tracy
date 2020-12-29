@@ -17,7 +17,7 @@
 //
 inline RandomCtxData initrand()
 {
-    return { 0xABCDEFu };
+    return 0xABCDEFu;
 }
 
 inline float fastrand(RandomCtx ctx)
@@ -40,7 +40,7 @@ inline float fastrand(RandomCtx ctx)
 //
 inline RandomCtxData initrand()
 {
-    return { 0xABCDEFu };
+    return 0xABCDEFu;
 }
 
 inline float fastrand(RandomCtx ctx)
@@ -63,7 +63,7 @@ inline float fastrand(RandomCtx ctx)
 //
 inline RandomCtxData initrand()
 {
-    return { 0x123456789ABCDEFull };
+    return 0x123456789ABCDEFull;
 }
 
 inline float fastrand(RandomCtx ctx)
@@ -91,7 +91,7 @@ inline float fastrand(RandomCtx ctx)
 inline RandomCtxData initrand()
 {
     srand(0xABCDEFu);
-    return {};
+    return 0u;
 }
 
 //

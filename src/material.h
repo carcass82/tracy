@@ -11,9 +11,6 @@
 #include "ray.h"
 #include "texture.h"
 
-namespace collision { struct HitData; }
-class Scene;
-
 class Material
 {
 public:
@@ -55,22 +52,22 @@ public:
     }
 
     template<class TextureProvider>
-    CUDA_DEVICE void Scatter(const TextureProvider& provider, const Ray& ray, const collision::HitData& hit, vec3& out_attenuation, vec3& out_emission, Ray& out_scattered, RandomCtx random_ctx) const;
+    CUDA_DEVICE void Scatter(const TextureProvider& provider, const Ray& ray, const HitData& hit, vec3& out_attenuation, vec3& out_emission, Ray& out_scattered, RandomCtx random_ctx) const;
 
     template<class TextureProvider>
-    CUDA_DEVICE vec3 GetBaseColor(const TextureProvider& provider, const collision::HitData& hit) const;
+    CUDA_DEVICE vec3 GetBaseColor(const TextureProvider& provider, const HitData& hit) const;
 
     template<class TextureProvider>
-    CUDA_DEVICE vec3 GetNormal(const TextureProvider& provider, const collision::HitData& hit) const;
+    CUDA_DEVICE vec3 GetNormal(const TextureProvider& provider, const HitData& hit) const;
 
     template<class TextureProvider>
-    CUDA_DEVICE float GetRoughness(const TextureProvider& provider, const collision::HitData& hit) const;
+    CUDA_DEVICE float GetRoughness(const TextureProvider& provider, const HitData& hit) const;
 
     template<class TextureProvider>
-    CUDA_DEVICE float GetMetalness(const TextureProvider& provider, const collision::HitData& hit) const;
+    CUDA_DEVICE float GetMetalness(const TextureProvider& provider, const HitData& hit) const;
 
     template<class TextureProvider>
-    CUDA_DEVICE vec3 GetEmissive(const TextureProvider& provider, const collision::HitData& hit) const;
+    CUDA_DEVICE vec3 GetEmissive(const TextureProvider& provider, const HitData& hit) const;
 
     constexpr bool HasTexture(TextureID in_texture_id) const
     {
@@ -139,31 +136,31 @@ CUDA_DEVICE static inline CC_CONSTEXPR vec3 random_on_unit_sphere(RandomCtx rand
 //
 
 template<class TextureProvider>
-CUDA_DEVICE inline vec3 Material::GetBaseColor(const TextureProvider& provider, const collision::HitData& hit) const
+CUDA_DEVICE inline vec3 Material::GetBaseColor(const TextureProvider& provider, const HitData& hit) const
 {
     return (HasTexture(TextureID::eBASECOLOR) ? provider.GetTexture(base_color_map_).GetPixel(hit.uv).rgb : albedo_);
 }
 
 template<class TextureProvider>
-CUDA_DEVICE inline float Material::GetRoughness(const TextureProvider& provider, const collision::HitData& hit) const
+CUDA_DEVICE inline float Material::GetRoughness(const TextureProvider& provider, const HitData& hit) const
 {
     return (HasTexture(TextureID::eROUGHNESS) ? provider.GetTexture(roughness_map_).GetPixel(hit.uv).r : roughness_);
 }
 
 template<class TextureProvider>
-CUDA_DEVICE inline float Material::GetMetalness(const TextureProvider& provider, const collision::HitData& hit) const
+CUDA_DEVICE inline float Material::GetMetalness(const TextureProvider& provider, const HitData& hit) const
 {
     return (HasTexture(TextureID::eMETALNESS) ? provider.GetTexture(metalness_map_).GetPixel(hit.uv).r : metalness_);
 }
 
 template<class TextureProvider>
-CUDA_DEVICE inline vec3 Material::GetEmissive(const TextureProvider& provider, const collision::HitData& hit) const
+CUDA_DEVICE inline vec3 Material::GetEmissive(const TextureProvider& provider, const HitData& hit) const
 {
     return (HasTexture(TextureID::eEMISSIVE) ? provider.GetTexture(emissive_map_).GetPixel(hit.uv).rgb : emissive_);
 }
 
 template<class TextureProvider>
-CUDA_DEVICE inline vec3 Material::GetNormal(const TextureProvider& provider, const collision::HitData& hit) const
+CUDA_DEVICE inline vec3 Material::GetNormal(const TextureProvider& provider, const HitData& hit) const
 {
     if (HasTexture(TextureID::eNORMAL))
     {
@@ -185,7 +182,7 @@ CUDA_DEVICE inline vec3 Material::GetNormal(const TextureProvider& provider, con
 //
 
 template<class TextureProvider>
-CUDA_DEVICE inline void Material::Scatter(const TextureProvider& provider, const Ray& ray, const collision::HitData& hit, vec3& out_attenuation, vec3& out_emission, Ray& out_scattered, RandomCtx random_ctx) const
+CUDA_DEVICE inline void Material::Scatter(const TextureProvider& provider, const Ray& ray, const HitData& hit, vec3& out_attenuation, vec3& out_emission, Ray& out_scattered, RandomCtx random_ctx) const
 {
     static constexpr float kRayOffset{ 0.001f };
 

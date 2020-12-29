@@ -169,6 +169,18 @@ using cc::gfx::linear;
  using std::function;
 #endif
 
+struct alignas(64) HitData
+{
+	uint32_t object_index;
+	uint32_t triangle_index;
+	float t;
+	vec2 uv;
+	vec3 point;
+	vec3 normal;
+	vec3 tangent;
+	uint32_t material;
+};
+
 #if defined(_WIN32)
 
 #define WIN32_LEAN_AND_MEAN

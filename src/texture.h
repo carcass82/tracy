@@ -15,27 +15,7 @@ public:
     {}
 
     template<typename T>
-    Texture(int32_t in_width, int32_t in_height, T* in_pixels, bool sRGB = false)
-        : width{ in_width }, height{ in_height }, pixels{ new vec4[in_width * in_height] }, valid{ true }
-    {
-        // only handle unsigned char and float types
-        static_assert(std::is_same_v<T, uint8_t> || std::is_same_v<T, float>);
-
-        // floating point texture are expected to have a value of 0...1, no need to remap from 0...255 range
-        static constexpr float kRemap = std::is_same_v<T, float>? 1.f : 255.f;
-
-        for (int32_t i = 0; i < width * height; ++i)
-        {
-            vec4 pixel = vec4(in_pixels[i * bpp], in_pixels[i * bpp + 1], in_pixels[i * bpp + 2], in_pixels[i * bpp + 3]) / kRemap;
-            pixels[i] = sRGB ? linear(pixel) : pixel;
-        }
-    }
-
-    template<>
-    Texture(int32_t in_width, int32_t in_height, vec4* in_pixels, bool sRGB)
-        : width{ in_width }, height{ in_height }, pixels{ in_pixels }, valid{ true }
-    {
-    }
+    Texture(int32_t in_width, int32_t in_height, T* in_pixels, bool sRGB = false);
 
     ~Texture()
     {
@@ -105,3 +85,26 @@ private:
     uint8_t bpp{ 4 };
     vec4* pixels{};
 };
+
+template<typename T>
+inline Texture::Texture(int32_t in_width, int32_t in_height, T* in_pixels, bool sRGB)
+    : valid{ true }, width{ in_width }, height{ in_height }, pixels{ new vec4[in_width * in_height] }
+{
+    // only handle unsigned char and float types
+    static_assert(std::is_same_v<T, uint8_t> || std::is_same_v<T, float>);
+
+    // floating point texture are expected to have a value of 0...1, no need to remap from 0...255 range
+    static constexpr float kRemap = std::is_same_v<T, float> ? 1.f : 255.f;
+
+    for (int32_t i = 0; i < width * height; ++i)
+    {
+        vec4 pixel = vec4(in_pixels[i * bpp], in_pixels[i * bpp + 1], in_pixels[i * bpp + 2], in_pixels[i * bpp + 3]) / kRemap;
+        pixels[i] = sRGB ? linear(pixel) : pixel;
+    }
+}
+
+template<>
+inline Texture::Texture(int32_t in_width, int32_t in_height, vec4* in_pixels, bool sRGB)
+    : valid{ true }, width{ in_width }, height{ in_height }, pixels{ in_pixels }
+{
+}
