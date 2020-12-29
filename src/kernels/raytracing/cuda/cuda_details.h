@@ -9,6 +9,7 @@
 
 #include "GL/glew.h"
 #if !defined(_WIN32)
+ #include <X11/Xlib.h>
  #include <GL/glx.h>
 #endif
 #include <cuda_gl_interop.h>
@@ -32,6 +33,9 @@ struct RenderData
 #if defined(_WIN32)
 	HDC hDC;
 	HGLRC hRC;
+#else
+    Display* dpy;
+    GLXContext glCtx;
 #endif
 
 	static const char* vs_shader;

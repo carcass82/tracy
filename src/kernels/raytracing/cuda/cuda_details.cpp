@@ -188,10 +188,12 @@ void CUDADetails::InitGLContext(WindowHandle ctx)
 
 #else
 
+    render_data_.dpy = ctx->dpy;
+
     GLint att[] = { GLX_RGBA, GLX_DEPTH_SIZE, 24, GLX_DOUBLEBUFFER, None };
-    XVisualInfo* vi = glXChooseVisual(win_handle_->dpy, 0, att);
-    GLXContext glc = glXCreateContext(win_handle_->dpy, vi, nullptr, GL_TRUE);
-    glXMakeCurrent(win_handle_->dpy, win_handle_->win, glc);
+    XVisualInfo* vi = glXChooseVisual(ctx->dpy, 0, att);
+    render_data_.glCtx = glXCreateContext(ctx->dpy, vi, nullptr, GL_TRUE);
+    glXMakeCurrent(ctx->dpy, ctx->win, render_data_.glCtx);
 
 #endif
 }
@@ -234,7 +236,7 @@ void CUDADetails::Render(WindowHandle ctx, uint32_t w, uint32_t h)
 #if defined(_WIN32)
     SwapBuffers(render_data_.hDC);
 #else
-    glXSwapBuffers(win_handle_->dpy, win_handle_->win);
+    glXSwapBuffers(ctx->dpy, ctx->win);
 #endif
 }
 
@@ -245,8 +247,12 @@ void CUDADetails::Shutdown()
     GLAssert(glDeleteProgram(render_data_.fullscreen_shader));
     GLAssert(glDeleteTextures(1, &render_data_.output_texture));
 
+#if defined(_WIN32)
     wglMakeCurrent(NULL, NULL);
     wglDeleteContext(render_data_.hRC);
+#else
+    glXDestroyContext(render_data_.dpy, render_data_.glCtx);
+#endif
 }
 
 void CUDADetails::CameraUpdated()
