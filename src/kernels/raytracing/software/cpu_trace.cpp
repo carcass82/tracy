@@ -115,7 +115,7 @@ vec3 CpuTrace::Trace(Ray&& ray, const Scene& scene, RandomCtx random_ctx)
 		#pragma omp atomic
 		++raycount_;
 
-		collision::HitData intersection_data;
+		HitData intersection_data;
 		intersection_data.t = FLT_MAX;
 
 		vec3 attenuation;

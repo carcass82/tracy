@@ -119,13 +119,13 @@ bool CPUDetails::ProcessScene(const Scene& scene)
 	return true;
 }
 
-bool CPUDetails::ComputeIntersection(const Scene& scene, const Ray& ray, collision::HitData& data) const
+bool CPUDetails::ComputeIntersection(const Scene& scene, const Ray& ray, HitData& data) const
 {
 	bool hit_any_mesh = false;
 
 #if USE_KDTREE
 
-	const auto TriangleRayTester = [](const Tri* in_triangles, uint32_t in_first, uint32_t in_count, const Ray& in_ray, collision::HitData& intersection_data)
+	const auto TriangleRayTester = [](const Tri* in_triangles, uint32_t in_first, uint32_t in_count, const Ray& in_ray, HitData& intersection_data)
 	{
 		bool hit_triangle{};
 
@@ -159,7 +159,7 @@ bool CPUDetails::ComputeIntersection(const Scene& scene, const Ray& ray, collisi
 		return hit_triangle;
 	};
 
-	const auto ObjectRayTester = [this, TriangleRayTester](const Obj* in_objects, uint32_t in_first, uint32_t in_count, const Ray& in_ray, collision::HitData& intersection_data)
+	const auto ObjectRayTester = [this, TriangleRayTester](const Obj* in_objects, uint32_t in_first, uint32_t in_count, const Ray& in_ray, HitData& intersection_data)
 	{
 		bool hit_object{ false };
 

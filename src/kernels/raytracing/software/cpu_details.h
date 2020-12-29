@@ -87,7 +87,7 @@ public:
 
 	bool ProcessScene(const Scene& scene);
 
-	bool ComputeIntersection(const Scene& scene, const Ray& ray, collision::HitData& data) const;
+	bool ComputeIntersection(const Scene& scene, const Ray& ray, HitData& data) const;
 
 	void UpdateOutput(uint32_t index, const vec3& color);
 
