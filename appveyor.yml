@@ -15,10 +15,7 @@ build_script:
     cmake -G "Visual Studio 16 2019" -DCMAKE_BUILD_TYPE=Release -DTRACY_RENDER_MODULE="CPU (RayTracing)" ..
     
     cmake --build . --config Release
-    
-    cmake -G "Visual Studio 16 2019" -DCMAKE_BUILD_TYPE=Release -DTRACY_RENDER_MODULE="OpenGL (Raster)" ..
-    
-    cmake --build . --config Release
+
 
 - sh: >-
     mkdir build && cd build
@@ -36,6 +33,6 @@ build_script:
 #cmake -G "Visual Studio 16 2019" -DCMAKE_BUILD_TYPE=Release -DTRACY_RENDER_MODULE="CUDA (RayTracing)" ..    
 #cmake --build . --config Release
 
-# CMake won't find OpenGL on linux
+# CMake won't find OpenGL on linux, suspend build on windows
 #cmake -G "Unix Makefiles" -DCMAKE_BUILD_TYPE=Release -DTRACY_RENDER_MODULE="OpenGL (Raster)" ..
 #cmake --build . --config Release

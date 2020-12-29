@@ -310,9 +310,9 @@ bool Scene::Init(const char* scene_path, uint32_t& inout_width, uint32_t& inout_
 						float emissive{ 0.f };
 						float translucency{ 0.f };
 
-						if (int num = sscanf(params, "%s (%f,%f,%f) %f %f %f %f %f", mat_name,
-						                                                             &albedo.x, &albedo.y, &albedo.z,
-						                                                             &roughness, &metalness, &ior, &emissive, &translucency) >= 6)
+						if (sscanf(params, "%s (%f,%f,%f) %f %f %f %f %f", mat_name,
+						                                                   &albedo.x, &albedo.y, &albedo.z,
+						                                                   &roughness, &metalness, &ior, &emissive, &translucency) >= 6)
 						{
 							material_id[mat_name] = static_cast<uint32_t>(materials_.size());
 							materials_.emplace_back(albedo, roughness, metalness, ior, emissive, translucency);

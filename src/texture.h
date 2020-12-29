@@ -27,7 +27,7 @@ public:
     Texture& operator=(const Texture&) = delete;
 
     Texture(Texture&& other) noexcept
-        : width{ other.width }, height{ other.height }, bpp{ other.bpp }, pixels{ std::exchange(other.pixels, nullptr) }, valid{ other.valid }
+        : valid{ other.valid }, width{ other.width }, height{ other.height }, bpp{ other.bpp }, pixels{ std::exchange(other.pixels, nullptr) }
     {}
 
     Texture& operator=(Texture&& other) noexcept
