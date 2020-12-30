@@ -13,6 +13,7 @@
 #include <device_launch_parameters.h>
 #include <curand.h>
 
+#include "collision.h"
 #include "camera.h"
 #include "scene.h"
 

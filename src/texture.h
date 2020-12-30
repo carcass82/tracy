@@ -91,10 +91,10 @@ inline Texture::Texture(int32_t in_width, int32_t in_height, T* in_pixels, bool 
     : valid{ true }, width{ in_width }, height{ in_height }, pixels{ new vec4[in_width * in_height] }
 {
     // only handle unsigned char and float types
-    static_assert(std::is_same_v<T, uint8_t> || std::is_same_v<T, float>);
+    static_assert(std::is_same<T, uint8_t>::value || std::is_same<T, float>::value);
 
     // floating point texture are expected to have a value of 0...1, no need to remap from 0...255 range
-    static constexpr float kRemap = std::is_same_v<T, float> ? 1.f : 255.f;
+    static constexpr float kRemap = std::is_same<T, float>::value ? 1.f : 255.f;
 
     for (int32_t i = 0; i < width * height; ++i)
     {
