@@ -55,7 +55,7 @@ elseif(DEBUG_VIEW STREQUAL "Emissive")
 	add_definitions(-DDEBUG_SHOW_EMISSIVE)
 endif()
 
-set(TRACY_ACCELERATION_STRUCTURE "None" CACHE STRING "Use Acceleration Structure")
+set(TRACY_ACCELERATION_STRUCTURE "Kd-Tree" CACHE STRING "Use Acceleration Structure")
 set_property(CACHE TRACY_ACCELERATION_STRUCTURE PROPERTY STRINGS "None" "Kd-Tree" "BVH")
 if(TRACY_ACCELERATION_STRUCTURE STREQUAL "Kd-Tree")
 	add_definitions(-DUSE_KDTREE)
@@ -178,11 +178,7 @@ list(APPEND tracy_includes ${main_includes})
 # Kernel selection                                                            #
 ###############################################################################
 set(TRACY_RENDER_MODULE "CPU (RayTracing)" CACHE STRING "Render Module")
-#if(WIN32)
-#	set_property(CACHE TRACY_RENDER_MODULE PROPERTY STRINGS "CPU (RayTracing)" "CUDA (RayTracing)" "OpenGL (Raster)" "D3D12 + DXR (RayTracing)")
-#else()
-	set_property(CACHE TRACY_RENDER_MODULE PROPERTY STRINGS "CPU (RayTracing)" "CUDA (RayTracing)")
-#endif()
+set_property(CACHE TRACY_RENDER_MODULE PROPERTY STRINGS "CPU (RayTracing)" "CUDA (RayTracing)" "OpenGL (Raster)")
 
 if(TRACY_RENDER_MODULE STREQUAL "CPU (RayTracing)")
 
@@ -279,76 +275,31 @@ elseif(TRACY_RENDER_MODULE STREQUAL "CUDA (RayTracing)")
 	source_group("kernel\\cuda\\include" FILES ${cuda_includes})
 	list(APPEND tracy_includes ${cuda_includes})
 
-#elseif(TRACY_RENDER_MODULE STREQUAL "OpenGL (Raster)")
-#
-#	add_definitions(-DOPENGL_KERNEL=1)
-#
-#	find_package(OpenGL REQUIRED)
-#	list(APPEND tracy_libraries ${OPENGL_LIBRARIES})
-#
-#	enable_language(C)
-#	add_definitions(-DGLEW_STATIC)
-#	include_directories(./ext/glew/include)
-#	set(glew_source "./ext/glew/glew.c")
-#	source_group("ext\\glew" FILES ${glew_source})
-#	list(APPEND tracy_sources ${glew_source})
-#	
-#	include_directories(./src/kernels/rasterization/opengl/)
-#
-#	set(opengl_sources "./src/kernels/rasterization/opengl/opengl_render.cpp")
-#	source_group("kernel\\opengl\\src" FILES ${opengl_sources})
-#	list(APPEND tracy_sources ${opengl_sources})
-#
-#	set(opengl_includes "./src/kernels/rasterization/opengl/opengl_render.h"
-#	                    "./src/kernels/rasterization/opengl/gl_material.h"
-#	                    "./src/kernels/rasterization/opengl/gl_mesh.h"
-#	                    "./src/kernels/rasterization/opengl/materials.h"
-#						"./src/kernels/rasterization/opengl/opengl_specific.h")
-#	source_group("kernel\\opengl\\include" FILES ${opengl_includes})
-#	list(APPEND tracy_includes ${opengl_includes})
-#
-#elseif(TRACY_RENDER_MODULE STREQUAL "D3D12 + DXR (RayTracing)")
-#
-#	add_definitions(-DDXR_KERNEL=1)
-#
-#	# TEMP: do proper cmake find
-#	set(dx_libraries "d3d12.lib;dxgi.lib;d3dcompiler.lib;dxcompiler.lib")
-#	list(APPEND tracy_libraries ${dx_libraries})
-#
-#	include_directories(./src/kernels/raytracing/dxr)
-#
-#	set(dxr_sources "./src/kernels/raytracing/dxr/dxr_trace.cpp")
-#	source_group("kernel\\dxr\\src" FILES ${dxr_sources})
-#	list(APPEND tracy_sources ${dxr_sources})
-#
-#	set(dxr_includes "./src/kernels/raytracing/dxr/dxr_trace.h"
-#	                 "./src/kernels/raytracing/dxr/dxr_specific.h")
-#	source_group("kernel\\dxr\\include" FILES ${dxr_includes})
-#	list(APPEND tracy_includes ${dxr_includes})
-#
-#	set(dxr_shaders "./src/kernels/raytracing/dxr/shaders/Common.hlsl"
-#	                "./src/kernels/raytracing/dxr/shaders/Hit.hlsl"
-#	                "./src/kernels/raytracing/dxr/shaders/Miss.hlsl"
-#	                "./src/kernels/raytracing/dxr/shaders/RayGen.hlsl")
-#	source_group("kernel\\dxr\\shaders" FILES ${dxr_shaders})
-#	
-#	set(dxr_helper_source "./src/kernels/raytracing/dxr/nvidia/nv_helpers_dx12/BottomLevelASGenerator.cpp"
-#					      "./src/kernels/raytracing/dxr/nvidia/nv_helpers_dx12/RaytracingPipelineGenerator.cpp"
-#					      "./src/kernels/raytracing/dxr/nvidia/nv_helpers_dx12/RootSignatureGenerator.cpp"
-#					      "./src/kernels/raytracing/dxr/nvidia/nv_helpers_dx12/ShaderBindingTableGenerator.cpp"
-#					      "./src/kernels/raytracing/dxr/nvidia/nv_helpers_dx12/TopLevelASGenerator.cpp")
-#	source_group("kernel\\dxr\\src\\helper" FILES ${dxr_helper_source})
-#	list(APPEND tracy_sources ${dxr_helper_source})
-#
-#	set(dxr_helper_include "./src/kernels/raytracing/dxr/microsoft/d3dx12.h"
-#	                       "./src/kernels/raytracing/dxr/nvidia/DXRHelper.h"
-#					       "./src/kernels/raytracing/dxr/nvidia/nv_helpers_dx12/BottomLevelASGenerator.h"
-#					       "./src/kernels/raytracing/dxr/nvidia/nv_helpers_dx12/RaytracingPipelineGenerator.h"
-#					       "./src/kernels/raytracing/dxr/nvidia/nv_helpers_dx12/RootSignatureGenerator.h"
-#					       "./src/kernels/raytracing/dxr/nvidia/nv_helpers_dx12/ShaderBindingTableGenerator.h"
-#					       "./src/kernels/raytracing/dxr/nvidia/nv_helpers_dx12/TopLevelASGenerator.h")
-#	source_group("kernel\\dxr\\include\\helper" FILES ${dxr_helper_include})
-#	list(APPEND tracy_includes ${dxr_helper_include})
+elseif(TRACY_RENDER_MODULE STREQUAL "OpenGL (Raster)")
+
+	add_definitions(-DOPENGL_KERNEL=1)
+
+	find_package(OpenGL REQUIRED)
+	list(APPEND tracy_libraries ${OPENGL_LIBRARIES})
+
+	enable_language(C)
+	add_definitions(-DGLEW_STATIC)
+	include_directories(./ext/glew/include)
+	set(glew_source "./ext/glew/glew.c")
+	source_group("ext\\glew" FILES ${glew_source})
+	list(APPEND tracy_sources ${glew_source})
+	
+	include_directories(./src/kernels/rasterization/opengl/)
+
+	set(opengl_sources "./src/kernels/rasterization/opengl/opengl_render.cpp")
+	source_group("kernel\\opengl\\src" FILES ${opengl_sources})
+	list(APPEND tracy_sources ${opengl_sources})
+
+	set(opengl_includes "./src/kernels/rasterization/opengl/opengl_render.h"
+	                    "./src/kernels/rasterization/opengl/gl_mesh.h"
+						"./src/kernels/rasterization/opengl/opengl_specific.h")
+	source_group("kernel\\opengl\\include" FILES ${opengl_includes})
+	list(APPEND tracy_includes ${opengl_includes})
 
 endif()
 

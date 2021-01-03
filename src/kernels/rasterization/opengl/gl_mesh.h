@@ -5,27 +5,34 @@
  * (c) Carlo Casta, 2018
  */
 #pragma once
-#include "gl_material.h"
+#include "mesh.h"
+#include "GL/glew.h"
 
-struct GLMesh
+class GLMesh
 {
-    GLMesh(const Mesh& mesh)
-        : material(*mesh.GetMaterial())
+public:
+
+    GLMesh()
     {
-        glGenVertexArrays(1, &vao);
-        glBindVertexArray(vao);
+    }
+
+    GLMesh(const Mesh& mesh, const Material& material)
+        : vao_{}
+        , indexcount_{ mesh.GetIndexCount() }
+        , material_{ &material }
+    {
+        glGenVertexArrays(1, &vao_);
+        glBindVertexArray(vao_);
 
         GLuint vb;
         glGenBuffers(1, &vb);
         glBindBuffer(GL_ARRAY_BUFFER, vb);
-        glBufferData(GL_ARRAY_BUFFER, mesh.GetVertexCount() * sizeof(Vertex), &mesh.GetVertices()[0], GL_STATIC_DRAW);
-        vertexcount = mesh.GetVertexCount();
+        glBufferData(GL_ARRAY_BUFFER, mesh.GetVertexCount() * sizeof(Vertex), mesh.GetVertices(), GL_STATIC_DRAW);
 
         GLuint ib;
         glGenBuffers(1, &ib);
         glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, ib);
-        glBufferData(GL_ELEMENT_ARRAY_BUFFER, mesh.GetIndexCount() * sizeof(Index), &mesh.GetIndices()[0], GL_STATIC_DRAW);
-        indexcount = mesh.GetIndexCount();
+        glBufferData(GL_ELEMENT_ARRAY_BUFFER, indexcount_ * sizeof(Index), mesh.GetIndices(), GL_STATIC_DRAW);
 
         glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, sizeof(Vertex), (GLvoid*)offsetof(Vertex, pos));
         glEnableVertexAttribArray(0);
@@ -43,6 +50,8 @@ struct GLMesh
         glEnableVertexAttribArray(4);
 
         glBindVertexArray(0);
+        glBindBuffer(GL_ARRAY_BUFFER, 0);
+        glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, 0);
 
         glDeleteBuffers(1, &vb);
         glDeleteBuffers(1, &ib);
@@ -50,31 +59,35 @@ struct GLMesh
 
     ~GLMesh()
     {
-        glDeleteVertexArrays(1, &vao);
+        glDeleteVertexArrays(1, &vao_);
     }
 
     GLMesh(const GLMesh&) = delete;
     GLMesh& operator=(const GLMesh&) = delete;
 
-    GLMesh(GLMesh&& other)
-        : vao(std::exchange(other.vao, 0))
-        , vertexcount(std::exchange(other.vertexcount, 0))
-        , indexcount(std::exchange(other.indexcount, 0))
-        , material(other.material)
-    {}
-    
-    GLMesh& operator=(GLMesh&& other)
+    GLMesh(GLMesh&& other) noexcept
+        : vao_{ std::exchange(other.vao_, 0) }
+        , indexcount_{ std::exchange(other.indexcount_, 0) }
+        , material_{ std::exchange(other.material_, nullptr) }
     {
-        vao = std::exchange(other.vao, 0);
-        vertexcount = std::exchange(other.vertexcount, 0);
-        indexcount = std::exchange(other.indexcount, 0);
-        material = other.material;
-
-        return *this;
     }
 
-    GLuint vao;
-    uint32_t vertexcount;
-    uint32_t indexcount;
-    GLMaterial material;
+    GLMesh& operator=(GLMesh&& other) noexcept
+    {
+        vao_ = std::exchange(other.vao_, 0);
+        indexcount_ = std::exchange(other.indexcount_, 0);
+        material_ = std::exchange(other.material_, nullptr);
+    }
+
+    void Draw(GLuint program) const
+    {
+        glBindVertexArray(vao_);
+        glDrawElements(GL_TRIANGLES, indexcount_, GL_UNSIGNED_INT, nullptr);
+        glBindVertexArray(0);
+    }
+
+private:
+    GLuint vao_{};
+    uint32_t indexcount_{};
+    const Material* material_{};
 };

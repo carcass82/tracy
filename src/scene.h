@@ -51,9 +51,9 @@ public:
 
 	uint32_t GetTriCount() const;
 	
-	uint32_t Width() const                        { return width_; }
+	uint32_t GetWidth() const                     { return width_; }
 										          
-	uint32_t Height() const                       { return height_; }
+	uint32_t GetHeight() const                    { return height_; }
 
 	const Material& GetMaterial(uint32_t i) const { return materials_[i]; }
 

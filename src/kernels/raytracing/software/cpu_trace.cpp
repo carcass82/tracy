@@ -33,8 +33,8 @@ void CpuTrace::Shutdown()
 void CpuTrace::OnUpdate(const Scene& in_Scene, float in_DeltaTime)
 {
 #if !TILED_RENDERING
-	const int32_t w{ static_cast<int32_t>(in_Scene.Width()) };
-	const int32_t h{ static_cast<int32_t>(in_Scene.Height()) };
+	const int32_t w{ static_cast<int32_t>(in_Scene.GetWidth()) };
+	const int32_t h{ static_cast<int32_t>(in_Scene.GetHeight()) };
 #endif
 
 	#pragma omp parallel
@@ -84,8 +84,8 @@ void CpuTrace::OnEvent(TracyEvent in_Event, const WindowHandle in_Window, const 
 #if TILED_RENDERING
 void CpuTrace::RenderTile(uint32_t tile_x, uint32_t tile_y, const Scene& scene, RandomCtx random_ctx)
 {
-	uint32_t w = scene.Width();
-	uint32_t h = scene.Height();
+	uint32_t w = scene.GetWidth();
+	uint32_t h = scene.GetHeight();
 
 	for (uint32_t j = tile_x * kTileSize; j < (tile_x + 1) * kTileSize; ++j)
 	{

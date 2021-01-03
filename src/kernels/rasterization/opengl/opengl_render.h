@@ -5,48 +5,22 @@
  * (c) Carlo Casta, 2018
  */
 #pragma once
+
 #include "common.h"
-#include "scene.h"
+#include "module.h"
 
-class OpenGLRender
+class OpenGLRender final : public TracyModule<OpenGLRender>
 {
+	friend class TracyModule<OpenGLRender>;
+
 public:
-	~OpenGLRender();
-	OpenGLRender(const OpenGLRender&) = delete;
-	OpenGLRender& operator=(const OpenGLRender) = delete;
+	bool Startup(const WindowHandle in_Window, const Scene& in_Scene) override;
+	void OnUpdate(const Scene& in_Scene, float in_DeltaTime) override;
+	void OnEvent(TracyEvent in_Event, const WindowHandle in_Window, const Scene& in_Scene) override;
+	void OnRender(const WindowHandle in_Window) override;
+	void Shutdown() override;
+	const char* GetModuleName() const override { return "OpenGL"; }
 
-	static OpenGLRender& GetInstance()
-	{
-		static OpenGLRender instance;
-		return instance;
-	}
-
-	void Initialize(Handle in_window, int in_width, int in_height, const Scene& in_scene);
-	void Shutdown() {}
-	void UpdateScene() {}
-	void RenderScene();
-	void OnPaint() {}
-
-	const char* GetName() const { return "OpenGL"; }
-
-	int GetRayCount() const { return 0; }
-
+	uint32_t GetRayCount() const { return 0; }
 	void ResetRayCount() {}
-
-private:
-	OpenGLRender();
-	bool IsInitialized() const { return init_; }
-	
-	Handle win_handle_{};
-	int win_width_{};
-	int win_height_{};
-	int frame_counter_{};
-	int raycount_{};
-
-	bool init_{ false };
-
-	const Camera* camera_{};
-
-	struct Details;
-	Details* details_{};
 };

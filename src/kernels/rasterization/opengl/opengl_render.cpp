@@ -7,67 +7,159 @@
 #include "opengl_render.h"
 #include "GL/glew.h"
 
-#if !defined(WIN32)
-#include <GL/glx.h>
-#endif
-
-#include "materials.h"
+#include "log.h"
+#include "scene.h"
 #include "gl_mesh.h"
 
-//
-// OpenGL - Details
-//
+#if defined(_MSC_VER)
+ #define DLLEXPORT extern "C" __declspec(dllexport)
+#else
+ #define DLLEXPORT extern "C" __attribute__((dllexport))
+#endif
+DLLEXPORT uint32_t NvOptimusEnablement = 0x00000001;
 
-struct OpenGLRender::Details
+namespace
 {
-	vector<GLMesh> meshes;
+struct OpenGLDetails
+{
+	static const char* fullscreen_vs;
+	static const char* fullscreen_fs;
 
-	struct GLLight
+	static const char* object_vs;
+	static const char* object_fs;
+
+	const char* fullscreen_texture_name = "fsTex";
+	GLint fullscreen_texture{};
+	GLuint fullscreen_shader{};
+	GLuint object_shader{};
+
+	GLuint fb{};
+	GLuint fb_texture{};
+
+	vector<GLMesh> meshes{};
+	vector<GLuint> textures{};
+
+#if defined(_WIN32)
+	HDC hDC;
+	HGLRC hRC;
+#else
+	Display* dpy;
+	GLXContext glCtx;
+#endif
+} render_data_;
+}
+
+#define TO_STRING_HELPER(x) #x
+#define TO_STRING(x) TO_STRING_HELPER(x)
+
+const char* OpenGLDetails::object_vs = R"vs(
+void main()
+{
+	gl_Position = ftransform();
+}
+)vs";
+
+const char* OpenGLDetails::object_fs = R"fs(
+#version 330
+out vec4 outColor;
+
+void main()
+{
+	outColor = vec4(1,1,1,1);
+}
+)fs";
+
+const char* OpenGLDetails::fullscreen_vs = R"vs(
+#version 330
+out vec2 texCoords;
+void main()
+{
+    const vec3 vertices[3] = vec3[3](vec3(-1,-1,0), vec3(3,-1,0), vec3(-1,3,0));
+
+	texCoords = 0.5 * vertices[gl_VertexID].xy + vec2(0.5);
+    gl_Position = vec4(vertices[gl_VertexID].xy, 0, 1);
+}
+)vs";
+
+
+const char* OpenGLDetails::fullscreen_fs =
+"#version 330\n"
+
+// exposure
+"vec3 exposure(vec3 x) { return x * " TO_STRING(TRACY_EXPOSURE) "; }\n"
+
+// tonemapping function
+#if USE_TONEMAP_REINHARD
+"vec3 tonemap(vec3 x) { return clamp(x / (1 + x), 0, 1); }\n"
+#elif USE_TONEMAP_ACES
+"vec3 tonemap(vec3 x) { return clamp((x * (2.51 * x + 0.03)) / (x * (2.43 * x + 0.59) + 0.14), 0, 1); }\n"
+#else
+"vec3 tonemap(vec3 x) { return x; }\n"
+#endif
+
+// main shader body
+R"fs(
+out vec4 outColor;
+in vec2 texCoords;
+uniform sampler2D fsTex;
+
+void main()
+{
+    vec3 color = texture(fsTex, vec2(texCoords.x, texCoords.y)).rgb;
+    outColor = vec4(tonemap(exposure(color)), 1);
+}
+)fs";
+
+
+#define GLAssert(call) call; OGL::ensure(glGetError(), __FILE__, __LINE__)
+
+namespace OGL
+{
+static inline void ensure(GLenum val, const char* file, int line)
+{
+	while (val != GL_NO_ERROR)
 	{
-		GLLight(const vec3& in_pos, const vec3& in_color)
-			: position{ in_pos }
-			, color{ in_color }
-			, attenuation{ 1.0f, 0.09f, 0.032f }
-		{}
+		TracyLog("[OpenGL Error] at %s:%d code: 0x%x\n", file, line, val);
+		DEBUG_BREAK();
+	}
+}
 
-		vec3 position;
-		vec3 color;
-		vec3 attenuation;
-	};
-	vector<GLLight> lights;
-
-	GLuint vs;
-	GLuint fs;
-	GLuint shader;
-	GLuint ubo_matrices;
+static inline auto CheckShaderError = [](GLuint shader)
+{
+	GLint res;
+	glGetShaderiv(shader, GL_COMPILE_STATUS, &res);
+	if (res != GL_TRUE)
+	{
+		char buffer[512];
+		glGetShaderInfoLog(shader, array_size(buffer), nullptr, buffer);
+		TracyLog("%s", buffer);
+		DEBUG_BREAK();
+	}
+	
+	return (res == GL_TRUE);
 };
 
-
-//
-// OpenGL Render
-//
-
-OpenGLRender::OpenGLRender()
-	: details_(new Details)
+static inline auto CheckProgramError = [](GLuint program)
 {
+	GLint res;
+	glGetProgramiv(program, GL_LINK_STATUS, &res);
+	if (res != GL_TRUE)
+	{
+		char buffer[512];
+		glGetProgramInfoLog(program, array_size(buffer), nullptr, buffer);
+		TracyLog("%s", buffer);
+		DEBUG_BREAK();
+	}
+
+	return (res == GL_TRUE);
+};
 }
 
-OpenGLRender::~OpenGLRender()
+bool OpenGLRender::Startup(const WindowHandle in_Window, const Scene& in_Scene)
 {
-	delete details_;
-}
+#if defined(_WIN32)
 
-void OpenGLRender::Initialize(Handle in_window, int in_width, int in_height, const Scene& in_scene)
-{
-	win_handle_ = in_window;
-	win_width_ = in_width;
-	win_height_ = in_height;
-
-	camera_ = &in_scene.GetCamera();
-
-#if defined(WIN32)
-	PIXELFORMATDESCRIPTOR pfd;
-	memset(&pfd, 0, sizeof(PIXELFORMATDESCRIPTOR));
+	PIXELFORMATDESCRIPTOR pfd{};
 	pfd.nSize = sizeof(PIXELFORMATDESCRIPTOR);
 	pfd.nVersion = 1;
 	pfd.dwFlags = PFD_DRAW_TO_WINDOW | PFD_SUPPORT_OPENGL | PFD_DOUBLEBUFFER;
@@ -76,154 +168,231 @@ void OpenGLRender::Initialize(Handle in_window, int in_width, int in_height, con
 	pfd.cDepthBits = 16;
 	pfd.iLayerType = PFD_MAIN_PLANE;
 
-	HDC hDC = GetDC(win_handle_);
-	GLuint PixelFormat = ChoosePixelFormat(hDC, &pfd);
-	SetPixelFormat(hDC, PixelFormat, &pfd);
-	HGLRC hRC = wglCreateContext(hDC);
-	wglMakeCurrent(hDC, hRC);
+	render_data_.hDC = GetDC(in_Window->win);
+	GLuint PixelFormat = ChoosePixelFormat(render_data_.hDC, &pfd);
+	SetPixelFormat(render_data_.hDC, PixelFormat, &pfd);
+	render_data_.hRC = wglCreateContext(render_data_.hDC);
+
+	wglMakeCurrent(render_data_.hDC, render_data_.hRC);
+
 #else
+
+	render_data_.dpy = in_Window->dpy;
+
 	GLint att[] = { GLX_RGBA, GLX_DEPTH_SIZE, 24, GLX_DOUBLEBUFFER, None };
-    XVisualInfo* vi = glXChooseVisual(win_handle_->dpy, 0, att);
-    GLXContext glc = glXCreateContext(win_handle_->dpy, vi, nullptr, GL_TRUE);
-    glXMakeCurrent(win_handle_->dpy, win_handle_->win, glc);
+	XVisualInfo* vi = glXChooseVisual(in_Window->dpy, 0, att);
+	render_data_.glCtx = glXCreateContext(in_Window->dpy, vi, nullptr, GL_TRUE);
+	glXMakeCurrent(in_Window->dpy, in_Window->win, render_data_.glCtx);
+
 #endif
 
 	glewExperimental = GL_TRUE;
-	GLenum err = glewInit();
-	if (err == GLEW_OK)
+	bool res = (glewInit() == GLEW_OK);
+	if (res)
 	{
-		glEnable(GL_FRAMEBUFFER_SRGB);
+		TracyLog("OpenGL initialized: %s (%s)\n", glGetString(GL_VERSION), glGetString(GL_RENDERER));
 
-		glEnable(GL_DEPTH_TEST);
-		glClearColor(0.0f, 0.0f, 0.0f, 0.0f);
-		glClearDepth(1.0f);
+#if USE_TONEMAP_SRGB || USE_TONEMAP_ACES || USE_TONEMAP_REINHARD
+		GLAssert(glEnable(GL_FRAMEBUFFER_SRGB));
+#endif
+
+		GLAssert(glClearColor(0.0f, 0.0f, 0.0f, 1.0f));
+		GLAssert(glClearDepth(1.0f));
+		GLAssert(glEnable(GL_DEPTH_TEST));
+		GLAssert(glDepthFunc(GL_LEQUAL));
+		GLAssert(glFrontFace(GL_CCW));
+		GLAssert(glEnable(GL_CULL_FACE));
+
+		GLAssert(glViewport(0, 0, in_Scene.GetWidth(), in_Scene.GetHeight()));
+		GLAssert(glMatrixMode(GL_PROJECTION));
+		GLAssert(glLoadMatrixf(value_ptr(in_Scene.GetCamera().GetProjection())));
 		
-		glViewport(0, 0, win_width_, win_height_);
+		GLAssert(glMatrixMode(GL_MODELVIEW));
+		GLAssert(glLoadMatrixf(value_ptr(in_Scene.GetCamera().GetView())));
 
-		glEnable(GL_CULL_FACE);
+		GLAssert(glGenTextures(1, &render_data_.fb_texture));
+		GLAssert(glBindTexture(GL_TEXTURE_2D, render_data_.fb_texture));
+		GLAssert(glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA, in_Window->width, in_Window->height, 0, GL_RGBA, GL_UNSIGNED_BYTE, nullptr));
+		GLAssert(glTexParameteri(GL_TEXTURE_2D, GL_GENERATE_MIPMAP, GL_FALSE));
+		GLAssert(glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR));
+		GLAssert(glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR));
+		GLAssert(glBindTexture(GL_TEXTURE_2D, 0));
 
-		glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
+		GLuint depth;
+		glGenRenderbuffers(1, &depth);
+		glBindRenderbuffer(GL_RENDERBUFFER, depth);
+		glRenderbufferStorage(GL_RENDERBUFFER, GL_DEPTH_COMPONENT24, in_Window->width, in_Window->height);
+		glBindRenderbuffer(GL_RENDERBUFFER, 0);
+
+		GLAssert(glGenFramebuffers(1, &render_data_.fb));
+		GLAssert(glBindFramebuffer(GL_FRAMEBUFFER, render_data_.fb));
+		glFramebufferTexture2D(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT0, GL_TEXTURE_2D, render_data_.fb_texture, 0);
+		glFramebufferRenderbuffer(GL_FRAMEBUFFER, GL_DEPTH_ATTACHMENT, GL_RENDERBUFFER, depth);
+		GLAssert(res = res && glCheckFramebufferStatus(GL_FRAMEBUFFER) == GL_FRAMEBUFFER_COMPLETE);
+		GLAssert(glBindFramebuffer(GL_FRAMEBUFFER, 0));
+
+		// object ubershaders
+		{
+			GLAssert(GLuint VS = glCreateShader(GL_VERTEX_SHADER));
+			GLAssert(glShaderSource(VS, 1, &render_data_.object_vs, nullptr));
+			GLAssert(glCompileShader(VS));
+			res = res && OGL::CheckShaderError(VS);
+
+			GLAssert(GLuint FS = glCreateShader(GL_FRAGMENT_SHADER));
+			GLAssert(glShaderSource(FS, 1, &render_data_.object_fs, nullptr));
+			GLAssert(glCompileShader(FS));
+			res = res && OGL::CheckShaderError(FS);
+
+			GLAssert(render_data_.object_shader = glCreateProgram());
+			GLAssert(glAttachShader(render_data_.object_shader, VS));
+			GLAssert(glAttachShader(render_data_.object_shader, FS));
+			GLAssert(glLinkProgram(render_data_.object_shader));
+			res = res && OGL::CheckProgramError(render_data_.object_shader);
+
+			GLAssert(glDetachShader(render_data_.object_shader, VS));
+			GLAssert(glDetachShader(render_data_.object_shader, FS));
+			GLAssert(glDeleteShader(VS));
+			GLAssert(glDeleteShader(FS));
+		}
+
+		// Fullscreen triangle shaders
+		{
+			GLAssert(GLuint VS = glCreateShader(GL_VERTEX_SHADER));
+			GLAssert(glShaderSource(VS, 1, &render_data_.fullscreen_vs, nullptr));
+			GLAssert(glCompileShader(VS));
+			res = res && OGL::CheckShaderError(VS);
+
+			GLAssert(GLuint FS = glCreateShader(GL_FRAGMENT_SHADER));
+			GLAssert(glShaderSource(FS, 1, &render_data_.fullscreen_fs, nullptr));
+			GLAssert(glCompileShader(FS));
+			res = res && OGL::CheckShaderError(FS);
+
+			GLAssert(render_data_.fullscreen_shader = glCreateProgram());
+			GLAssert(glAttachShader(render_data_.fullscreen_shader, VS));
+			GLAssert(glAttachShader(render_data_.fullscreen_shader, FS));
+			GLAssert(glLinkProgram(render_data_.fullscreen_shader));
+			res = res && OGL::CheckProgramError(render_data_.fullscreen_shader);
+
+			GLAssert(glDetachShader(render_data_.fullscreen_shader, VS));
+			GLAssert(glDetachShader(render_data_.fullscreen_shader, FS));
+			GLAssert(glDeleteShader(VS));
+			GLAssert(glDeleteShader(FS));
+
+			GLAssert(render_data_.fullscreen_texture = glGetUniformLocation(render_data_.fullscreen_shader, render_data_.fullscreen_texture_name));
+		}
+
+		// Upload textures
+		for (auto& texture : in_Scene.GetTextures())
+		{
+			if (texture.IsValid())
+			{
+				GLuint texture_id;
+				GLAssert(glGenTextures(1, &texture_id));
+				GLAssert(glBindTexture(GL_TEXTURE_2D, texture_id));
+				GLAssert(glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA32F, texture.GetWidth(), texture.GetHeight(), 0, GL_RGBA, GL_FLOAT, texture.GetPixels()));
+				GLAssert(glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_REPEAT));
+				GLAssert(glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_REPEAT));
+				GLAssert(glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR_MIPMAP_LINEAR));
+				GLAssert(glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR));
+				glGenerateMipmap(GL_TEXTURE_2D);
+				GLAssert(glBindTexture(GL_TEXTURE_2D, 0));
+
+				render_data_.textures.emplace_back(texture_id);
+			}
+		}
 
 		// Upload geometry
-		for (const Mesh& mesh : in_scene.GetObjects())
+		for (auto& mesh : in_Scene.GetObjects())
 		{
-			details_->meshes.emplace_back(mesh);
-
-			if (mesh.GetMaterial()->GetType() == Material::MaterialID::eEMISSIVE)
-			{
-				// consider emissive objects as lights
-				details_->lights.emplace_back(mesh.GetAABB().GetCenter(), mesh.GetMaterial()->GetAlbedo());
-			}
+			render_data_.meshes.emplace_back(mesh, in_Scene.GetMaterial(mesh.GetMaterial()));
 		}
-
-		// Create Shaders
-		{
-			details_->vs = glCreateShader(GL_VERTEX_SHADER);
-			glShaderSource(details_->vs, 1, &shaders::vs_source, NULL);
-			glCompileShader(details_->vs);
-
-			details_->fs = glCreateShader(GL_FRAGMENT_SHADER);
-			glShaderSource(details_->fs, 1, &shaders::fs_source, NULL);
-			glCompileShader(details_->fs);
-
-#if defined _DEBUG
-			static char buffer[512];
-			GLint status;
-
-			glGetShaderiv(details_->vs, GL_COMPILE_STATUS, &status);
-			if (status != GL_TRUE)
-			{
-				glGetShaderInfoLog(details_->vs, array_size(buffer), nullptr, buffer);
-				DEBUG_BREAK();
-			}
-
-			glGetShaderiv(details_->fs, GL_COMPILE_STATUS, &status);
-			if (status != GL_TRUE)
-			{
-				glGetShaderInfoLog(details_->fs, array_size(buffer), nullptr, buffer);
-				DEBUG_BREAK();
-			}
-#endif
-
-			details_->shader = glCreateProgram();
-			glAttachShader(details_->shader, details_->vs);
-			glAttachShader(details_->shader, details_->fs);
-			glLinkProgram(details_->shader);
-			
-#if defined(_DEBUG)
-            glGetProgramiv(details_->shader, GL_LINK_STATUS, &status);
-            if (status != GL_TRUE)
-            {
-                glGetProgramInfoLog(details_->shader, array_size(buffer), nullptr, buffer);
-                DEBUG_BREAK();
-            }
-#endif
-		}
-
-		// map UBO
-		{
-			GLuint ubo_matrices_idx = glGetUniformBlockIndex(details_->shader, "matrices");
-			glUniformBlockBinding(details_->shader, ubo_matrices_idx, 0);
-
-			glGenBuffers(1, &details_->ubo_matrices);
-			glBindBuffer(GL_UNIFORM_BUFFER, details_->ubo_matrices);
-			glBufferData(GL_UNIFORM_BUFFER, 2 * sizeof(mat4), NULL, GL_STATIC_DRAW);
-			glBufferSubData(GL_UNIFORM_BUFFER, sizeof(mat4) * 0, sizeof(mat4), value_ptr(camera_->GetProjection()));
-			glBufferSubData(GL_UNIFORM_BUFFER, sizeof(mat4) * 1, sizeof(mat4), value_ptr(camera_->GetView()));
-			glBindBuffer(GL_UNIFORM_BUFFER, 0);
-			glBindBufferRange(GL_UNIFORM_BUFFER, 0, details_->ubo_matrices, 0, 2 * sizeof(mat4));
-		}
-
-		init_ = true;
 	}
+
+	return res;
 }
 
-void OpenGLRender::RenderScene()
+void OpenGLRender::Shutdown()
 {
-	if (IsInitialized())
-	{
-		glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
+	GLAssert(glDeleteFramebuffers(1, &render_data_.fb));
 
-		//
-		// debug - show wireframe
-		//
-		//glPolygonMode(GL_FRONT_AND_BACK, GL_LINE);
+#if defined(_WIN32)
 
-		glUseProgram(details_->shader);
+	wglMakeCurrent(NULL, NULL);
 
-		if (camera_->IsDirty())
-		{
-			glBindBuffer(GL_UNIFORM_BUFFER, details_->ubo_matrices);
-			glBufferSubData(GL_UNIFORM_BUFFER, sizeof(mat4) * 0, sizeof(mat4), value_ptr(camera_->GetProjection()));
-			glBufferSubData(GL_UNIFORM_BUFFER, sizeof(mat4) * 1, sizeof(mat4), value_ptr(camera_->GetView()));
-			glBindBuffer(GL_UNIFORM_BUFFER, 0);
-		}
+	wglDeleteContext(render_data_.hRC);
 
-		for (const GLMesh& mesh : details_->meshes)
-		{
-			glUniform3fv(glGetUniformLocation(details_->shader, "material.albedo"), 1, value_ptr(mesh.material.albedo));
-			glUniform1f(glGetUniformLocation(details_->shader, "material.metalness"), mesh.material.metalness);
-			glUniform1f(glGetUniformLocation(details_->shader, "material.roughness"), mesh.material.roughness);
-			glUniform1f(glGetUniformLocation(details_->shader, "material.ior"), mesh.material.ior);
-
-			// TODO: support multiple lights, avoid setting uniform every time
-			glUniform3fv(glGetUniformLocation(details_->shader, "light.position"), 1, value_ptr(details_->lights[0].position));
-			glUniform3fv(glGetUniformLocation(details_->shader, "light.color"), 1, value_ptr(details_->lights[0].color));
-			glUniform1f(glGetUniformLocation(details_->shader, "light.constant"), details_->lights[0].attenuation.x);
-			glUniform1f(glGetUniformLocation(details_->shader, "light.linear"), details_->lights[0].attenuation.y);
-			glUniform1f(glGetUniformLocation(details_->shader, "light.quadratic"), details_->lights[0].attenuation.z);
-
-			glBindVertexArray(mesh.vao);
-			glDrawElements(GL_TRIANGLES, mesh.indexcount, GL_UNSIGNED_INT, (GLvoid*)0);
-		}
-		glBindVertexArray(0);
-
-		glUseProgram(0);
-
-#if defined(WIN32)
-		SwapBuffers(GetDC(win_handle_));
 #else
-		glXSwapBuffers(win_handle_->dpy, win_handle_->win);
+
+	glXDestroyContext(render_data_.dpy, render_data_.glCtx);
+
+#endif
+}
+
+void OpenGLRender::OnUpdate(const Scene& in_Scene, float in_DeltaTime)
+{
+}
+
+void OpenGLRender::OnEvent(TracyEvent in_Event, const WindowHandle in_Window, const Scene& in_Scene)
+{
+}
+
+void OpenGLRender::OnRender(const WindowHandle in_Window)
+{
+	if (LIKELY(IsValidWindowHandle(in_Window)))
+	{
+		// render to texture
+		
+		GLAssert(glBindFramebuffer(GL_FRAMEBUFFER, render_data_.fb));
+		GLAssert(glEnable(GL_DEPTH_TEST));
+		GLAssert(glPolygonMode(GL_FRONT_AND_BACK, GL_LINE));
+		GLAssert(glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT));
+
+		GLAssert(glUseProgram(render_data_.object_shader));
+		for (const auto& mesh : render_data_.meshes)
+		{
+			mesh.Draw(render_data_.object_shader);
+		}
+		GLAssert(glUseProgram(0));
+		GLAssert(glBindFramebuffer(GL_FRAMEBUFFER, 0));
+
+		// present full screen triangle + post process
+		GLAssert(glDisable(GL_DEPTH_TEST));
+		GLAssert(glPolygonMode(GL_FRONT_AND_BACK, GL_FILL));
+		GLAssert(glClear(GL_COLOR_BUFFER_BIT));
+
+		GLAssert(glMatrixMode(GL_PROJECTION));
+		GLAssert(glPushMatrix());
+		GLAssert(glLoadIdentity());
+
+		GLAssert(glMatrixMode(GL_MODELVIEW));
+		GLAssert(glPushMatrix());
+		GLAssert(glLoadIdentity());
+
+		GLAssert(glEnable(GL_TEXTURE_2D));
+		GLAssert(glActiveTexture(GL_TEXTURE0));
+		GLAssert(glBindTexture(GL_TEXTURE_2D, render_data_.fb_texture));
+
+		GLAssert(glUseProgram(render_data_.fullscreen_shader));
+
+		GLAssert(glUniform1i(render_data_.fullscreen_texture, 0));
+
+		GLAssert(glDrawArrays(GL_TRIANGLES, 0, 3));
+
+		GLAssert(glUseProgram(0));
+
+		GLAssert(glBindTexture(GL_TEXTURE_2D, 0));
+		GLAssert(glDisable(GL_TEXTURE_2D));
+
+		GLAssert(glPopMatrix());
+		GLAssert(glMatrixMode(GL_PROJECTION));
+		GLAssert(glPopMatrix());
+
+		GLAssert(glMatrixMode(GL_MODELVIEW));
+
+#if defined(_WIN32)
+		SwapBuffers(render_data_.hDC);
+#else
+		glXSwapBuffers(in_Window->dpy, in_Window->win);
 #endif
 	}
 }
