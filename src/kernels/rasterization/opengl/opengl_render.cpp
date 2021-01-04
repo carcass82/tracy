@@ -39,6 +39,9 @@ struct OpenGLDetails
 	vector<GLMesh> meshes{};
 	vector<GLuint> textures{};
 
+	mat4 view{ 1.f };
+	mat4 projection{ 1.f };
+
 #if defined(_WIN32)
 	HDC hDC;
 	HGLRC hRC;
@@ -53,15 +56,39 @@ struct OpenGLDetails
 #define TO_STRING(x) TO_STRING_HELPER(x)
 
 const char* OpenGLDetails::object_vs = R"vs(
+#version 330
+layout (location = 0) in vec3 position;
+layout (location = 1) in vec3 normal;
+layout (location = 2) in vec2 uv;
+layout (location = 3) in vec3 tangent;
+layout (location = 4) in vec3 bitangent;
+
+uniform struct
+{
+	mat4 view;
+	mat4 projection;
+} matrix;
+
+out struct
+{
+	vec2 texcoords;
+} vs;
+
 void main()
 {
-	gl_Position = ftransform();
+	vs.texcoords = uv;
+	gl_Position = matrix.projection * matrix.view * vec4(position, 1);
 }
 )vs";
 
 const char* OpenGLDetails::object_fs = R"fs(
 #version 330
 out vec4 outColor;
+
+in struct
+{
+	vec2 texcoords;
+} vs;
 
 void main()
 {
@@ -204,11 +231,12 @@ bool OpenGLRender::Startup(const WindowHandle in_Window, const Scene& in_Scene)
 		GLAssert(glEnable(GL_CULL_FACE));
 
 		GLAssert(glViewport(0, 0, in_Scene.GetWidth(), in_Scene.GetHeight()));
-		GLAssert(glMatrixMode(GL_PROJECTION));
-		GLAssert(glLoadMatrixf(value_ptr(in_Scene.GetCamera().GetProjection())));
 		
+		GLAssert(glMatrixMode(GL_PROJECTION));
+		GLAssert(glLoadIdentity());
+
 		GLAssert(glMatrixMode(GL_MODELVIEW));
-		GLAssert(glLoadMatrixf(value_ptr(in_Scene.GetCamera().GetView())));
+		GLAssert(glLoadIdentity());
 
 		GLAssert(glGenTextures(1, &render_data_.fb_texture));
 		GLAssert(glBindTexture(GL_TEXTURE_2D, render_data_.fb_texture));
@@ -306,6 +334,9 @@ bool OpenGLRender::Startup(const WindowHandle in_Window, const Scene& in_Scene)
 		{
 			render_data_.meshes.emplace_back(mesh, in_Scene.GetMaterial(mesh.GetMaterial()));
 		}
+
+		render_data_.view = in_Scene.GetCamera().GetView();
+		render_data_.projection = in_Scene.GetCamera().GetProjection();
 	}
 
 	return res;
@@ -334,6 +365,16 @@ void OpenGLRender::OnUpdate(const Scene& in_Scene, float in_DeltaTime)
 
 void OpenGLRender::OnEvent(TracyEvent in_Event, const WindowHandle in_Window, const Scene& in_Scene)
 {
+	switch (in_Event)
+	{
+	case TracyEvent::eCameraCut:
+		render_data_.view = in_Scene.GetCamera().GetView();
+		render_data_.projection = in_Scene.GetCamera().GetProjection();
+		break;
+
+	default:
+		break;
+	}
 }
 
 void OpenGLRender::OnRender(const WindowHandle in_Window)
@@ -348,6 +389,9 @@ void OpenGLRender::OnRender(const WindowHandle in_Window)
 		GLAssert(glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT));
 
 		GLAssert(glUseProgram(render_data_.object_shader));
+		GLAssert(glUniformMatrix4fv(glGetUniformLocation(render_data_.object_shader, "matrix.view"), 1, GL_FALSE, value_ptr(render_data_.view)));
+		GLAssert(glUniformMatrix4fv(glGetUniformLocation(render_data_.object_shader, "matrix.projection"), 1, GL_FALSE, value_ptr(render_data_.projection)));
+		
 		for (const auto& mesh : render_data_.meshes)
 		{
 			mesh.Draw(render_data_.object_shader);
@@ -359,14 +403,6 @@ void OpenGLRender::OnRender(const WindowHandle in_Window)
 		GLAssert(glDisable(GL_DEPTH_TEST));
 		GLAssert(glPolygonMode(GL_FRONT_AND_BACK, GL_FILL));
 		GLAssert(glClear(GL_COLOR_BUFFER_BIT));
-
-		GLAssert(glMatrixMode(GL_PROJECTION));
-		GLAssert(glPushMatrix());
-		GLAssert(glLoadIdentity());
-
-		GLAssert(glMatrixMode(GL_MODELVIEW));
-		GLAssert(glPushMatrix());
-		GLAssert(glLoadIdentity());
 
 		GLAssert(glEnable(GL_TEXTURE_2D));
 		GLAssert(glActiveTexture(GL_TEXTURE0));
@@ -382,12 +418,6 @@ void OpenGLRender::OnRender(const WindowHandle in_Window)
 
 		GLAssert(glBindTexture(GL_TEXTURE_2D, 0));
 		GLAssert(glDisable(GL_TEXTURE_2D));
-
-		GLAssert(glPopMatrix());
-		GLAssert(glMatrixMode(GL_PROJECTION));
-		GLAssert(glPopMatrix());
-
-		GLAssert(glMatrixMode(GL_MODELVIEW));
 
 #if defined(_WIN32)
 		SwapBuffers(render_data_.hDC);
