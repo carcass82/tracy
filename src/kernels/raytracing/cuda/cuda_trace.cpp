@@ -53,7 +53,7 @@ void CUDATrace::OnEvent(TracyEvent in_Event, const WindowHandle in_Window, const
 
 void CUDATrace::OnRender(const WindowHandle in_Window)
 {
-    if (LIKELY(IsValidWindowHandle(in_Window)))
+    if LIKELY(IsValidWindowHandle(in_Window))
     {
         Details.Render(in_Window, in_Window->width, in_Window->height);
     }

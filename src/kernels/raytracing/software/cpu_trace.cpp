@@ -171,7 +171,7 @@ vec3 CpuTrace::Trace(Ray&& ray, const Scene& scene, RandomCtx random_ctx)
 
 void CpuTrace::OnRender(const WindowHandle in_Window)
 {
-	if (LIKELY(IsValidWindowHandle(in_Window)))
+	if LIKELY(IsValidWindowHandle(in_Window))
 	{
 		Details.Render(in_Window, in_Window->width, in_Window->height);
 	}

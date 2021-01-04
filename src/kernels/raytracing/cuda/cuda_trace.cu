@@ -143,7 +143,7 @@ __global__ void TraceKernel(cudaSurfaceObject_t surface, KernelData data, uint32
     const uint32_t j = (blockIdx.y * blockDim.y) + threadIdx.y;
     const uint32_t idx = j * w + i;
 
-    if (LIKELY(i < w && j < h))
+    if LIKELY(i < w && j < h)
     {
         RandomCtxData curand = data.randctx_[idx];
         RandomCtx curand_ctx = &curand;
@@ -176,7 +176,7 @@ __global__ void InitRandom(KernelData data, uint32_t w, uint32_t h)
     const uint32_t j = (blockIdx.y * blockDim.y) + threadIdx.y;
     const uint32_t idx = j * w + i;
 
-    if (LIKELY(i < w && j < h))
+    if LIKELY(i < w && j < h)
     {
         curand_init(0x12345, idx, 0, &data.randctx_[idx]);
     }

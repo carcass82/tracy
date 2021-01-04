@@ -379,7 +379,7 @@ void OpenGLRender::OnEvent(TracyEvent in_Event, const WindowHandle in_Window, co
 
 void OpenGLRender::OnRender(const WindowHandle in_Window)
 {
-	if (LIKELY(IsValidWindowHandle(in_Window)))
+	if LIKELY(IsValidWindowHandle(in_Window))
 	{
 		// render to texture
 		

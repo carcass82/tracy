@@ -16,12 +16,13 @@
  #define DEBUG_ASSERT(x)
 #endif
 
-#if !defined(_MSC_VER)
- #define LIKELY(x)   __builtin_expect(!!(x), 1)
- #define UNLIKELY(x) __builtin_expect(!!(x), 0)
+// use as "if LIKELY(cond)" without parentheses surrounding LIKELY/UNLIKELY
+#if !defined(_MSC_VER) || defined(__CUDACC__)
+ #define LIKELY(x)   (__builtin_expect(!!(x), 1))
+ #define UNLIKELY(x) (__builtin_expect(!!(x), 0))
 #else
- #define LIKELY(x)   (x) /* placeholders, replace with proper impl (perhaps [[likely]]?) */
- #define UNLIKELY(x) (x) /* placeholders, replace with proper impl (perhaps [[unlikely]]?) */
+ #define LIKELY(x)   (x) [[likely]]
+ #define UNLIKELY(x) (x) [[unlikely]]
 #endif
 
 #if defined(__CUDACC__)
