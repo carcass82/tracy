@@ -2,7 +2,7 @@
  * Tracy, a simple raytracer
  * inspired by "Ray Tracing in One Weekend" minibooks
  *
- * (c) Carlo Casta, 2018
+ * (c) Carlo Casta, 2017-2021
  */
 #include "opengl_render.h"
 #include "GL/glew.h"
@@ -11,12 +11,16 @@
 #include "scene.h"
 #include "gl_mesh.h"
 
-#if defined(_MSC_VER)
- #define DLLEXPORT extern "C" __declspec(dllexport)
+#if defined(_WIN32)
+ #if defined(_MSC_VER)
+  #define DLLEXPORT extern "C" __declspec(dllexport)
+ #else
+  #define DLLEXPORT extern "C" __attribute__((dllexport))
+ #endif
+ DLLEXPORT uint32_t NvOptimusEnablement = 0x00000001;
 #else
- #define DLLEXPORT extern "C" __attribute__((dllexport))
+ #include <GL/glx.h>
 #endif
-DLLEXPORT uint32_t NvOptimusEnablement = 0x00000001;
 
 namespace
 {
@@ -25,12 +29,16 @@ struct OpenGLDetails
 	static const char* fullscreen_vs;
 	static const char* fullscreen_fs;
 
+	static const char* sky_vs;
+	static const char* sky_fs;
+
 	static const char* object_vs;
 	static const char* object_fs;
 
 	const char* fullscreen_texture_name = "fsTex";
 	GLint fullscreen_texture{};
 	GLuint fullscreen_shader{};
+	GLuint sky_shader{};
 	GLuint object_shader{};
 
 	GLuint fb{};
@@ -38,6 +46,7 @@ struct OpenGLDetails
 
 	vector<GLMesh> meshes{};
 	vector<GLuint> textures{};
+	GLMaterial sky{};
 
 	mat4 view{ 1.f };
 	mat4 projection{ 1.f };
@@ -71,12 +80,17 @@ uniform struct
 
 out struct
 {
-	vec2 texcoords;
+	vec3 pos;
+	vec2 uv;
+	vec3 normal;
+	mat3 tbn;
 } vs;
 
 void main()
 {
-	vs.texcoords = uv;
+	vs.normal = normal;
+	vs.tbn = mat3(bitangent, tangent, normal);
+	vs.uv = vec2(uv.x, 1 - uv.y);
 	gl_Position = matrix.projection * matrix.view * vec4(position, 1);
 }
 )vs";
@@ -85,14 +99,140 @@ const char* OpenGLDetails::object_fs = R"fs(
 #version 330
 out vec4 outColor;
 
+uniform struct
+{
+	vec3 albedo;
+	vec3 emissive;
+	float roughness;
+	float metalness;
+	float ior;
+	float translucent;
+} material;
+
+uniform struct
+{
+	bool hasBaseColor;
+	bool hasNormal;
+	bool hasRoughness;
+	bool hasMetalness;
+	bool hasEmissive;
+
+	sampler2D baseColor;
+	sampler2D normal;
+	sampler2D roughness;
+	sampler2D metalness;
+	sampler2D emissive;
+} textures;
+
 in struct
 {
-	vec2 texcoords;
+	vec3 pos;
+	vec2 uv;
+	vec3 normal;
+	mat3 tbn;
 } vs;
 
 void main()
 {
-	outColor = vec4(1,1,1,1);
+	vec3 baseColor = material.albedo;
+	if (textures.hasBaseColor)
+	{
+		baseColor = texture(textures.baseColor, vs.uv).rgb;
+	}
+
+	vec3 normal = vs.normal;
+	if (textures.hasNormal)
+	{
+		normal = vs.tbn * (texture(textures.normal, vs.uv).rgb * 2 - 1);
+	}
+
+	float roughness = material.roughness;
+	if (textures.hasRoughness)
+	{
+		roughness = texture(textures.roughness, vs.uv).r;
+	}
+
+	float metalness = material.metalness;
+	if (textures.hasMetalness)
+	{
+		metalness = texture(textures.metalness, vs.uv).r;
+	}
+
+	vec3 emissive = material.emissive;
+	if (textures.hasEmissive)
+	{
+		emissive = texture(textures.emissive, vs.uv).rgb;
+	}
+
+	vec3 diffuseColor = baseColor * (1 - metalness);
+	vec3 specularColor = mix(vec3(0.04), baseColor, metalness);
+
+	const float PI = 3.14159265358979323846;
+	vec3 directDiffuse = diffuseColor / PI;
+
+
+	//outColor = vec4(baseColor, 1);
+	//outColor = vec4(normalize((normal + 1) / 2), 1);
+	//outColor = vec4(vec3(roughness), 1);
+	//outColor = vec4(vec3(metalness), 1);
+	//outColor = vec4(emissive, 1);
+
+	//outColor = vec4(1,1,1,1);
+}
+)fs";
+
+const char* OpenGLDetails::sky_vs = R"vs(
+#version 330
+uniform struct
+{
+	mat4 view;
+	mat4 projection;
+} matrix;
+
+out vec3 texCoords;
+
+void main()
+{
+    const vec3 vertices[3] = vec3[3](vec3(-1,-1,0), vec3(3,-1,0), vec3(-1,3,0));
+    vec3 position = vertices[gl_VertexID];
+
+    texCoords = inverse(mat3(matrix.view)) * (inverse(matrix.projection) * vec4(position, 1)).xyz;
+    gl_Position = vec4(position.xy, 1, 1);
+}
+)vs";
+
+const char* OpenGLDetails::sky_fs = R"fs(
+#version 330
+out vec4 outColor;
+in vec3 texCoords;
+
+uniform struct
+{
+	vec3 emissive;
+} material;
+
+uniform struct
+{
+	bool hasEmissive;
+	sampler2D emissive;
+} textures;
+
+const float PI = 3.1415926538;
+const float PI2 = 2 * PI;
+vec2 SampleSphericalMap(vec3 v)
+{
+    return vec2(atan(v.z, v.x) / PI2, asin(v.y) / PI) + 0.5;
+}                      
+
+void main()
+{
+	outColor = vec4(material.emissive, 1);
+
+	if (textures.hasEmissive)
+	{
+		vec2 uv = SampleSphericalMap(normalize(texCoords));
+		outColor = vec4(texture(textures.emissive, vec2(uv.x, 1 - uv.y)).rgb, 1);
+	}
 }
 )fs";
 
@@ -259,6 +399,30 @@ bool OpenGLRender::Startup(const WindowHandle in_Window, const Scene& in_Scene)
 		GLAssert(res = res && glCheckFramebufferStatus(GL_FRAMEBUFFER) == GL_FRAMEBUFFER_COMPLETE);
 		GLAssert(glBindFramebuffer(GL_FRAMEBUFFER, 0));
 
+		// sky shader
+		{
+			GLAssert(GLuint VS = glCreateShader(GL_VERTEX_SHADER));
+			GLAssert(glShaderSource(VS, 1, &render_data_.sky_vs, nullptr));
+			GLAssert(glCompileShader(VS));
+			res = res && OGL::CheckShaderError(VS);
+
+			GLAssert(GLuint FS = glCreateShader(GL_FRAGMENT_SHADER));
+			GLAssert(glShaderSource(FS, 1, &render_data_.sky_fs, nullptr));
+			GLAssert(glCompileShader(FS));
+			res = res && OGL::CheckShaderError(FS);
+
+			GLAssert(render_data_.sky_shader = glCreateProgram());
+			GLAssert(glAttachShader(render_data_.sky_shader, VS));
+			GLAssert(glAttachShader(render_data_.sky_shader, FS));
+			GLAssert(glLinkProgram(render_data_.sky_shader));
+			res = res && OGL::CheckProgramError(render_data_.sky_shader);
+
+			GLAssert(glDetachShader(render_data_.sky_shader, VS));
+			GLAssert(glDetachShader(render_data_.sky_shader, FS));
+			GLAssert(glDeleteShader(VS));
+			GLAssert(glDeleteShader(FS));
+		}
+
 		// object ubershaders
 		{
 			GLAssert(GLuint VS = glCreateShader(GL_VERTEX_SHADER));
@@ -329,6 +493,8 @@ bool OpenGLRender::Startup(const WindowHandle in_Window, const Scene& in_Scene)
 			}
 		}
 
+		render_data_.sky = { in_Scene.GetMaterial(Scene::SKY_MATERIAL_ID) };
+
 		// Upload geometry
 		for (auto& mesh : in_Scene.GetObjects())
 		{
@@ -381,6 +547,8 @@ void OpenGLRender::OnRender(const WindowHandle in_Window)
 {
 	if LIKELY(IsValidWindowHandle(in_Window))
 	{
+		GLAssert(glEnable(GL_TEXTURE_2D));
+
 		// render to texture
 		
 		GLAssert(glBindFramebuffer(GL_FRAMEBUFFER, render_data_.fb));
@@ -392,19 +560,28 @@ void OpenGLRender::OnRender(const WindowHandle in_Window)
 		GLAssert(glUniformMatrix4fv(glGetUniformLocation(render_data_.object_shader, "matrix.view"), 1, GL_FALSE, value_ptr(render_data_.view)));
 		GLAssert(glUniformMatrix4fv(glGetUniformLocation(render_data_.object_shader, "matrix.projection"), 1, GL_FALSE, value_ptr(render_data_.projection)));
 		
+		// draw all meshes
 		for (const auto& mesh : render_data_.meshes)
 		{
-			mesh.Draw(render_data_.object_shader);
+			mesh.GetMaterial().Draw(render_data_.object_shader, render_data_.textures);
+			mesh.Draw();
 		}
-		GLAssert(glUseProgram(0));
+
+		GLAssert(glPolygonMode(GL_FRONT_AND_BACK, GL_FILL));
+
+		// draw sky
+		GLAssert(glUseProgram(render_data_.sky_shader));
+		GLAssert(glUniformMatrix4fv(glGetUniformLocation(render_data_.sky_shader, "matrix.view"), 1, GL_FALSE, value_ptr(render_data_.view)));
+		GLAssert(glUniformMatrix4fv(glGetUniformLocation(render_data_.sky_shader, "matrix.projection"), 1, GL_FALSE, value_ptr(render_data_.projection)));
+		render_data_.sky.Draw(render_data_.sky_shader, render_data_.textures);
+		GLAssert(glDrawArrays(GL_TRIANGLES, 0, 3));
+
 		GLAssert(glBindFramebuffer(GL_FRAMEBUFFER, 0));
 
 		// present full screen triangle + post process
 		GLAssert(glDisable(GL_DEPTH_TEST));
-		GLAssert(glPolygonMode(GL_FRONT_AND_BACK, GL_FILL));
 		GLAssert(glClear(GL_COLOR_BUFFER_BIT));
 
-		GLAssert(glEnable(GL_TEXTURE_2D));
 		GLAssert(glActiveTexture(GL_TEXTURE0));
 		GLAssert(glBindTexture(GL_TEXTURE_2D, render_data_.fb_texture));
 

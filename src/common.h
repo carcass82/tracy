@@ -2,7 +2,7 @@
  * Tracy, a simple raytracer
  * inspired by "Ray Tracing in One Weekend" minibooks
  *
- * (c) Carlo Casta, 2018
+ * (c) Carlo Casta, 2017-2021
  */
 #pragma once
 #include <cstdint>
@@ -21,8 +21,8 @@
  #define LIKELY(x)   (__builtin_expect(!!(x), 1))
  #define UNLIKELY(x) (__builtin_expect(!!(x), 0))
 #else
- #define LIKELY(x)   (x) [[likely]]
- #define UNLIKELY(x) (x) [[unlikely]]
+ #define LIKELY(x)   (!!(x)) [[likely]]
+ #define UNLIKELY(x) (!!(x)) [[unlikely]]
 #endif
 
 #if defined(__CUDACC__)

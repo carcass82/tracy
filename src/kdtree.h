@@ -2,7 +2,7 @@
  * Tracy, a simple raytracer
  * inspired by "Ray Tracing in One Weekend" minibooks
  *
- * (c) Carlo Casta, 2018
+ * (c) Carlo Casta, 2017-2021
  */
 #pragma once
 #include <vector>

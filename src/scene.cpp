@@ -2,7 +2,7 @@
  * Tracy, a simple raytracer
  * inspired by "Ray Tracing in One Weekend" minibooks
  *
- * (c) Carlo Casta, 2018
+ * (c) Carlo Casta, 2017-2021
  */
 #include "scene.h"
 
@@ -302,7 +302,7 @@ bool Scene::Init(const char* scene_path, uint32_t& inout_width, uint32_t& inout_
 				case ID_MTL:
 					TracyLog("found MTL: %s\n", params);
 					{
-						char mat_name[16];
+						char mat_name[MAX_PATH];
 						vec3 albedo;
 						float roughness;
 						float metalness;
@@ -323,7 +323,7 @@ bool Scene::Init(const char* scene_path, uint32_t& inout_width, uint32_t& inout_
 				case ID_TEX:
 					TracyLog("found TEX: %s\n", params);
 					{
-						char mat_name[16];
+						char mat_name[MAX_PATH];
 						char tex_type;
 						char file_name[MAX_PATH];
 						char srgb_flag[5]{};
@@ -399,7 +399,7 @@ bool Scene::Init(const char* scene_path, uint32_t& inout_width, uint32_t& inout_
 								vec3 center;
 								float radius;
 
-								char mat_name[16];
+								char mat_name[MAX_PATH];
 								if (sscanf(subparams, "(%f,%f,%f) %f %s", &center.x, &center.y, &center.z, &radius, mat_name) == 5)
 								{
 									AddSphere(center, radius).SetMaterial(material_id[mat_name]);
@@ -413,7 +413,7 @@ bool Scene::Init(const char* scene_path, uint32_t& inout_width, uint32_t& inout_
 								vec3 max_box;
 								vec3 rotation;
 
-								char mat_name[16];
+								char mat_name[MAX_PATH];
 								if (sscanf(subparams, "(%f,%f,%f) (%f,%f,%f) (%f,%f,%f) %s", &min_box.x, &min_box.y, &min_box.z, &max_box.x, &max_box.y, &max_box.z, &rotation.x, &rotation.y, &rotation.z, mat_name) == 10)
 								{
 									BBox object{ min_box, max_box };
@@ -438,7 +438,7 @@ bool Scene::Init(const char* scene_path, uint32_t& inout_width, uint32_t& inout_
 							{
 								vec3 v1, v2, v3;
 
-								char mat_name[16];
+								char mat_name[MAX_PATH];
 								if (sscanf(subparams, "(%f,%f,%f) (%f,%f,%f) (%f,%f,%f) %s", &v1.x, &v1.y, &v1.z,
 									&v2.x, &v2.y, &v2.z,
 									&v3.x, &v3.y, &v3.z,
@@ -457,7 +457,7 @@ bool Scene::Init(const char* scene_path, uint32_t& inout_width, uint32_t& inout_
 					TracyLog("found TRI: %s\n", params);
 					{
 						char file_name[MAX_PATH];
-						char mat_name[16];
+						char mat_name[MAX_PATH];
 						vec3 translation;
 						vec3 rotation;
 						float scaling{ 1.f };

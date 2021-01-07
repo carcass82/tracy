@@ -2,7 +2,7 @@
  * Tracy, a simple raytracer
  * inspired by "Ray Tracing in One Weekend" minibooks
  *
- * (c) Carlo Casta, 2018
+ * (c) Carlo Casta, 2017-2021
  */
 #pragma once
 
@@ -51,6 +51,25 @@ public:
         texture_flag_[in_texture_id] = true;
     }
 
+    uint32_t GetTexture(TextureID in_texture_id) const
+    {
+        if (texture_flag_[in_texture_id])
+        {
+            switch (in_texture_id)
+            {
+            case TextureID::eBASECOLOR: return base_color_map_;
+            case TextureID::eNORMAL: return normal_map_;
+            case TextureID::eROUGHNESS: return roughness_map_;
+            case TextureID::eMETALNESS: return metalness_map_;
+            case TextureID::eEMISSIVE: return emissive_map_;
+            default:
+                break;
+            }
+        }
+
+        return UINT32_MAX;
+    }
+
     template<class TextureProvider>
     CUDA_DEVICE void Scatter(const TextureProvider& provider, const Ray& ray, const HitData& hit, vec3& out_attenuation, vec3& out_emission, Ray& out_scattered, RandomCtx random_ctx) const;
 
@@ -74,7 +93,14 @@ public:
         return texture_flag_[in_texture_id];
     }
 
-private:
+    const vec3& GetAlbedo() const { return albedo_; }
+    const vec3& GetEmissive() const { return emissive_; }
+    float GetRoughness() const { return roughness_; }
+    float GetMetalness() const { return metalness_; }
+    float GetRefractiveIndex() const { return ior_; }
+    float GetTranslucent() const { return translucent_; }
+
+protected:
     vec3 albedo_{};
     float roughness_{ .0f };
     float metalness_{ .0f };

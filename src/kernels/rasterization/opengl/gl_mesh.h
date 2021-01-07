@@ -2,11 +2,12 @@
  * Tracy, a simple raytracer
  * inspired by "Ray Tracing in One Weekend" minibooks
  *
- * (c) Carlo Casta, 2018
+ * (c) Carlo Casta, 2017-2021
  */
 #pragma once
-#include "mesh.h"
 #include "GL/glew.h"
+#include "gl_material.h"
+#include "mesh.h"
 
 class GLMesh
 {
@@ -19,7 +20,7 @@ public:
     GLMesh(const Mesh& mesh, const Material& material)
         : vao_{}
         , indexcount_{ mesh.GetIndexCount() }
-        , material_{ &material }
+        , material_{ material }
     {
         glGenVertexArrays(1, &vao_);
         glBindVertexArray(vao_);
@@ -68,18 +69,25 @@ public:
     GLMesh(GLMesh&& other) noexcept
         : vao_{ std::exchange(other.vao_, 0) }
         , indexcount_{ std::exchange(other.indexcount_, 0) }
-        , material_{ std::exchange(other.material_, nullptr) }
+        , material_{ other.material_ }
     {
     }
 
     GLMesh& operator=(GLMesh&& other) noexcept
     {
-        vao_ = std::exchange(other.vao_, 0);
-        indexcount_ = std::exchange(other.indexcount_, 0);
-        material_ = std::exchange(other.material_, nullptr);
+		if (this != &other)
+		{
+			vao_ = std::exchange(other.vao_, 0);
+			indexcount_ = std::exchange(other.indexcount_, 0);
+			material_ = other.material_;
+		}
+		
+		return *this;
     }
 
-    void Draw(GLuint program) const
+    const GLMaterial& GetMaterial() const { return material_; }
+
+    void Draw() const
     {
         glBindVertexArray(vao_);
         glDrawElements(GL_TRIANGLES, indexcount_, GL_UNSIGNED_INT, nullptr);
@@ -89,5 +97,5 @@ public:
 private:
     GLuint vao_{};
     uint32_t indexcount_{};
-    const Material* material_{};
+    GLMaterial material_{};
 };
