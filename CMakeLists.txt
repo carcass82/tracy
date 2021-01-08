@@ -344,7 +344,7 @@ else()
 
     set(CMAKE_CXX_FLAGS "-Wall -g")
     set(CMAKE_CXX_FLAGS_DEBUG "-D_DEBUG -O0")
-	set(CMAKE_CXX_FLAGS_RELEASE "-DNDEBUG -Ofast -march=native -fno-rtti -fno-exceptions -funroll-loops -D_GLIBCXX_PARALLEL")
+	set(CMAKE_CXX_FLAGS_RELEASE "-DNDEBUG -Ofast -march=native -fno-rtti -fno-exceptions -funroll-loops")
 	
 	if(NOT CPU_NO_OPENMP)
 		find_package(OpenMP REQUIRED)
