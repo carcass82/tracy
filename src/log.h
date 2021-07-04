@@ -9,15 +9,13 @@
 #include <cstdio>
 #include <cstdarg>
 
-inline void TracyLog(const char* msg, ...)
+template <typename ... Args>
+inline void TracyLog(const char* msg, Args ... args)
 {
     constexpr uint32_t MAX_BUFFER_SIZE{ 1024 };
     static char buffer[MAX_BUFFER_SIZE]{};
 
-    va_list args;
-    va_start(args, msg);
-    vsnprintf(buffer, MAX_BUFFER_SIZE, msg, args);
-    va_end(args);
+    snprintf(buffer, MAX_BUFFER_SIZE, msg, args ...);
 
 #if defined(_WIN32)
     OutputDebugStringA(buffer);
