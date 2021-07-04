@@ -1,2 +1,7 @@
+# object files
 build/
 bin/
+
+# editors
+.vs
+.vscode

@@ -158,13 +158,8 @@ using cc::gfx::linear;
 
 #else
 
- #if RANDOM_PCG
- using RandomCtxData = uint64_t;
- using RandomCtx = RandomCtxData&;
- #else
  using RandomCtxData = uint32_t;
  using RandomCtx = RandomCtxData&;
- #endif
 
  #include <functional>
  using std::function;

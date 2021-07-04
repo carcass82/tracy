@@ -60,30 +60,20 @@ inline float fastrand(RandomCtx ctx)
 
 //
 // PRNG from https://www.pcg-random.org/download.html
+// updated to exploit instruction level parallelism by reducing data dependencies
+// (see https://www.reedbeta.com/blog/hash-functions-for-gpu-rendering)
 //
 inline RandomCtxData initrand()
 {
-    return 0x123456789ABCDEFull;
+    return 0xABCDEFu;
 }
 
 inline float fastrand(RandomCtx ctx)
 {
-    static constexpr uint64_t multiplier{ 6364136223846793005ull };
-    static constexpr uint64_t increment{ 1442695040888963407ull };
-
-    // Advance internal state
-    uint64_t x{ ctx * multiplier + increment };
-
-    ctx = x;
-    
-    // Calculate output function (XSH RR), uses old state for max ILP
-    uint32_t xorshifted = static_cast<uint32_t>(((x >> 18u) ^ x) >> 27u);
-
-    uint32_t rot = x >> 59u;
-    
-    uint32_t result = (xorshifted >> rot) | (xorshifted << (-(static_cast<int32_t>(rot)) & 31));
-
-    return result / static_cast<float>(UINT32_MAX);
+    uint32_t state = ctx;
+    ctx = ctx * 747796405u + 2891336453u;
+    uint32_t word = ((state >> ((state >> 28u) + 4u)) ^ state) * 277803737u;
+    return ((word >> 22u) ^ word) / static_cast<float>(UINT32_MAX);
 }
 
 #else

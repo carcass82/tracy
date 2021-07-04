@@ -414,7 +414,9 @@ bool Scene::Init(const char* scene_path, uint32_t& inout_width, uint32_t& inout_
 								vec3 rotation;
 
 								char mat_name[MAX_PATH];
-								if (sscanf(subparams, "(%f,%f,%f) (%f,%f,%f) (%f,%f,%f) %s", &min_box.x, &min_box.y, &min_box.z, &max_box.x, &max_box.y, &max_box.z, &rotation.x, &rotation.y, &rotation.z, mat_name) == 10)
+								if (sscanf(subparams, "(%f,%f,%f) (%f,%f,%f) (%f,%f,%f) %s", &min_box.x, &min_box.y, &min_box.z,
+								                                                             &max_box.x, &max_box.y, &max_box.z,
+								                                                             &rotation.x, &rotation.y, &rotation.z, mat_name) == 10)
 								{
 									BBox object{ min_box, max_box };
 
@@ -427,7 +429,8 @@ bool Scene::Init(const char* scene_path, uint32_t& inout_width, uint32_t& inout_
 
 									AddBox(min_box, max_box, transform).SetMaterial(material_id[mat_name]);
 								}
-								else if (sscanf(subparams, "(%f,%f,%f) (%f,%f,%f) %s", &min_box.x, &min_box.y, &min_box.z, &max_box.x, &max_box.y, &max_box.z, mat_name) == 7)
+								else if (sscanf(subparams, "(%f,%f,%f) (%f,%f,%f) %s", &min_box.x, &min_box.y, &min_box.z,
+								                                                       &max_box.x, &max_box.y, &max_box.z, mat_name) == 7)
 								{
 									AddBox(min_box, max_box).SetMaterial(material_id[mat_name]);
 								}
@@ -440,9 +443,8 @@ bool Scene::Init(const char* scene_path, uint32_t& inout_width, uint32_t& inout_
 
 								char mat_name[MAX_PATH];
 								if (sscanf(subparams, "(%f,%f,%f) (%f,%f,%f) (%f,%f,%f) %s", &v1.x, &v1.y, &v1.z,
-									&v2.x, &v2.y, &v2.z,
-									&v3.x, &v3.y, &v3.z,
-									mat_name) == 10)
+								                                                             &v2.x, &v2.y, &v2.z,
+								                                                             &v3.x, &v3.y, &v3.z, mat_name) == 10)
 								{
 									AddTriangle(v1, v2, v3).SetMaterial(material_id[mat_name]);
 								}

@@ -226,16 +226,18 @@ CUDA_DEVICE inline void Material::Scatter(const TextureProvider& provider, const
 
     // TODO: merge BxDFs
 
+    const float VdotN{ dot(raydir, normal) };
+
+    const vec3 scattered{ normal + random_on_unit_sphere(random_ctx) };
+    const vec3 reflected{ reflect(raydir, normal) };
+    const vec3 specular{ lerp(reflected, scattered, roughness) };
+
+
     if (translucent_ > EPS) // BTDF
     {
-        const float VdotN{ dot(raydir, normal) };
         const bool inside{ VdotN > EPS };
         const float cosine{ inside ? sqrtf(1.f - pow2(ior_) * (1.f - pow2(VdotN))) : -VdotN };
         const float ior{ inside ? ior_ : rcp(ior_) };
-
-        const vec3 scattered{ normal + random_on_unit_sphere(random_ctx) };
-        const vec3 reflected{ reflect(raydir, normal) };
-        const vec3 specular{ lerp(reflected, scattered, roughness) };
 
         const vec3 refracted{ refract(raydir, normal, ior) };
         const vec3 transmitted{ lerp(refracted, scattered, roughness) };
@@ -248,12 +250,6 @@ CUDA_DEVICE inline void Material::Scatter(const TextureProvider& provider, const
     else // BRDF
     {
         const vec3 specularcolor{ lerp(vec3{ .85f }, basecolor, metalness) };
-
-        const vec3 scattered{ normal + random_on_unit_sphere(random_ctx) };
-        const vec3 reflected{ reflect(raydir, normal) };
-        const vec3 specular{ lerp(reflected, scattered, roughness) };
-
-        const float VdotN{ dot(raydir, normal) };
 
         const float materialspecularchance{ lerp(.1f, 1.f, metalness) };
         const float fresnelspecularchance{ lerp(materialspecularchance, 1.f, (1.f - roughness) * schlick(-VdotN, 1.f)) };

@@ -309,8 +309,10 @@ endif()
 ###############################################################################
 # Compiler options                                                            #
 ###############################################################################
-message(STATUS "Found Compiler " ${CMAKE_CXX_COMPILER_ID} ": " ${CMAKE_CXX_COMPILER})
+message(STATUS "Found Compiler " ${CMAKE_CXX_COMPILER_ID} " " ${CMAKE_CXX_COMPILER_VERSION} " : " ${CMAKE_CXX_COMPILER})
 if(MSVC)
+
+	message(STATUS "MSVC Version " ${MSVC_VERSION})
 
     set(CMAKE_CXX_FLAGS "/nologo /W3 /D_CRT_SECURE_NO_WARNINGS /MP /Gm- /Zi")
 	set(CMAKE_CXX_FLAGS_DEBUG "${CMAKE_CXX_FLAGS_DEBUG} /Od /D_DEBUG /EHsc")
@@ -331,6 +333,9 @@ if(MSVC)
 	else()
 		# choose "experimental" openmp implementation if available
 		# (and suppress warning C4849 about 'collapse' clause ignored)
+		#
+		# TODO: test openmp:llvm (https://devblogs.microsoft.com/cppblog/improved-openmp-support-for-cpp-in-visual-studio/)
+		#
 		if(MSVC_VERSION GREATER_EQUAL 1920)
 			set(CMAKE_CXX_FLAGS_RELEASE "${CMAKE_CXX_FLAGS_RELEASE} /openmp:experimental /wd4849")
 		else()
