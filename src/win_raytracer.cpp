@@ -26,9 +26,9 @@ Input g_input;
 #elif defined(OPENGL_KERNEL)
  #include "kernels/rasterization/opengl/opengl_render.h"
  auto& g_kernel = TracyModule<OpenGLRender>::GetInstance();
-#elif defined(DXR_KERNEL)
- #include "kernels/raytracing/dxr/dxr_trace.h"
- auto& g_kernel = TracyModule<DXRTrace>::GetInstance();
+#elif defined(CPU_RASTER_KERNEL)
+ #include "kernels/rasterization/cpu/cpu_render.h"
+ auto& g_kernel = TracyModule<CPURaster>::GetInstance();
 #else
  #error "at least one module should be enabled!"
 #endif

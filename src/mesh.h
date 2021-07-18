@@ -19,8 +19,8 @@ using std::vector;
 #include "kernels/raytracing/cuda/cuda_specific.h"
 #elif defined(OPENGL_KERNEL)
 #include "kernels/rasterization/opengl/opengl_specific.h"
-#elif defined(DXR_KERNEL)
-#include "kernels/raytracing/dxr/dxr_specific.h"
+#elif defined(CPU_RASTER_KERNEL)
+#include "kernels/rasterization/cpu/cpu_specific.h"
 #else
 #error "at least one module should be enabled!"
 #endif

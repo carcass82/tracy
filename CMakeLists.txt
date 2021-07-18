@@ -142,7 +142,8 @@ source_group("ext\\" FILES ${ext_includes})
 list(APPEND tracy_includes ${ext_includes})
 
 set(main_sources "./src/win_raytracer.cpp"
-                 "./src/scene.cpp")
+                 "./src/scene.cpp"
+				 "./src/bitmap.cpp")
 
 source_group("src\\" FILES ${main_sources})
 
@@ -166,7 +167,8 @@ set(main_includes "./src/mesh.h"
 				  "./src/kdtree.h"
 				  "./src/bvh.h"
 				  "./src/log.h"
-				  "./src/input.h")
+				  "./src/input.h"
+				  "./src/bitmap.h")
 
 source_group("include\\" FILES ${main_includes})
 
@@ -178,7 +180,7 @@ list(APPEND tracy_includes ${main_includes})
 # Kernel selection                                                            #
 ###############################################################################
 set(TRACY_RENDER_MODULE "CPU (RayTracing)" CACHE STRING "Render Module")
-set_property(CACHE TRACY_RENDER_MODULE PROPERTY STRINGS "CPU (RayTracing)" "CUDA (RayTracing)" "OpenGL (Raster)")
+set_property(CACHE TRACY_RENDER_MODULE PROPERTY STRINGS "CPU (RayTracing)" "CUDA (RayTracing)" "OpenGL (Raster)" "CPU (Raster)")
 
 if(TRACY_RENDER_MODULE STREQUAL "CPU (RayTracing)")
 
@@ -301,6 +303,21 @@ elseif(TRACY_RENDER_MODULE STREQUAL "OpenGL (Raster)")
 						"./src/kernels/rasterization/opengl/opengl_specific.h")
 	source_group("kernel\\opengl\\include" FILES ${opengl_includes})
 	list(APPEND tracy_includes ${opengl_includes})
+
+elseif(TRACY_RENDER_MODULE STREQUAL "CPU (Raster)")
+
+	add_definitions(-DCPU_RASTER_KERNEL=1)
+
+	include_directories(./src/kernels/rasterization/cpu/)
+
+	set(cpu_sources "./src/kernels/rasterization/cpu/cpu_render.cpp")
+	source_group("kernel\\cpu\\src" FILES ${cpu_sources})
+	list(APPEND tracy_sources ${cpu_sources})
+
+	set(cpu_includes "./src/kernels/rasterization/cpu/cpu_render.h"
+	                 "./src/kernels/rasterization/cpu/cpu_specific.h")
+	source_group("kernel\\cpu\\include" FILES ${cpu_includes})
+	list(APPEND tracy_includes ${cpu_includes})
 
 endif()
 

@@ -2,7 +2,7 @@
  * Tracy, a simple raytracer
  * inspired by "Ray Tracing in One Weekend" minibooks
  *
- * (c) Carlo Casta, 2018
+ * (c) Carlo Casta, 2017-2021
  */
 #include "cpu_details.h"
 #include "scene.h"
@@ -16,45 +16,12 @@ bool CPUDetails::Initialize(WindowHandle ctx, uint32_t w, uint32_t h, uint32_t s
 	render_data_.height = h;
 	render_data_.output.resize(static_cast<size_t>(w) * h, vec3{});
 
-#if defined(_WIN32)
-
-	BITMAPINFO bmi;
-	bmi.bmiHeader.biSize = sizeof(BITMAPINFOHEADER);
-	bmi.bmiHeader.biWidth = w;
-	bmi.bmiHeader.biHeight = h;
-	bmi.bmiHeader.biPlanes = 1;
-	bmi.bmiHeader.biBitCount = 32;
-	bmi.bmiHeader.biCompression = BI_RGB;
-	bmi.bmiHeader.biSizeImage = w * h * bmi.bmiHeader.biBitCount / 8;
-	HDC hdc = CreateCompatibleDC(GetDC(ctx->win));
-	render_data_.bitmap = CreateDIBSection(hdc, &bmi, DIB_RGB_COLORS, (void**)&render_data_.bitmap_bytes, nullptr, 0);
-
-#else
-
-	render_data_.bitmap_bytes = new uint32_t[w * h];
-	render_data_.bitmap = XCreateImage(ctx->dpy,
-	                                   DefaultVisual(ctx->dpy, ctx->ds),
-	                                   DefaultDepth(ctx->dpy, ctx->ds),
-	                                   ZPixmap,
-	                                   0,
-	                                   reinterpret_cast<char*>(render_data_.bitmap_bytes),
-	                                   w,
-	                                   h,
-	                                   32,
-	                                   0);
-
-#endif
-
-	return (render_data_.bitmap != nullptr);
+	return (render_data_.bitmap.Create(ctx, w, h));
 }
 
 void CPUDetails::Shutdown()
 {
-#if defined(_WIN32)
-	DeleteObject(render_data_.bitmap);
-#else
-	XDestroyImage(render_data_.bitmap);
-#endif
+	render_data_.bitmap.Destroy();
 }
 
 bool CPUDetails::ProcessScene(const Scene& scene)
@@ -241,18 +208,7 @@ void CPUDetails::UpdateBitmap()
 		for (int32_t i = 0; i < static_cast<int32_t>(render_data_.width); ++i)
 		{
 			int32_t idx = j * render_data_.width + i;
-
-			vec3 bitmap_col = Tonemap(render_data_.output[idx]);
-
-			uint32_t dst =  (uint8_t)bitmap_col.b       |
-			               ((uint8_t)bitmap_col.g << 8) |
-			               ((uint8_t)bitmap_col.r << 16);
-
-#if defined(_WIN32)
-			render_data_.bitmap_bytes[idx] = dst;
-#else
-			XPutPixel(render_data_.bitmap, i, render_data_.height - j, dst);
-#endif
+			render_data_.bitmap.SetPixel(i, j, Tonemap(render_data_.output[idx]));
 		}
 	}
 
@@ -260,7 +216,7 @@ void CPUDetails::UpdateBitmap()
 	++frame_counter_;
 }
 
-vec3 CPUDetails::Tonemap(const vec3& color)
+vec3 CPUDetails::Tonemap(const vec3& color) const
 {
 	static constexpr float kExposure{ TRACY_EXPOSURE };
 
@@ -289,20 +245,5 @@ vec3 CPUDetails::Tonemap(const vec3& color)
 
 void CPUDetails::Render(WindowHandle ctx, uint32_t w, uint32_t h)
 {
-#if defined(_WIN32)
-	PAINTSTRUCT ps;
-	RECT rect;
-	HDC hdc = BeginPaint(ctx->win, &ps);
-	GetClientRect(ctx->win, &rect);
-
-	HDC srcDC = CreateCompatibleDC(hdc);
-	SetStretchBltMode(hdc, COLORONCOLOR);
-	SelectObject(srcDC, render_data_.bitmap);
-	StretchBlt(hdc, 0, 0, rect.right, rect.bottom, srcDC, 0, 0, w, h, SRCCOPY);
-	DeleteObject(srcDC);
-
-	EndPaint(ctx->win, &ps);
-#else	
-	XPutImage(ctx->dpy, ctx->win, DefaultGC(ctx->dpy, ctx->ds), render_data_.bitmap, 0, 0, 0, 0, render_data_.width, render_data_.height);
-#endif
+	render_data_.bitmap.Paint(ctx);
 }

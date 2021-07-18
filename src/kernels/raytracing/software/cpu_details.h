@@ -2,10 +2,11 @@
  * Tracy, a simple raytracer
  * inspired by "Ray Tracing in One Weekend" minibooks
  *
- * (c) Carlo Casta, 2018
+ * (c) Carlo Casta, 2017-2021
  */
 #pragma once
 #include "common.h"
+#include "bitmap.h"
 
 #if USE_KDTREE
  #include "kdtree.h"
@@ -27,13 +28,7 @@ struct RenderData
 	uint32_t width{};
 	uint32_t height{};
 	vector<vec3> output{};
-	uint32_t* bitmap_bytes{};
-
-#if defined(_WIN32)
-	HBITMAP bitmap{};
-#else
-	XImage* bitmap{};
-#endif
+	Bitmap bitmap;
 };
 
 #if USE_KDTREE
@@ -93,7 +88,7 @@ public:
 
 	void UpdateBitmap();
 
-	vec3 Tonemap(const vec3& color);
+	vec3 Tonemap(const vec3& color) const;
 
 	void Render(WindowHandle ctx, uint32_t w, uint32_t h);
 
