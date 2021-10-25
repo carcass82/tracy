@@ -265,7 +265,7 @@ void TracyProcessMessages(WindowHandle window_handle)
 		switch (e.type)
 		{
 		case Expose:
-			g_kernel.OnRender(window_handle);
+			g_kernel->OnRender(window_handle);
 			break;
 		case KeyPress:
 			g_input.keystatus[XLookupKeysym(&e.xkey, 0)] = true;
