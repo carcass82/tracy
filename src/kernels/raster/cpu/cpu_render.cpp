@@ -76,7 +76,7 @@ namespace
 		return vs_in.ModelViewProjection * vec4(v.pos, 1.f);
 	}
 
-	constexpr inline vec4 FS(const Material& material, const FSInput& fs_data)
+	inline vec4 FS(const Material& material, const FSInput& fs_data)
 	{
 		mat3 TBN = mat3(normalize(fs_data.bitangent), normalize(fs_data.tangent), normalize(fs_data.normal));
 
