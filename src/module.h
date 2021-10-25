@@ -14,15 +14,14 @@ enum class TracyEvent { eCreate, eResize, eCameraCut, eDestroy };
 //
 // Base class for Tracy render kernels
 //
-template<class T>
-class NOVTABLE TracyModule
+class TracyModule
 {
 public:
-	static T& GetInstance()
-	{
-		static T instance;
-		return instance;
-	}
+	
+	TracyModule() = default;
+
+	// virtual dtor not used as we're always destroying "T" type objects (but whatever)
+	virtual ~TracyModule() {}
 
 	// disable copying
 	TracyModule(const TracyModule&) = delete;
@@ -50,11 +49,6 @@ public:
 	// who are you
 	virtual const char* GetModuleName() const = 0;
 
-protected:
-
-	TracyModule() {}
-
-	// virtual dtor not used as we're always destroying "T" type objects (but whatever)
-	virtual ~TracyModule() {}
-
+	// get number of rays processed since last reset
+	virtual u32 GetRayCount(bool in_ShouldReset = false) { return 0; }
 };

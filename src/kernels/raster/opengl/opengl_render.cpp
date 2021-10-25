@@ -17,7 +17,7 @@
  #else
   #define DLLEXPORT extern "C" __attribute__((dllexport))
  #endif
- DLLEXPORT uint32_t NvOptimusEnablement = 0x00000001;
+ DLLEXPORT u32 NvOptimusEnablement = 0x00000001;
 #else
  #include <GL/glx.h>
 #endif
@@ -134,52 +134,46 @@ in struct
 
 void main()
 {
-	vec3 baseColor = material.albedo;
-	if (textures.hasBaseColor)
-	{
-		baseColor = texture(textures.baseColor, vs.uv).rgb;
-	}
+	vec3 baseColor  = mix(material.albedo,    texture(textures.baseColor, vs.uv).rgb,                 textures.hasBaseColor);
+	vec3 normal     = mix(vs.normal,          vs.tbn * (texture(textures.normal, vs.uv).rgb * 2 - 1), textures.hasNormal);
+	float roughness = mix(material.roughness, texture(textures.roughness, vs.uv).r,                   textures.hasRoughness);
+	float metalness = mix(material.metalness, texture(textures.metalness, vs.uv).r,                   textures.hasMetalness);
+	vec3 emissive   = mix(material.emissive,  texture(textures.emissive, vs.uv).rgb,                  textures.hasEmissive);
 
-	vec3 normal = vs.normal;
-	if (textures.hasNormal)
-	{
-		normal = vs.tbn * (texture(textures.normal, vs.uv).rgb * 2 - 1);
-	}
-
-	float roughness = material.roughness;
-	if (textures.hasRoughness)
-	{
-		roughness = texture(textures.roughness, vs.uv).r;
-	}
-
-	float metalness = material.metalness;
-	if (textures.hasMetalness)
-	{
-		metalness = texture(textures.metalness, vs.uv).r;
-	}
-
-	vec3 emissive = material.emissive;
-	if (textures.hasEmissive)
-	{
-		emissive = texture(textures.emissive, vs.uv).rgb;
-	}
-
-	vec3 diffuseColor = baseColor * (1 - metalness);
+	vec3 diffuseColor = mix(baseColor, vec3(0), metalness);
 	vec3 specularColor = mix(vec3(0.04), baseColor, metalness);
 
 	const float PI = 3.14159265358979323846;
+
 	vec3 directDiffuse = diffuseColor / PI;
+	vec3 directSpecular = specularColor;
+	vec3 directColor = directDiffuse /* + directSpecular */;
 
+	vec3 indirectDiffuse = vec3(0);
+	vec3 indirectSpecular = vec3(0);
+	vec3 indirectColor = indirectDiffuse + indirectSpecular;
 
-	//outColor = vec4(baseColor, 1);
-	//outColor = vec4(normalize((normal + 1) / 2), 1);
-	//outColor = vec4(vec3(roughness), 1);
-	//outColor = vec4(vec3(metalness), 1);
-	//outColor = vec4(emissive, 1);
+	vec3 finalColor = directColor + indirectColor;
+	finalColor += emissive;
 
-	//outColor = vec4(1,1,1,1);
-}
-)fs";
+)fs"
+
+	"finalColor *= " TO_STRING(TRACY_EXPOSURE) ";\n"
+
+#if DEBUG_SHOW_BASECOLOR
+	"outColor = vec4(baseColor, 1);\n"
+#elif DEBUG_SHOW_NORMALS
+	"outColor = vec4(normalize((normal + 1) / 2), 1);\n"
+#elif DEBUG_SHOW_METALNESS
+	"outColor = vec4(vec3(metalness), 1);\n"
+#elif DEBUG_SHOW_ROUGHNESS
+	"outColor = vec4(vec3(roughness), 1);\n"
+#elif DEBUG_SHOW_EMISSIVE
+	"outColor = vec4(emissive, 1);\n"
+#else
+	"outColor = vec4(finalColor, 1);\n"
+#endif
+"}";
 
 const char* OpenGLDetails::sky_vs = R"vs(
 #version 330
@@ -252,9 +246,6 @@ void main()
 const char* OpenGLDetails::fullscreen_fs =
 "#version 330\n"
 
-// exposure
-"vec3 exposure(vec3 x) { return x * " TO_STRING(TRACY_EXPOSURE) "; }\n"
-
 // tonemapping function
 #if USE_TONEMAP_REINHARD
 "vec3 tonemap(vec3 x) { return clamp(x / (1 + x), 0, 1); }\n"
@@ -273,7 +264,7 @@ uniform sampler2D fsTex;
 void main()
 {
     vec3 color = texture(fsTex, vec2(texCoords.x, texCoords.y)).rgb;
-    outColor = vec4(tonemap(exposure(color)), 1);
+    outColor = vec4(tonemap(color), 1);
 }
 )fs";
 
@@ -481,10 +472,10 @@ bool OpenGLRender::Startup(const WindowHandle in_Window, const Scene& in_Scene)
 				GLuint texture_id;
 				GLAssert(glGenTextures(1, &texture_id));
 				GLAssert(glBindTexture(GL_TEXTURE_2D, texture_id));
-				GLAssert(glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA32F, texture.GetWidth(), texture.GetHeight(), 0, GL_RGBA, GL_FLOAT, texture.GetPixels()));
+				GLAssert(glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA16F, texture.GetWidth(), texture.GetHeight(), 0, GL_RGBA, GL_FLOAT, texture.GetPixels()));
 				GLAssert(glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_REPEAT));
 				GLAssert(glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_REPEAT));
-				GLAssert(glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR_MIPMAP_LINEAR));
+				GLAssert(glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR));
 				GLAssert(glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR));
 				glGenerateMipmap(GL_TEXTURE_2D);
 				GLAssert(glBindTexture(GL_TEXTURE_2D, 0));
@@ -553,7 +544,6 @@ void OpenGLRender::OnRender(const WindowHandle in_Window)
 		
 		GLAssert(glBindFramebuffer(GL_FRAMEBUFFER, render_data_.fb));
 		GLAssert(glEnable(GL_DEPTH_TEST));
-		GLAssert(glPolygonMode(GL_FRONT_AND_BACK, GL_LINE));
 		GLAssert(glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT));
 
 		GLAssert(glUseProgram(render_data_.object_shader));
@@ -566,8 +556,6 @@ void OpenGLRender::OnRender(const WindowHandle in_Window)
 			mesh.GetMaterial().Draw(render_data_.object_shader, render_data_.textures);
 			mesh.Draw();
 		}
-
-		GLAssert(glPolygonMode(GL_FRONT_AND_BACK, GL_FILL));
 
 		// draw sky
 		GLAssert(glUseProgram(render_data_.sky_shader));

@@ -17,7 +17,7 @@
 #include "camera.h"
 #include "scene.h"
 
-constexpr uint32_t kMaxBounces{ TRACY_MAX_BOUNCES };
+constexpr u32 kMaxBounces{ TRACY_MAX_BOUNCES };
 
 __device__ bool Intersects(const Ray& ray, const KernelData& data, HitData& intersection)
 {
@@ -26,7 +26,7 @@ __device__ bool Intersects(const Ray& ray, const KernelData& data, HitData& inte
     const vec3 ray_origin{ ray.GetOrigin() };
     const vec3 ray_invdir{ ray.GetDirectionInverse() };
 
-    for (uint32_t i = 0; i < data.GetMeshCount(); ++i)
+    for (u32 i = 0; i < data.GetMeshCount(); ++i)
     {
         auto& object = data.GetMesh(i);
         auto& aabb = object.GetAABB();
@@ -76,9 +76,9 @@ __device__ vec3 Trace(Ray&& ray, const KernelData& data, RandomCtx random_ctx)
     vec3 throughput{ 1.f, 1.f, 1.f };
     vec3 pixel;
 
-    uint32_t raycount{};
+    u32 raycount{};
 
-    for (uint32_t t = 0; t < kMaxBounces; ++t)
+    for (u32 t = 0; t < kMaxBounces; ++t)
     {
         ++raycount;
 
@@ -137,11 +137,11 @@ __device__ vec3 Trace(Ray&& ray, const KernelData& data, RandomCtx random_ctx)
 //
 // Kernels
 //
-__global__ void TraceKernel(cudaSurfaceObject_t surface, KernelData data, uint32_t w, uint32_t h, uint32_t frame_count)
+__global__ void TraceKernel(cudaSurfaceObject_t surface, KernelData data, u32 w, u32 h, u32 frame_count)
 {
-    const uint32_t i = (blockIdx.x * blockDim.x) + threadIdx.x;
-    const uint32_t j = (blockIdx.y * blockDim.y) + threadIdx.y;
-    const uint32_t idx = j * w + i;
+    const u32 i = (blockIdx.x * blockDim.x) + threadIdx.x;
+    const u32 j = (blockIdx.y * blockDim.y) + threadIdx.y;
+    const u32 idx = j * w + i;
 
     if LIKELY(i < w && j < h)
     {
@@ -170,11 +170,11 @@ __global__ void TraceKernel(cudaSurfaceObject_t surface, KernelData data, uint32
     }
 }
 
-__global__ void InitRandom(KernelData data, uint32_t w, uint32_t h)
+__global__ void InitRandom(KernelData data, u32 w, u32 h)
 {
-    const uint32_t i = (blockIdx.x * blockDim.x) + threadIdx.x;
-    const uint32_t j = (blockIdx.y * blockDim.y) + threadIdx.y;
-    const uint32_t idx = j * w + i;
+    const u32 i = (blockIdx.x * blockDim.x) + threadIdx.x;
+    const u32 j = (blockIdx.y * blockDim.y) + threadIdx.y;
+    const u32 idx = j * w + i;
 
     if LIKELY(i < w && j < h)
     {
@@ -206,13 +206,13 @@ void CUDATraceKernel::Trace()
     CUDAAssert(cudaGraphicsUnmapResources(1, &host_data_.output_resource, 0));
     
     // TODO: find something better to keep track of raycount
-    uint32_t raycount;
-    CUDAAssert(cudaMemcpy(&raycount, kernel_data_.raycount_, sizeof(uint32_t), cudaMemcpyDeviceToHost));
+    u32 raycount;
+    CUDAAssert(cudaMemcpy(&raycount, kernel_data_.raycount_, sizeof(u32), cudaMemcpyDeviceToHost));
     host_data_.raycount += raycount;
 
     CUDAAssert(cudaStreamSynchronize(0));
 
-    CUDAAssert(cudaMemsetAsync(kernel_data_.raycount_, 0, sizeof(uint32_t)));
+    CUDAAssert(cudaMemsetAsync(kernel_data_.raycount_, 0, sizeof(u32)));
 }
 
 void CUDATraceKernel::UpdateCamera(const Camera& in_Camera)
@@ -225,8 +225,8 @@ bool CUDATraceKernel::Setup(RenderData* in_RenderData)
 {
     if (in_RenderData)
     {
-        const uint32_t w{ in_RenderData->width };
-        const uint32_t h{ in_RenderData->height };
+        const u32 w{ in_RenderData->width };
+        const u32 h{ in_RenderData->height };
         const dim3 block{ 8, 8 };
         const dim3 grid{ (w + block.x - 1) / block.x, (h + block.y - 1) / block.y };
 
@@ -245,8 +245,8 @@ bool CUDATraceKernel::Setup(RenderData* in_RenderData)
 
         InitRandom<<<host_data_.grid, host_data_.block>>>(kernel_data_, host_data_.width, host_data_.height);
 
-        CUDAAssert(cudaMalloc(&kernel_data_.raycount_, sizeof(uint32_t)));
-        CUDAAssert(cudaMemset(kernel_data_.raycount_, 0, sizeof(uint32_t)));
+        CUDAAssert(cudaMalloc(&kernel_data_.raycount_, sizeof(u32)));
+        CUDAAssert(cudaMemset(kernel_data_.raycount_, 0, sizeof(u32)));
         
         CUDAAssert(cudaDeviceSynchronize());
 
@@ -263,17 +263,17 @@ bool CUDATraceKernel::SetupScene(const Scene& in_Scene)
 
     kernel_data_.meshcount_ = in_Scene.GetObjectCount();
     CUDAAssert(cudaMalloc(&kernel_data_.meshes_, kernel_data_.meshcount_ * sizeof(Mesh)));
-    for (uint32_t i = 0; i < kernel_data_.meshcount_; ++i)
+    for (u32 i = 0; i < kernel_data_.meshcount_; ++i)
     {
         auto& host_mesh = in_Scene.GetObject(i);
 
         Vertex* vertices{};
-        uint32_t vertexcount{ host_mesh.GetVertexCount() };
+        u32 vertexcount{ host_mesh.GetVertexCount() };
         CUDAAssert(cudaMalloc(&vertices, vertexcount * sizeof(Vertex)));
         CUDAAssert(cudaMemcpy(vertices, host_mesh.GetVertices(), vertexcount * sizeof(Vertex), cudaMemcpyHostToDevice));
 
         Index* indices{};
-        uint32_t indexcount{ host_mesh.GetIndexCount() };
+        u32 indexcount{ host_mesh.GetIndexCount() };
         CUDAAssert(cudaMalloc(&indices, indexcount * sizeof(Index)));
         CUDAAssert(cudaMemcpy(indices, host_mesh.GetIndices(), indexcount * sizeof(Index), cudaMemcpyHostToDevice));
 
@@ -281,16 +281,16 @@ bool CUDATraceKernel::SetupScene(const Scene& in_Scene)
         CUDAAssert(cudaMemcpy(&kernel_data_.meshes_[i], mesh, sizeof(Mesh), cudaMemcpyHostToDevice));
     }
 
-    kernel_data_.materialcount_ = static_cast<uint32_t>(in_Scene.GetMaterials().size());
+    kernel_data_.materialcount_ = static_cast<u32>(in_Scene.GetMaterials().size());
     CUDAAssert(cudaMalloc(&kernel_data_.materials_, kernel_data_.materialcount_ * sizeof(Material)));
     CUDAAssert(cudaMemcpy(kernel_data_.materials_, in_Scene.GetMaterials().data(), kernel_data_.materialcount_ * sizeof(Material), cudaMemcpyHostToDevice));
 
-    kernel_data_.texturecount_ = static_cast<uint32_t>(in_Scene.GetTextures().size());
+    kernel_data_.texturecount_ = static_cast<u32>(in_Scene.GetTextures().size());
     CUDAAssert(cudaMalloc(&kernel_data_.textures_, kernel_data_.texturecount_ * sizeof(Texture)));
-    for (uint32_t i = 0; i < kernel_data_.texturecount_; ++i)
+    for (u32 i = 0; i < kernel_data_.texturecount_; ++i)
     {
         auto&& host_texture = in_Scene.GetTexture(i);
-        uint32_t host_texture_size = host_texture.GetWidth() * host_texture.GetHeight();
+        u32 host_texture_size = host_texture.GetWidth() * host_texture.GetHeight();
 
         vec4* pixels{};
         CUDAAssert(cudaMalloc(&pixels, host_texture_size * sizeof(vec4)));

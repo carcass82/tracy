@@ -22,7 +22,7 @@ inline RandomCtxData initrand()
 
 inline float fastrand(RandomCtx ctx)
 {
-    uint32_t x{ ctx };
+    u32 x{ ctx };
     x ^= x << 13;
     x ^= x >> 17;
     x ^= x << 5;
@@ -45,11 +45,11 @@ inline RandomCtxData initrand()
 
 inline float fastrand(RandomCtx ctx)
 {
-    static constexpr uint32_t multiplier{ 1103515245u };
-    static constexpr uint32_t increment{ 12345u };
+    static constexpr u32 multiplier{ 1103515245u };
+    static constexpr u32 increment{ 12345u };
 
     // Advance internal state
-    uint32_t x{ ctx * multiplier + increment };
+    u32 x{ ctx * multiplier + increment };
 
     ctx = x;
 
@@ -70,9 +70,9 @@ inline RandomCtxData initrand()
 
 inline float fastrand(RandomCtx ctx)
 {
-    uint32_t state = ctx;
+    u32 state = ctx;
     ctx = ctx * 747796405u + 2891336453u;
-    uint32_t word = ((state >> ((state >> 28u) + 4u)) ^ state) * 277803737u;
+    u32 word = ((state >> ((state >> 28u) + 4u)) ^ state) * 277803737u;
     return ((word >> 22u) ^ word) / static_cast<float>(UINT32_MAX);
 }
 

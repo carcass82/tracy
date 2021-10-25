@@ -16,11 +16,11 @@ namespace cuda
 // from helper_cuda.h
 // NVidia CUDA samples
 //
-inline void ensure(cudaError_t val, const char* file, int line)
+inline void ensure(cudaError_t val, const char* file, i32 line)
 {
     if (val != cudaSuccess)
     {
-        TracyLog("[CUDA Error] at %s:%d code=%d (%s)\n", file, line, static_cast<uint32_t>(val), cudaGetErrorName(val));
+        TracyLog("[CUDA Error] at %s:%d code=%d (%s)\n", file, line, static_cast<u32>(val), cudaGetErrorName(val));
         cudaDeviceReset();
 
         DEBUG_BREAK();

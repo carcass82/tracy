@@ -27,8 +27,8 @@ class Material;
 
 struct RenderData
 {
-	uint32_t width{};
-	uint32_t height{};
+	u32 width{};
+	u32 height{};
 
 #if defined(_WIN32)
 	HDC hDC;
@@ -54,15 +54,15 @@ struct Tri
 	constexpr Tri()
 	{}
 
-	Tri(uint32_t mesh_idx, uint32_t triangle_idx, const vec3& v0, const vec3& v1, const vec3& v2)
+	Tri(u32 mesh_idx, u32 triangle_idx, const vec3& v0, const vec3& v1, const vec3& v2)
 		: packed_tri_info((mesh_idx << 24) | triangle_idx)
 		, vertices{ v0, v1, v2 }
 	{}
 
-	constexpr uint32_t GetMeshId() const { return packed_tri_info >> 24; }
-	constexpr uint32_t GetTriangleId() const { return packed_tri_info & 0xffffff; }
+	constexpr u32 GetMeshId() const { return packed_tri_info >> 24; }
+	constexpr u32 GetTriangleId() const { return packed_tri_info & 0xffffff; }
 
-	uint32_t packed_tri_info{ 0 };
+	u32 packed_tri_info{ 0 };
 	vec3 vertices[3]{};
 };
 
@@ -71,30 +71,30 @@ struct Obj
 	constexpr Obj()
 	{}
 
-	constexpr Obj(uint32_t object_idx)
+	constexpr Obj(u32 object_idx)
 		: object_id{ object_idx }
 	{}
 
-	uint32_t object_id{};
+	u32 object_id{};
 };
 #endif
 
 class CUDADetails
 {
 public:
-	bool Initialize(WindowHandle ctx, uint32_t w, uint32_t h);
+	bool Initialize(WindowHandle ctx, u32 w, u32 h);
 
 	bool ProcessScene(const Scene& scene);
 
 	void Update(const Scene& scene);
 
-	void Render(WindowHandle ctx, uint32_t w, uint32_t h);
+	void Render(WindowHandle ctx, u32 w, u32 h);
 
 	void Shutdown();
 
 	void CameraUpdated();
 
-	uint32_t GetRayCount();
+	u32 GetRayCount();
 
 	void ResetRayCount();
 

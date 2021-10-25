@@ -12,27 +12,6 @@ if(NOT CMAKE_BUILD_TYPE)
 endif()
 
 
-
-###############################################################################
-# CMP0072: FindOpenGL prefers GLVND by default when available.                #
-#          (OLD policy forces legacy mode)                                    #
-###############################################################################
-if(POLICY CMP0072)
-	cmake_policy(SET CMP0072 OLD)
-endif()
-
-
-
-###############################################################################
-# CMP0104: Raise an error if CUDA_ARCHITECTURES is empty.                     #
-#          (OLD policy allows that)                                           #
-###############################################################################
-if(POLICY CMP0104)
-	cmake_policy(SET CMP0104 OLD)
-endif()
-
-
-
 ###############################################################################
 # Debug Options                                                               #
 ###############################################################################
@@ -179,11 +158,27 @@ list(APPEND tracy_includes ${main_includes})
 ###############################################################################
 # Kernel selection                                                            #
 ###############################################################################
-set(TRACY_RENDER_MODULE "CPU (RayTracing)" CACHE STRING "Render Module")
-set_property(CACHE TRACY_RENDER_MODULE PROPERTY STRINGS "CPU (RayTracing)" "CUDA (RayTracing)" "OpenGL (Raster)" "CPU (Raster)")
 
-if(TRACY_RENDER_MODULE STREQUAL "CPU (RayTracing)")
+set(CPURTX_ON True) # no dependencies - enable cpu rtx
+set(CPU_ON True) # no dependencies - enable cpu raster
+set(CUDA_ON False)
+set(OPENGL_ON False)
 
+find_package(OpenGL)
+find_package(CUDA)
+
+if(OpenGL_FOUND)
+	set(OPENGL_ON True)
+	
+	if(CUDA_FOUND)
+		set(CUDA_ON True)
+	endif()
+
+endif()
+
+if(CPURTX_ON)
+
+	message(STATUS "Enabling CPU Raytracing")
 	add_definitions(-DCPU_KERNEL=1)
 
 	include_directories(./src/kernels/raytracing/software/)
@@ -198,15 +193,14 @@ if(TRACY_RENDER_MODULE STREQUAL "CPU (RayTracing)")
 	option(CPU_USE_SIMD_INTRINSICS "Enable hand-optimized hot path code with SIMD intrinsics" OFF)
 	
 	set(cpu_includes "./src/kernels/raytracing/software/cpu_trace.h"
-	                 "./src/kernels/raytracing/software/cpu_specific.h"
 					 "./src/kernels/raytracing/software/cpu_details.h")
 
-	source_group("kernel\\cpu\\include" FILES ${cpu_includes})
+	source_group("kernel\\raytracing\\cpu\\include" FILES ${cpu_includes})
 	list(APPEND tracy_includes ${cpu_includes})
 
 	set(cpu_sources "./src/kernels/raytracing/software/cpu_trace.cpp"
 	                "./src/kernels/raytracing/software/cpu_details.cpp")
-	source_group("kernel\\cpu\\src" FILES ${cpu_sources})
+	source_group("kernel\\raytracing\\cpu\\src" FILES ${cpu_sources})
 	list(APPEND tracy_sources ${cpu_sources})
 	
 	if(CPU_RAND_ALGORITHM STREQUAL "XorShift")
@@ -225,9 +219,10 @@ if(TRACY_RENDER_MODULE STREQUAL "CPU (RayTracing)")
 		add_definitions(-DUSE_INTRINSICS=1)
 	endif()
 	
+endif()
+if(CUDA_ON)
 
-elseif(TRACY_RENDER_MODULE STREQUAL "CUDA (RayTracing)")
-
+	message(STATUS "Enabling CUDA Raytracing")
 	add_definitions(-DCUDA_KERNEL=1)
 	add_definitions(-DRANDOM_CUDA=1)
 
@@ -251,34 +246,36 @@ elseif(TRACY_RENDER_MODULE STREQUAL "CUDA (RayTracing)")
 	include_directories(./src/kernels/raytracing/cuda/)
 	include_directories(${CMAKE_CUDA_TOOLKIT_INCLUDE_DIRECTORIES}) 
 
-	set(CUDA_ARCH Auto CACHE STRING "Cuda Arch Compile Option (Default: Autodetected)")
-	
 	# deprecated but currently the only way to detect cuda arch
-	include(FindCUDA)
-	cuda_select_nvcc_arch_flags(CUDA_COMPUTE_ARCH_FLAGS ${CUDA_ARCH})
-	string (REPLACE ";" " " CUDA_COMPUTE_ARCH_FLAGS_STRING "${CUDA_COMPUTE_ARCH_FLAGS}")
-	message(STATUS "CUDA architecture Compile Flags: ${CUDA_COMPUTE_ARCH_FLAGS_STRING}")
-	
-	set(CMAKE_CUDA_FLAGS "-D_FORCE_INLINES --expt-relaxed-constexpr ${CUDA_COMPUTE_ARCH_FLAGS_STRING}")
+	# see https://stackoverflow.com/questions/68223398/how-can-i-get-cmake-to-automatically-detect-the-value-for-cuda-architectures
+	include(FindCUDA/select_compute_arch)
+	CUDA_DETECT_INSTALLED_GPUS(INSTALLED_GPU_CCS_1)
+	string(STRIP "${INSTALLED_GPU_CCS_1}" INSTALLED_GPU_CCS_2)
+	string(REPLACE " " ";" INSTALLED_GPU_CCS_3 "${INSTALLED_GPU_CCS_2}")
+	string(REPLACE "." "" CUDA_ARCH_LIST "${INSTALLED_GPU_CCS_3}")
+	set(CMAKE_CUDA_ARCHITECTURES ${CUDA_ARCH_LIST})
+
+	set(CMAKE_CUDA_FLAGS "-D_FORCE_INLINES --expt-relaxed-constexpr")
 	set(CMAKE_CUDA_FLAGS_DEBUG "-g -G -D_DEBUG")
 	set(CMAKE_CUDA_FLAGS_RELEASE "-O3 --use_fast_math -DNDEBUG -lineinfo")
 
 	set(cuda_sources "./src/kernels/raytracing/cuda/cuda_trace.cpp"
 	                 "./src/kernels/raytracing/cuda/cuda_details.cpp"
 	                 "./src/kernels/raytracing/cuda/cuda_trace.cu")
-	source_group("kernel\\cuda\\src" FILES ${cuda_sources})
+	source_group("kernel\\raytracing\\cuda\\src" FILES ${cuda_sources})
 	list(APPEND tracy_sources ${cuda_sources})
 
 	set(cuda_includes "./src/kernels/raytracing/cuda/cuda_trace.h"
 	                  "./src/kernels/raytracing/cuda/cuda_details.h"
 	                  "./src/kernels/raytracing/cuda/cuda_log.h"
-	                  "./src/kernels/raytracing/cuda/cuda_specific.h"
 					  "./src/kernels/raytracing/cuda/cuda_trace.cuh")
-	source_group("kernel\\cuda\\include" FILES ${cuda_includes})
+	source_group("kernel\\raytracing\\cuda\\include" FILES ${cuda_includes})
 	list(APPEND tracy_includes ${cuda_includes})
 
-elseif(TRACY_RENDER_MODULE STREQUAL "OpenGL (Raster)")
+endif()
+if(OPENGL_ON)
 
+	message(STATUS "Enabling OpenGL")
 	add_definitions(-DOPENGL_KERNEL=1)
 
 	find_package(OpenGL REQUIRED)
@@ -291,32 +288,32 @@ elseif(TRACY_RENDER_MODULE STREQUAL "OpenGL (Raster)")
 	source_group("ext\\glew" FILES ${glew_source})
 	list(APPEND tracy_sources ${glew_source})
 	
-	include_directories(./src/kernels/rasterization/opengl/)
+	include_directories(./src/kernels/raster/opengl/)
 
-	set(opengl_sources "./src/kernels/rasterization/opengl/opengl_render.cpp")
-	source_group("kernel\\opengl\\src" FILES ${opengl_sources})
+	set(opengl_sources "./src/kernels/raster/opengl/opengl_render.cpp")
+	source_group("kernel\\raster\\opengl\\src" FILES ${opengl_sources})
 	list(APPEND tracy_sources ${opengl_sources})
 
-	set(opengl_includes "./src/kernels/rasterization/opengl/opengl_render.h"
-	                    "./src/kernels/rasterization/opengl/gl_mesh.h"
-						"./src/kernels/rasterization/opengl/gl_material.h"
-						"./src/kernels/rasterization/opengl/opengl_specific.h")
-	source_group("kernel\\opengl\\include" FILES ${opengl_includes})
+	set(opengl_includes "./src/kernels/raster/opengl/opengl_render.h"
+	                    "./src/kernels/raster/opengl/gl_mesh.h"
+						"./src/kernels/raster/opengl/gl_material.h")
+	source_group("kernel\\raster\\opengl\\include" FILES ${opengl_includes})
 	list(APPEND tracy_includes ${opengl_includes})
 
-elseif(TRACY_RENDER_MODULE STREQUAL "CPU (Raster)")
+endif()
+if(CPU_ON)
 
+	message(STATUS "Enabling CPU")
 	add_definitions(-DCPU_RASTER_KERNEL=1)
 
-	include_directories(./src/kernels/rasterization/cpu/)
+	include_directories(./src/kernels/raster/cpu/)
 
-	set(cpu_sources "./src/kernels/rasterization/cpu/cpu_render.cpp")
-	source_group("kernel\\cpu\\src" FILES ${cpu_sources})
+	set(cpu_sources "./src/kernels/raster/cpu/cpu_render.cpp")
+	source_group("kernel\\raster\\cpu\\src" FILES ${cpu_sources})
 	list(APPEND tracy_sources ${cpu_sources})
 
-	set(cpu_includes "./src/kernels/rasterization/cpu/cpu_render.h"
-	                 "./src/kernels/rasterization/cpu/cpu_specific.h")
-	source_group("kernel\\cpu\\include" FILES ${cpu_includes})
+	set(cpu_includes "./src/kernels/raster/cpu/cpu_render.h")
+	source_group("kernel\\raster\\cpu\\include" FILES ${cpu_includes})
 	list(APPEND tracy_includes ${cpu_includes})
 
 endif()

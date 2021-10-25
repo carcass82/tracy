@@ -25,7 +25,7 @@ struct MeshHitData : public TriangleHitData
 {
 	constexpr MeshHitData(float t = 0) : TriangleHitData(t) {}
 
-	uint32_t TriangleIndex{};
+	u32 TriangleIndex{};
 };
 
 
@@ -91,7 +91,7 @@ constexpr inline bool RayMesh(const Ray& in_ray, const Mesh& in_mesh, MeshHitDat
 	const vec3 ray_origin{ in_ray.GetOrigin() };
 	const vec3 ray_direction{ in_ray.GetDirection() };
 
-	for (uint32_t i = 0; i < in_mesh.GetTriCount(); ++i)
+	for (u32 i = 0; i < in_mesh.GetTriCount(); ++i)
 	{
 		const vec3 vertices[]
 		{

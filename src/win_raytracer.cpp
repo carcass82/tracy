@@ -17,22 +17,89 @@ WindowHandle g_win_handle{};
 #include "input.h"
 Input g_input;
 
-#if defined(CPU_KERNEL)
- #include "kernels/raytracing/software/cpu_trace.h"
- auto& g_kernel = TracyModule<CpuTrace>::GetInstance();
-#elif defined(CUDA_KERNEL)
- #include "kernels/raytracing/cuda/cuda_trace.h"
- auto& g_kernel = TracyModule<CUDATrace>::GetInstance();
-#elif defined(OPENGL_KERNEL)
- #include "kernels/rasterization/opengl/opengl_render.h"
- auto& g_kernel = TracyModule<OpenGLRender>::GetInstance();
-#elif defined(CPU_RASTER_KERNEL)
- #include "kernels/rasterization/cpu/cpu_render.h"
- auto& g_kernel = TracyModule<CPURaster>::GetInstance();
-#else
+#if !defined(CPU_KERNEL) && !defined(CUDA_KERNEL) && !defined(OPENGL_KERNEL) && !defined(CPU_RASTER_KERNEL)
  #error "at least one module should be enabled!"
+#else
+ #if defined(CPU_KERNEL)
+  #include "kernels/raytracing/software/cpu_trace.h"
+ #endif
+ #if defined(CUDA_KERNEL)
+  #include "kernels/raytracing/cuda/cuda_trace.h"
+ #endif
+ #if defined(OPENGL_KERNEL)
+  #include "kernels/raster/opengl/opengl_render.h"
+ #endif
+ #if defined(CPU_RASTER_KERNEL)
+  #include "kernels/raster/cpu/cpu_render.h"
+ #endif
 #endif
 
+TracyModule* g_kernel{};
+
+enum class TracyKernel
+{
+	eCPURT,
+	eCUDART,
+	eOpenGL,
+	eCPU,
+	eInvalid
+};
+
+TracyKernel KernelNameToID(const std::string& kernelname)
+{
+	if (kernelname == "CPURTX") return TracyKernel::eCPURT;
+	else if (kernelname == "CUDA") return TracyKernel::eCUDART;
+	else if (kernelname == "OpenGL") return TracyKernel::eOpenGL;
+	else if (kernelname == "CPU") return TracyKernel::eCPU;
+
+	return TracyKernel::eInvalid;
+}
+
+bool InitializeKernel(const std::string& kernelname)
+{
+	TracyKernel kernel = KernelNameToID(kernelname);
+
+	switch (kernel)
+	{
+#if defined(CPU_KERNEL)
+	case TracyKernel::eCPURT:
+		g_kernel = new CpuTrace();
+		break;
+#endif
+#if defined(CUDA_KERNEL)
+	case TracyKernel::eCUDART:
+		g_kernel = new CUDATrace();
+		break;
+#endif
+#if defined(OPENGL_KERNEL)
+	case TracyKernel::eOpenGL:
+		g_kernel = new OpenGLRender();
+		break;
+#endif
+#if defined(CPU_RASTER_KERNEL)
+	case TracyKernel::eCPU:
+		g_kernel = new CPURender();
+		break;
+#endif
+	default:
+		TracyLog("Invalid kernel choice: should be one in %s\n", "["
+#if defined(CPU_KERNEL)
+			"CPURTX, "
+#endif
+#if defined(CUDA_KERNEL)
+			"CUDA, "
+#endif
+#if defined(OPENGL_KERNEL)
+			"OpenGL, "
+#endif
+#if defined(CPU_RASTER_KERNEL)
+			"CPU"
+#endif
+			"]");
+	};
+
+	return kernel != TracyKernel::eInvalid && g_kernel != nullptr;
+}
 
 #if defined(_WIN32)
 LRESULT CALLBACK WindowProc(HWND hwnd, UINT uMsg, WPARAM wParam, LPARAM lParam)
@@ -77,7 +144,7 @@ void UpdateWindowText(WindowHandle window, const char* text)
 #endif
 }
 
-WindowHandle TracyCreateWindow(int width, int height)
+WindowHandle TracyCreateWindow(i32 width, i32 height)
 {
 #if defined(_WIN32)
 
@@ -175,7 +242,7 @@ void TracyUpdateWindow(WindowHandle window_handle)
 #endif
 
 	// make sure OnRender is issued from the same thread that created the window
-	g_kernel.OnRender(window_handle);
+	g_kernel->OnRender(window_handle);
 }
 
 void TracyProcessMessages(WindowHandle window_handle)
@@ -319,12 +386,12 @@ const char* TracySecondsToString(double in_seconds)
 {
 	static char timestring[64]{};
 
-	uint32_t seconds = static_cast<uint32_t>(in_seconds);
+	u32 seconds = static_cast<u32>(in_seconds);
 
-	uint32_t minutes = (seconds / 60) % 60;
+	u32 minutes = (seconds / 60) % 60;
 	seconds -= minutes * 60;
 
-	uint32_t hours = (minutes / 60) % 60;
+	u32 hours = (minutes / 60) % 60;
 	minutes -= hours * 60;
 
 	snprintf(timestring, 64, "%02d:%02d:%02d", hours, minutes, seconds);
@@ -333,7 +400,7 @@ const char* TracySecondsToString(double in_seconds)
 }
 
 template<typename T>
-void TracySizeToHumanReadableString(T count, char* out_string, uint32_t in_size)
+void TracySizeToHumanReadableString(T count, char* out_string, u32 in_size)
 {
 	static_assert(std::is_arithmetic_v<T>);
 
@@ -365,132 +432,156 @@ int main(int argc, char** argv)
 {
 #endif
 
-	uint32_t WIDTH = 640;
-	uint32_t HEIGHT = 480;
+	// defaults, overridden by scene descriptors
+	u32 WIDTH = 640;
+	u32 HEIGHT = 480;
+
 	char SCENE_PATH[MAX_PATH] = "data/default.scn";
-	if (argc == 2)
+
+	std::string kernelname{ "CPURTX" };
+
+	for (i32 i = 1; i < argc; ++i)
 	{
-		memset(SCENE_PATH, 0, MAX_PATH);
-		strncpy(SCENE_PATH, argv[1], MAX_PATH);
+		std::string argument(argv[i]);
+
+		if (argument == std::string("-scene"))
+		{
+			if (i + 1 < argc)
+			{
+				memset(SCENE_PATH, 0, MAX_PATH);
+				strncpy(SCENE_PATH, argv[i + 1], MAX_PATH);
+
+				++i;
+			}
+		}
+		else if (argument == std::string("-kernel"))
+		{
+			if (i + 1 < argc)
+			{
+				kernelname = argv[i + 1];
+			}
+		}
 	}
 
-	Scene world;
-	if (world.Init(SCENE_PATH, WIDTH, HEIGHT))
+	if (InitializeKernel(kernelname))
 	{
-		static char object_count[16]{};
-		TracySizeToHumanReadableString(world.GetObjectCount(), object_count, 16);
-		
-		static char tri_count[16]{};
-		TracySizeToHumanReadableString(world.GetTriCount(), tri_count, 16);
-
-		g_win_handle = TracyCreateWindow(WIDTH, HEIGHT);
-		if (IsValidWindowHandle(g_win_handle))
+		Scene world;
+		if (world.Init(SCENE_PATH, WIDTH, HEIGHT))
 		{
-			TracyDisplayWindow(g_win_handle);
+			static char object_count[16]{};
+			TracySizeToHumanReadableString(world.GetObjectCount(), object_count, 16);
 
-			if (g_kernel.Startup(g_win_handle, world))
+			static char tri_count[16]{};
+			TracySizeToHumanReadableString(world.GetTriCount(), tri_count, 16);
+
+			g_win_handle = TracyCreateWindow(WIDTH, HEIGHT);
+			if (IsValidWindowHandle(g_win_handle))
 			{
-				int frame_count = 0;
-				Timer trace_timer;
-				Timer frame_timer;
-				Timer run_timer;
+				TracyDisplayWindow(g_win_handle);
 
-				int avg_raycount = 0;
-				float avg_fps = .0f;
-				int samples = 0;
-
-				run_timer.Begin();
-
-				// TODO: threads
-				while (!ShouldQuit(g_win_handle))
+				if (g_kernel->Startup(g_win_handle, world))
 				{
-					TracyProcessMessages(g_win_handle);
+					u32 frame_count = 0;
+					Timer trace_timer;
+					Timer frame_timer;
+					Timer run_timer;
 
-					float dt{ static_cast<float>(frame_timer.GetDuration()) };
+					u32 avg_raycount = 0;
+					float avg_fps = .0f;
+					u32 samples = 0;
 
-					while (g_input.pending)
+					run_timer.Begin();
+
+					// TODO: threads
+					while (!ShouldQuit(g_win_handle))
 					{
-						if (TracyProcessInputs(world, g_input, g_win_handle, dt))
+						TracyProcessMessages(g_win_handle);
+
+						float dt{ static_cast<float>(frame_timer.GetDuration()) };
+
+						while (g_input.pending)
 						{
-							g_kernel.OnEvent(TracyEvent::eCameraCut, g_win_handle, world);
+							if (TracyProcessInputs(world, g_input, g_win_handle, dt))
+							{
+								g_kernel->OnEvent(TracyEvent::eCameraCut, g_win_handle, world);
+							}
 						}
+
+						frame_timer.Reset();
+						frame_timer.Begin();
+
+						trace_timer.Begin();
+
+						g_kernel->OnUpdate(world, dt);
+
+						trace_timer.End();
+
+						TracyUpdateWindow(g_win_handle);
+
+						++frame_count;
+
+						if (trace_timer.GetDuration() > 1.f || frame_count > 100)
+						{
+							u32 raycount = g_kernel->GetRayCount(true);
+							float fps = frame_count / (float)trace_timer.GetDuration();
+
+							run_timer.End();
+
+							static char window_title[MAX_PATH] = {};
+							snprintf(window_title,
+								MAX_PATH,
+								".:: Tracy 2.0 (%s) ::. '%s' (%dx%d) %s [%s objs, %s tris][%.2f MRays/s @ %.2f fps]",
+								g_kernel->GetModuleName(),
+								world.GetName().c_str(),
+								WIDTH,
+								HEIGHT,
+								TracySecondsToString(run_timer.GetDuration()),
+								object_count,
+								tri_count,
+								raycount * 1e-6 / trace_timer.GetDuration(),
+								fps);
+
+							UpdateWindowText(g_win_handle, window_title);
+
+							++samples;
+							avg_raycount = avg_raycount + (raycount - avg_raycount) / samples;
+							avg_fps = avg_fps + (fps - avg_fps) / samples;
+
+							trace_timer.Reset();
+							frame_count = 0;
+
+							run_timer.Begin();
+						}
+
+						frame_timer.End();
 					}
+					g_kernel->Shutdown();
+					TracyDestroyWindow(g_win_handle);
 
-					frame_timer.Reset();
-					frame_timer.Begin();
-
-					trace_timer.Begin();
-
-					g_kernel.OnUpdate(world, dt);
-
-					trace_timer.End();
-
-					TracyUpdateWindow(g_win_handle);
-
-					++frame_count;
-
-					if (trace_timer.GetDuration() > 1.f || frame_count > 100)
+					if (avg_raycount > 0)
 					{
-						int raycount = g_kernel.GetRayCount();
-						float fps = frame_count / (float)trace_timer.GetDuration();
-
 						run_timer.End();
-
-						static char window_title[MAX_PATH] = {};
-						snprintf(window_title,
-						         MAX_PATH,
-						         ".:: Tracy 2.0 (%s) ::. '%s' :: %dx%d :: Elapsed: %s :: [%s objs] [%s tris] [%.2f MRays/s] [%.2f fps]",
-						         g_kernel.GetModuleName(),
-						         world.GetName().c_str(),
-						         WIDTH,
-						         HEIGHT,
-						         TracySecondsToString(run_timer.GetDuration()),
-						         object_count,
-								 tri_count,
-						         raycount * 1e-6 / trace_timer.GetDuration(),
-						         fps);
-
-						UpdateWindowText(g_win_handle, window_title);
-
-						++samples;
-						avg_raycount = avg_raycount + (raycount - avg_raycount) / samples;
-						avg_fps = avg_fps + (fps - avg_fps) / samples;
-
-						g_kernel.ResetRayCount();
-						trace_timer.Reset();
-						frame_count = 0;
-
-						run_timer.Begin();
+						TracyLog("\n*** Performance: %.2f MRays/s and %.2f fps on average - Run time: %s ***\n\n",
+							avg_raycount * 1e-6,
+							avg_fps,
+							TracySecondsToString(run_timer.GetDuration()));
 					}
-
-					frame_timer.End();
 				}
-				g_kernel.Shutdown();
-				TracyDestroyWindow(g_win_handle);
-
-				if (avg_raycount > 0)
+				else
 				{
-					run_timer.End();
-					TracyLog("\n*** Performance: %.2f MRays/s and %.2f fps on average - Run time: %s ***\n\n",
-					         avg_raycount * 1e-6,
-					         avg_fps,
-					         TracySecondsToString(run_timer.GetDuration()));
+					TracyLog("Kernel failed to initialize\n");
 				}
 			}
 			else
 			{
-				TracyLog("Kernel failed to initialize\n");
+				TracyLog("Unable to create window\n");
 			}
-		}
-		else
-		{
-			TracyLog("Unable to create window\n");
 		}
 	}
 	else
 	{
-		TracyLog("Unable to load scene '%s'\n", SCENE_PATH);
+		TracyLog("Unable to initialize kernel '%s'\n", kernelname);
 	}
-
+	
 	return 0;
 }

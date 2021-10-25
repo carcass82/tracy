@@ -8,7 +8,7 @@
 #include "scene.h"
 #include "collision.h"
 
-bool CPUDetails::Initialize(WindowHandle ctx, uint32_t w, uint32_t h, uint32_t size)
+bool CPUDetails::Initialize(WindowHandle ctx, u32 w, u32 h, u32 size)
 {
 	tile_count_ = max(w, h) / size;
 
@@ -53,14 +53,14 @@ bool CPUDetails::ProcessScene(const Scene& scene)
 	TempObjectsTree.GetElements().reserve(scene.GetObjectCount());
 
 	BBox scene_bbox;
-	for (uint16_t i = 0; i < scene.GetObjectCount(); ++i)
+	for (u32 i = 0; i < scene.GetObjectCount(); ++i)
 	{
 		const Mesh& mesh = scene.GetObject(i);
 
 		accel::Node<Tri> TempTrianglesTree;
 		TempTrianglesTree.GetElements().reserve(mesh.GetTriCount());
 
-		for (uint32_t t = 0; t < mesh.GetTriCount(); ++t)
+		for (u32 t = 0; t < mesh.GetTriCount(); ++t)
 		{
 			vec3 v0{ mesh.GetVertex(mesh.GetIndex(t * 3 + 0)).pos };
 			vec3 v1{ mesh.GetVertex(mesh.GetIndex(t * 3 + 1)).pos };
@@ -92,7 +92,7 @@ bool CPUDetails::ComputeIntersection(const Scene& scene, const Ray& ray, HitData
 
 #if USE_KDTREE
 
-	const auto TriangleRayTester = [](const Tri* in_triangles, uint32_t in_first, uint32_t in_count, const Ray& in_ray, HitData& intersection_data)
+	const auto TriangleRayTester = [](const Tri* in_triangles, u32 in_first, u32 in_count, const Ray& in_ray, HitData& intersection_data)
 	{
 		bool hit_triangle{};
 
@@ -109,7 +109,7 @@ bool CPUDetails::ComputeIntersection(const Scene& scene, const Ray& ray, HitData
 
 		collision::TriangleHitData tri_hit_data(intersection_data.t);
 
-		for (uint32_t idx = in_first; idx < in_count; ++idx)
+		for (u32 idx = in_first; idx < in_count; ++idx)
 		{
 			const auto& triangle = in_triangles[idx];
 
@@ -126,13 +126,13 @@ bool CPUDetails::ComputeIntersection(const Scene& scene, const Ray& ray, HitData
 		return hit_triangle;
 	};
 
-	const auto ObjectRayTester = [this, TriangleRayTester](const Obj* in_objects, uint32_t in_first, uint32_t in_count, const Ray& in_ray, HitData& intersection_data)
+	const auto ObjectRayTester = [this, TriangleRayTester](const Obj* in_objects, u32 in_first, u32 in_count, const Ray& in_ray, HitData& intersection_data)
 	{
 		bool hit_object{ false };
 
-		for (uint32_t idx = in_first; idx < in_count; ++idx)
+		for (u32 idx = in_first; idx < in_count; ++idx)
 		{
-			uint32_t tree_id = in_objects[idx].object_id;
+			u32 tree_id = in_objects[idx].object_id;
 			if (accel::IntersectsWithTree<Tri>(BLAS_tree_[tree_id].GetChild(0), in_ray, intersection_data, TriangleRayTester))
 			{
 				hit_object = true;
@@ -147,7 +147,7 @@ bool CPUDetails::ComputeIntersection(const Scene& scene, const Ray& ray, HitData
 
 #else
 
-	for (uint32_t i = 0; i < scene.GetObjectCount(); ++i)
+	for (u32 i = 0; i < scene.GetObjectCount(); ++i)
 	{
 		const Mesh& mesh = scene.GetObject(i);
 
@@ -185,7 +185,7 @@ bool CPUDetails::ComputeIntersection(const Scene& scene, const Ray& ray, HitData
 	return hit_any_mesh;
 }
 
-void CPUDetails::UpdateOutput(uint32_t index, const vec3& color)
+void CPUDetails::UpdateOutput(u32 index, const vec3& color)
 {
 #if ACCUMULATE_SAMPLES
 
@@ -203,11 +203,11 @@ void CPUDetails::UpdateBitmap()
 {
 	// copy last frame result to bitmap for displaying
 	#pragma omp parallel for collapse(2)
-	for (int32_t j = 0; j < static_cast<int32_t>(render_data_.height); ++j)
+	for (i32 j = 0; j < static_cast<i32>(render_data_.height); ++j)
 	{
-		for (int32_t i = 0; i < static_cast<int32_t>(render_data_.width); ++i)
+		for (i32 i = 0; i < static_cast<i32>(render_data_.width); ++i)
 		{
-			int32_t idx = j * render_data_.width + i;
+			i32 idx = j * render_data_.width + i;
 			render_data_.bitmap.SetPixel(i, j, Tonemap(render_data_.output[idx]));
 		}
 	}
@@ -243,7 +243,7 @@ vec3 CPUDetails::Tonemap(const vec3& color) const
 	return clamp(255.99f * output, vec3(.0f), vec3(255.f));
 }
 
-void CPUDetails::Render(WindowHandle ctx, uint32_t w, uint32_t h)
+void CPUDetails::Render(WindowHandle ctx, u32 w, u32 h)
 {
 	render_data_.bitmap.Paint(ctx);
 }

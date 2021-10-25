@@ -12,7 +12,7 @@
 template <typename ... Args>
 inline void TracyLog(const char* msg, Args ... args)
 {
-    constexpr uint32_t MAX_BUFFER_SIZE{ 1024 };
+    constexpr u32 MAX_BUFFER_SIZE{ 1024 };
     static char buffer[MAX_BUFFER_SIZE]{};
 
     snprintf(buffer, MAX_BUFFER_SIZE, msg, args ...);

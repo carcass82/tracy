@@ -13,36 +13,24 @@ using std::vector;
 #include "aabb.h"
 #include "material.h"
 
-#if defined(CPU_KERNEL)
-#include "kernels/raytracing/software/cpu_specific.h"
-#elif defined(CUDA_KERNEL)
-#include "kernels/raytracing/cuda/cuda_specific.h"
-#elif defined(OPENGL_KERNEL)
-#include "kernels/rasterization/opengl/opengl_specific.h"
-#elif defined(CPU_RASTER_KERNEL)
-#include "kernels/rasterization/cpu/cpu_specific.h"
-#else
-#error "at least one module should be enabled!"
-#endif
-
 class Mesh
 {
 public:
 	Mesh() {}
 
-	Mesh(const vector<Vertex>& in_vertices, const vector<Index>& in_indices, uint32_t in_material = UINT32_MAX)
+	Mesh(const vector<Vertex>& in_vertices, const vector<Index>& in_indices, u32 in_material = UINT32_MAX)
 		: material_id_{ in_material }
 	{
-		vertexcount_ = static_cast<uint32_t>(in_vertices.size());
+		vertexcount_ = static_cast<u32>(in_vertices.size());
 		vertices_ = new Vertex[vertexcount_];
 		memcpy(vertices_, in_vertices.data(), vertexcount_ * sizeof(Vertex));
 
-		indexcount_ = static_cast<uint32_t>(in_indices.size());
+		indexcount_ = static_cast<u32>(in_indices.size());
 		indices_ = new Index[indexcount_];
 		memcpy(indices_, in_indices.data(), indexcount_ * sizeof(Index));
 	}
 
-	Mesh(Vertex* in_vertices, uint32_t in_vertexcount, Index* in_indices, uint32_t in_indexcount, const BBox& in_aabb, uint32_t in_material)
+	Mesh(Vertex* in_vertices, u32 in_vertexcount, Index* in_indices, u32 in_indexcount, const BBox& in_aabb, u32 in_material)
 		: vertices_{ in_vertices }
 		, vertexcount_{ in_vertexcount }
 		, indices_{ in_indices }
@@ -95,42 +83,42 @@ public:
 
 	Mesh& ComputeBoundingBox();
 
-	constexpr uint32_t GetVertexCount() const        { return vertexcount_; }
+	constexpr u32 GetVertexCount() const        { return vertexcount_; }
 
-	constexpr uint32_t GetTriCount() const           { return indexcount_ / 3; }
+	constexpr u32 GetTriCount() const           { return indexcount_ / 3; }
 
-	constexpr uint32_t GetIndexCount() const         { return indexcount_; }
+	constexpr u32 GetIndexCount() const         { return indexcount_; }
 										             
-	const Vertex* GetVertices() const                { return vertices_; }
+	const Vertex* GetVertices() const           { return vertices_; }
 
-	constexpr Vertex& GetVertex(uint32_t i) const    { return vertices_[i]; }
+	constexpr Vertex& GetVertex(u32 i) const    { return vertices_[i]; }
 
-	const Index* GetIndices() const                  { return indices_; }
+	const Index* GetIndices() const             { return indices_; }
 
-	constexpr Index& GetIndex(uint32_t i) const      { return indices_[i]; }
+	constexpr Index& GetIndex(u32 i) const      { return indices_[i]; }
 
-	void SetMaterial(uint32_t in_material)           { material_id_ = in_material; }
+	void SetMaterial(u32 in_material)           { material_id_ = in_material; }
 										             
-	constexpr uint32_t GetMaterial() const           { return material_id_; }
+	constexpr u32 GetMaterial() const           { return material_id_; }
 										             
-	constexpr const BBox& GetAABB() const            { return aabb_; }
+	constexpr const BBox& GetAABB() const       { return aabb_; }
 										             
-	void SetAABB(const BBox& bbox)                   { aabb_ = bbox; }
+	void SetAABB(const BBox& bbox)              { aabb_ = bbox; }
 
 
 private:
 	Vertex* vertices_{};
-	uint32_t vertexcount_{};
+	u32 vertexcount_{};
 	Index* indices_{};
-	uint32_t indexcount_{};
-	uint32_t material_id_{};
+	u32 indexcount_{};
+	u32 material_id_{};
 	BBox aabb_{};
 };
 
 
 inline Mesh& Mesh::Transform(const mat4& transform)
 {
-	for (uint32_t i = 0; i < vertexcount_; ++i)
+	for (u32 i = 0; i < vertexcount_; ++i)
 	{
 		vertices_[i].pos = (transform * vec4(vertices_[i].pos, 1.f)).xyz;
 		vertices_[i].normal = normalize(vec3((transpose(inverse(transform)) * vec4(vertices_[i].normal, 1.f)).xyz));
@@ -141,7 +129,7 @@ inline Mesh& Mesh::Transform(const mat4& transform)
 
 inline Mesh& Mesh::ComputeNormals()
 {
-	for (uint32_t i = 0; i < indexcount_; i += 3)
+	for (u32 i = 0; i < indexcount_; i += 3)
 	{
 		Vertex& v1 = vertices_[indices_[i + 0]];
 		Vertex& v2 = vertices_[indices_[i + 1]];
@@ -157,7 +145,7 @@ inline Mesh& Mesh::ComputeNormals()
 inline Mesh& Mesh::ComputeBoundingBox()
 {
 	aabb_.Reset();
-	for (uint32_t i = 0; i < vertexcount_; ++i)
+	for (u32 i = 0; i < vertexcount_; ++i)
 	{
 		aabb_.minbound = pmin(aabb_.minbound, vertices_[i].pos);
 		aabb_.maxbound = pmax(aabb_.maxbound, vertices_[i].pos);
@@ -172,7 +160,7 @@ inline typename std::enable_if<enabled, Mesh&>::type Mesh::ComputeTangentsAndBit
 	// Lengyel, Eric. "Computing Tangent Space Basis Vectors for an Arbitrary Mesh"
 	// http://www.terathon.com/code/tangent.html
 
-	for (uint32_t i = 0; i < indexcount_; i += 3)
+	for (u32 i = 0; i < indexcount_; i += 3)
 	{
 		VertexType& v1 = vertices_[indices_[i + 0]];
 		VertexType& v2 = vertices_[indices_[i + 1]];
@@ -194,7 +182,7 @@ inline typename std::enable_if<enabled, Mesh&>::type Mesh::ComputeTangentsAndBit
 		v1.bitangent += v2.bitangent = v3.bitangent = bitangent;
 	}
 
-	for (uint32_t i = 0; i < vertexcount_; ++i)
+	for (u32 i = 0; i < vertexcount_; ++i)
 	{
 		VertexType& v = vertices_[i];
 

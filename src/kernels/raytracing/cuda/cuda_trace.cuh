@@ -20,38 +20,38 @@ struct KernelData
 {
 	curandState* randctx_{};
 
-	uint32_t* raycount_{};
+	u32* raycount_{};
 
 	Camera* camera_{};
 	Mesh* meshes_{};
 	Material* materials_{};
 	Texture* textures_{};
 
-	uint32_t meshcount_{};
-	uint32_t materialcount_{};
-	uint32_t texturecount_{};
+	u32 meshcount_{};
+	u32 materialcount_{};
+	u32 texturecount_{};
 
-	constexpr const Camera& GetCamera() const               { return *camera_; }
-	constexpr const Mesh& GetMesh(uint32_t i) const         { return meshes_[i]; }
-	constexpr const Material& GetMaterial(uint32_t i) const { return materials_[i]; }
-	constexpr const Texture& GetTexture(uint32_t i) const   { return textures_[i]; }
+	constexpr const Camera& GetCamera() const          { return *camera_; }
+	constexpr const Mesh& GetMesh(u32 i) const         { return meshes_[i]; }
+	constexpr const Material& GetMaterial(u32 i) const { return materials_[i]; }
+	constexpr const Texture& GetTexture(u32 i) const   { return textures_[i]; }
 
-	constexpr uint32_t GetMeshCount() const                 { return meshcount_; }
-	constexpr uint32_t GetMaterialCount() const             { return materialcount_; }
-	constexpr uint32_t GetTextureCount() const              { return texturecount_; }
+	constexpr u32 GetMeshCount() const                 { return meshcount_; }
+	constexpr u32 GetMaterialCount() const             { return materialcount_; }
+	constexpr u32 GetTextureCount() const              { return texturecount_; }
 };
 
 struct HostData
 {
-	uint32_t width;
-	uint32_t height;
+	u32 width;
+	u32 height;
 	dim3 block{};
 	dim3 grid{};
 
 	cudaGraphicsResource* output_resource{};
 
-	uint32_t frame_counter_{};
-	uint32_t raycount{};
+	u32 frame_counter_{};
+	u32 raycount{};
 };
 
 class CUDATraceKernel
@@ -68,9 +68,9 @@ public:
 
 	void UpdateCamera(const Camera& in_Camera);
 
-	uint32_t GetRayCount() const { return host_data_.raycount; }
+	u32 GetRayCount() const { return host_data_.raycount; }
 
-	void ResetRayCount()         { host_data_.raycount = 0; }
+	void ResetRayCount()    { host_data_.raycount = 0; }
 
 private:
 

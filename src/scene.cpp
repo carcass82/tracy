@@ -15,30 +15,30 @@ using std::unordered_map;
 #define STB_IMAGE_IMPLEMENTATION
 #include "ext/stb_image.h"
 
-constexpr inline uint32_t make_id(char a, char b, char c = '\0', char d = '\0')
+constexpr inline u32 make_id(char a, char b, char c = '\0', char d = '\0')
 {
 	return a | b << 8 | c << 16 | d << 24;
 }
 
-uint32_t Scene::AddTexture(const char* path, bool sRGB)
+u32 Scene::AddTexture(const char* path, bool sRGB)
 {
-	uint32_t result{ UINT32_MAX };
+	u32 result{ UINT32_MAX };
 
 	int w, h, bpp;
 	if (stbi_is_hdr(path))
 	{
 		if (float* pixels = stbi_loadf(path, &w, &h, &bpp, 4))
 		{
-			result = static_cast<uint32_t>(textures_.size());
+			result = static_cast<u32>(textures_.size());
 			textures_.emplace_back(w, h, pixels, sRGB);
 			stbi_image_free(pixels);
 		}
 	}
 	else
 	{
-		if (uint8_t* pixels = stbi_load(path, &w, &h, &bpp, 4))
+		if (u8* pixels = stbi_load(path, &w, &h, &bpp, 4))
 		{
-			result = static_cast<uint32_t>(textures_.size());
+			result = static_cast<u32>(textures_.size());
 			textures_.emplace_back(w, h, pixels, sRGB);
 			stbi_image_free(pixels);
 		}
@@ -47,19 +47,19 @@ uint32_t Scene::AddTexture(const char* path, bool sRGB)
 	return result;
 }
 
-Mesh& Scene::AddSphere(const vec3& in_center, float in_radius, uint32_t steps /* = 32 */)
+Mesh& Scene::AddSphere(const vec3& in_center, float in_radius, u32 steps /* = 32 */)
 {
 	vector<Vertex> vertices;
 	vector<Index> indices;
 
-	for (uint32_t lon = 0; lon < steps; ++lon)
+	for (u32 lon = 0; lon < steps; ++lon)
 	{
 		float delta_theta1 = (float)lon / steps;
 		float delta_theta2 = (float)(lon + 1) / steps;
 		float theta1 = delta_theta1 * PI;
 		float theta2 = delta_theta2 * PI;
 
-		for (uint32_t lat = 0; lat < steps; ++lat)
+		for (u32 lat = 0; lat < steps; ++lat)
 		{
 			float delta_phi1 = (float)lat / steps;
 			float delta_phi2 = (float)(lat + 1) / steps;
@@ -95,7 +95,7 @@ Mesh& Scene::AddSphere(const vec3& in_center, float in_radius, uint32_t steps /*
 			uv = vec2{ delta_phi1, delta_theta2 };
 			vertices.emplace_back(in_center + pos * in_radius, pos, uv);
 
-			uint32_t baseidx = static_cast<uint32_t>(vertices.size()) - 4;
+			u32 baseidx = static_cast<u32>(vertices.size()) - 4;
 
 			if (lon == 0) // top cap
 			{
@@ -122,7 +122,7 @@ Mesh& Scene::AddSphere(const vec3& in_center, float in_radius, uint32_t steps /*
 		}
 	}
 
-	for (uint32_t i = 0; i < vertices.size(); ++i)
+	for (u32 i = 0; i < vertices.size(); ++i)
 	{
 		vertices[i].normal = normalize(vertices[i].normal);
 	}
@@ -228,22 +228,22 @@ Mesh& Scene::AddMesh(Mesh&& mesh, const mat4& transform /* = Identity */, bool c
 	return (compute_normals) ? result.ComputeNormals().ComputeTangentsAndBitangents() : result.ComputeTangentsAndBitangents();
 }
 
-bool Scene::Init(const char* scene_path, uint32_t& inout_width, uint32_t& inout_height)
+bool Scene::Init(const char* scene_path, u32& inout_width, u32& inout_height)
 {
-	static constexpr uint32_t ID_SCN = make_id('S', 'C', 'N', '\0');
-	static constexpr uint32_t ID_OUT = make_id('O', 'U', 'T', '\0');
-	static constexpr uint32_t ID_CAM = make_id('C', 'A', 'M', '\0');
-	static constexpr uint32_t ID_MTL = make_id('M', 'T', 'L', '\0');
-	static constexpr uint32_t ID_TEX = make_id('T', 'E', 'X', '\0');
-	static constexpr uint32_t ID_SKY = make_id('S', 'K', 'Y', '\0');
-	static constexpr uint32_t ID_OBJ = make_id('O', 'B', 'J', '\0');
-	static constexpr uint32_t ID_TRI = make_id('T', 'R', 'I', '\0');
+	static constexpr u32 ID_SCN = make_id('S', 'C', 'N', '\0');
+	static constexpr u32 ID_OUT = make_id('O', 'U', 'T', '\0');
+	static constexpr u32 ID_CAM = make_id('C', 'A', 'M', '\0');
+	static constexpr u32 ID_MTL = make_id('M', 'T', 'L', '\0');
+	static constexpr u32 ID_TEX = make_id('T', 'E', 'X', '\0');
+	static constexpr u32 ID_SKY = make_id('S', 'K', 'Y', '\0');
+	static constexpr u32 ID_OBJ = make_id('O', 'B', 'J', '\0');
+	static constexpr u32 ID_TRI = make_id('T', 'R', 'I', '\0');
 
 	// helper to reference materials by name
-	unordered_map<string, uint32_t> material_id;
+	unordered_map<string, u32> material_id;
 
 	// helper to reference textures by name
-	unordered_map<string, uint32_t> texture_id;
+	unordered_map<string, u32> texture_id;
 
 	if (FILE* fp = fopen(scene_path, "r"))
 	{
@@ -261,7 +261,7 @@ bool Scene::Init(const char* scene_path, uint32_t& inout_width, uint32_t& inout_
 			char id[3];
 			if (sscanf(line, "%c%c%c %[^\n]", &id[0], &id[1], &id[2], params) == 4)
 			{
-				uint32_t uid = make_id(id[0], id[1], id[2], '\0');
+				u32 uid = make_id(id[0], id[1], id[2], '\0');
 
 				switch (uid)
 				{
@@ -314,7 +314,7 @@ bool Scene::Init(const char* scene_path, uint32_t& inout_width, uint32_t& inout_
 						                                                   &albedo.x, &albedo.y, &albedo.z,
 						                                                   &roughness, &metalness, &ior, &emissive, &translucency) >= 6)
 						{
-							material_id[mat_name] = static_cast<uint32_t>(materials_.size());
+							material_id[mat_name] = static_cast<u32>(materials_.size());
 							materials_.emplace_back(albedo, roughness, metalness, ior, emissive, translucency);
 						}
 					}

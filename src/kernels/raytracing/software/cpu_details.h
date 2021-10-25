@@ -25,8 +25,8 @@ namespace collision { struct HitData; }
 
 struct RenderData
 {
-	uint32_t width{};
-	uint32_t height{};
+	u32 width{};
+	u32 height{};
 	vector<vec3> output{};
 	Bitmap bitmap;
 };
@@ -37,7 +37,7 @@ struct Tri
 	constexpr Tri()
 	{}
 
-	Tri(uint32_t mesh_idx, uint32_t triangle_idx, const vec3& v0, const vec3& v1, const vec3& v2)
+	Tri(u32 mesh_idx, u32 triangle_idx, const vec3& v0, const vec3& v1, const vec3& v2)
 		: packed_tri_info((mesh_idx << 24) | triangle_idx)
 #if USE_INTRINSICS
 		, vertices{ _mm_set_ps(v0.z, v0.z, v0.y, v0.x), _mm_set_ps(v1.z, v1.z, v1.y, v1.x), _mm_set_ps(v2.z, v2.z, v2.y, v2.x) }
@@ -46,12 +46,12 @@ struct Tri
 #endif
 	{}
 
-	constexpr uint32_t GetMeshId() const { return packed_tri_info >> 24; }
+	constexpr u32 GetMeshId() const { return packed_tri_info >> 24; }
 
-	constexpr uint32_t GetTriangleId() const { return packed_tri_info & 0xffffff; }
+	constexpr u32 GetTriangleId() const { return packed_tri_info & 0xffffff; }
 
 
-	uint32_t packed_tri_info{ 0 };
+	u32 packed_tri_info{ 0 };
 
 #if USE_INTRINSICS
 	__m128 vertices[3]{};
@@ -65,18 +65,18 @@ struct Obj
 	constexpr Obj()
 	{}
 
-	constexpr Obj(uint32_t object_idx)
+	constexpr Obj(u32 object_idx)
 		: object_id{ object_idx }
 	{}
 
-	uint32_t object_id{};
+	u32 object_id{};
 };
 #endif
 
 class CPUDetails
 {
 public:
-	bool Initialize(WindowHandle ctx, uint32_t w, uint32_t h, uint32_t size);
+	bool Initialize(WindowHandle ctx, u32 w, u32 h, u32 size);
 
 	void Shutdown();
 
@@ -84,15 +84,15 @@ public:
 
 	bool ComputeIntersection(const Scene& scene, const Ray& ray, HitData& data) const;
 
-	void UpdateOutput(uint32_t index, const vec3& color);
+	void UpdateOutput(u32 index, const vec3& color);
 
 	void UpdateBitmap();
 
 	vec3 Tonemap(const vec3& color) const;
 
-	void Render(WindowHandle ctx, uint32_t w, uint32_t h);
+	void Render(WindowHandle ctx, u32 w, u32 h);
 
-	constexpr uint32_t GetTileCount() const { return tile_count_; }
+	constexpr u32 GetTileCount() const { return tile_count_; }
 
 	void ResetFrameCounter() { frame_counter_ = 0; }
 
@@ -101,9 +101,9 @@ private:
 
 	RenderData render_data_{};
 	
-	uint32_t tile_count_{};
+	u32 tile_count_{};
 	
-	uint64_t frame_counter_{};
+	u64 frame_counter_{};
 
 #if USE_KDTREE
 	

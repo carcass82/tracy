@@ -12,7 +12,7 @@ build_script:
 - cmd: >-
     mkdir build && cd build
 
-    cmake -G "Visual Studio 16 2019" -DCMAKE_BUILD_TYPE=Release -DTRACY_RENDER_MODULE="CPU (RayTracing)" ..
+    cmake -G "Visual Studio 16 2019" -DCMAKE_BUILD_TYPE=Release ..
     
     cmake --build . --config Release
 
@@ -20,19 +20,6 @@ build_script:
 - sh: >-
     mkdir build && cd build
 
-    cmake -G "Unix Makefiles" -DCMAKE_BUILD_TYPE=Release -DTRACY_RENDER_MODULE="CPU (RayTracing)" ..
+    cmake -G "Unix Makefiles" -DCMAKE_BUILD_TYPE=Release ..
     
     cmake --build . --config Release
-
-
-#
-# Disabled Configurations
-#
-
-# CUDA support for both vs2019 and g++ is missing
-#cmake -G "Visual Studio 16 2019" -DCMAKE_BUILD_TYPE=Release -DTRACY_RENDER_MODULE="CUDA (RayTracing)" ..    
-#cmake --build . --config Release
-
-# CMake won't find OpenGL on linux, suspend build on windows
-#cmake -G "Unix Makefiles" -DCMAKE_BUILD_TYPE=Release -DTRACY_RENDER_MODULE="OpenGL (Raster)" ..
-#cmake --build . --config Release

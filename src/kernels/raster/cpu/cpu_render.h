@@ -9,10 +9,8 @@
 #include "common.h"
 #include "module.h"
 
-class CPURaster final : public TracyModule<CPURaster>
+class CPURender final : public TracyModule
 {
-	friend class TracyModule<CPURaster>;
-
 public:
 	bool Startup(const WindowHandle in_Window, const Scene& in_Scene) override;
 	void OnUpdate(const Scene& in_Scene, float in_DeltaTime) override;
@@ -20,7 +18,4 @@ public:
 	void OnRender(const WindowHandle in_Window) override;
 	void Shutdown() override;
 	const char* GetModuleName() const override { return "CPU"; }
-
-	uint32_t GetRayCount() const { return 0; }
-	void ResetRayCount() {}
 };

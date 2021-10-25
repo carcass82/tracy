@@ -10,12 +10,12 @@ template<typename T>
 class Vector
 {
 private:
-    unsigned int size_;
-    unsigned int capacity_;
+    unsigned u32 size_;
+    unsigned u32 capacity_;
     T* buffer_;
 
 public:
-    explicit Vector(unsigned int capacity = 0)
+    explicit Vector(u32 capacity = 0)
         : size_(0)
         , capacity_(capacity)
         , buffer_(static_cast<T*>(::operator new(capacity_ * sizeof(T))))
@@ -24,7 +24,7 @@ public:
 
     ~Vector()
     {
-        for (unsigned int i = 0; i < size_; ++i)
+        for (u32 i = 0; i < size_; ++i)
         {
             buffer_[i].~T();
         }
@@ -36,7 +36,7 @@ public:
         , capacity_(other.capacity_)
         , buffer_(static_cast<T*>(::operator new(capacity_ * sizeof(T))))
     {
-        for (unsigned int i = 0; i < other.size_; ++i)
+        for (u32 i = 0; i < other.size_; ++i)
         {
             push_back(other.buffer_[i]);
         }
@@ -66,12 +66,12 @@ public:
         return *this;
     }
 
-    T& operator[](unsigned int index)
+    T& operator[](u32 index)
     {
         return buffer_[index];
     }
 
-    const T& operator[](unsigned int index) const
+    const T& operator[](u32 index) const
     {
         return buffer_[index];
     }
@@ -86,7 +86,7 @@ public:
         return buffer_ + size_;
     }
 
-    unsigned int size() const
+    u32 size() const
     {
         return size_;
     }
@@ -132,7 +132,7 @@ public:
 
     void clear()
     {
-        for (unsigned int i = 0; i < size_; ++i)
+        for (u32 i = 0; i < size_; ++i)
         {
             pop_back();
         }
@@ -158,7 +158,7 @@ private:
     void realloc()
     {
         Vector<T> expanded(capacity_);
-        for (unsigned int i = 0; i < size_; ++i)
+        for (u32 i = 0; i < size_; ++i)
         {
             expanded.push_back(buffer_[i]);
         }

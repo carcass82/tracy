@@ -13,14 +13,16 @@ namespace
     CUDADetails Details;
 }
 
-int CUDATrace::GetRayCount() const
+u32 CUDATrace::GetRayCount(bool in_ShouldReset)
 {
-    return Details.GetRayCount();
-}
+    u32 res{ Details.GetRayCount() };
 
-void CUDATrace::ResetRayCount()
-{
-    Details.ResetRayCount();
+    if (in_ShouldReset)
+    {
+        Details.ResetRayCount();
+    }
+
+    return res;
 }
 
 bool CUDATrace::Startup(const WindowHandle in_Window, const Scene& in_Scene)

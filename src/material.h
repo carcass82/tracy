@@ -25,7 +25,7 @@ public:
         , translucent_{ in_translucency }
     {}
 
-    void SetTexture(uint32_t in_texture, TextureID in_texture_id)
+    void SetTexture(u32 in_texture, TextureID in_texture_id)
     {
         switch (in_texture_id)
         {
@@ -51,7 +51,7 @@ public:
         texture_flag_[in_texture_id] = true;
     }
 
-    uint32_t GetTexture(TextureID in_texture_id) const
+    u32 GetTexture(TextureID in_texture_id) const
     {
         if (texture_flag_[in_texture_id])
         {
@@ -108,11 +108,11 @@ protected:
     vec3 emissive_{};
     float translucent_{};
 
-    uint32_t base_color_map_{};
-    uint32_t normal_map_{};
-    uint32_t roughness_map_{};
-    uint32_t metalness_map_{};
-    uint32_t emissive_map_{};
+    u32 base_color_map_{};
+    u32 normal_map_{};
+    u32 roughness_map_{};
+    u32 metalness_map_{};
+    u32 emissive_map_{};
 
     bool texture_flag_[TextureID::eCOUNT]{};
 };

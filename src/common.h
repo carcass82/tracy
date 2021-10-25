@@ -25,6 +25,16 @@
  #define UNLIKELY(x) (!!(x)) [[unlikely]]
 #endif
 
+// types shortcut
+using i64 = int64_t;
+using i32 = int32_t;
+using i16 = int16_t;
+using i8 = int8_t;
+using u64 = uint64_t;
+using u32 = uint32_t;
+using u16 = uint16_t;
+using u8 = uint8_t;
+
 #if defined(__CUDACC__)
  #if !defined(CUDA_ANY)
   #define CUDA_ANY __host__ __device__
@@ -110,7 +120,7 @@ CUDA_ANY inline vec3 pmin(const vec3& a, const vec3& b) { return { min(a.x, b.x)
 CUDA_ANY inline vec3 pmax(const vec3& a, const vec3& b) { return { max(a.x, b.x), max(a.y, b.y), max(a.z, b.z) }; }
 constexpr float PI = 3.1415926535897932f;
 constexpr float EPS = 1.e-8f;
-template<typename T, size_t N> constexpr inline uint32_t array_size(const T(&)[N]) { return N; }
+template<typename T, size_t N> constexpr inline u32 array_size(const T(&)[N]) { return N; }
 template<typename T> constexpr inline T rcp(const T& x) { return 1.f / x; }
 #define srgb(x) convertLinearToSRGB(x)
 #define linear(x) convertSRGBToLinear(x)
@@ -158,7 +168,7 @@ using cc::gfx::linear;
 
 #else
 
- using RandomCtxData = uint32_t;
+ using RandomCtxData = u32;
  using RandomCtx = RandomCtxData&;
 
  #include <functional>
@@ -167,15 +177,19 @@ using cc::gfx::linear;
 
 struct alignas(64) HitData
 {
-	uint32_t object_index;
-	uint32_t triangle_index;
+	u32 object_index;
+	u32 triangle_index;
 	float t;
 	vec2 uv;
 	vec3 point;
 	vec3 normal;
 	vec3 tangent;
-	uint32_t material;
+	u32 material;
 };
+
+#include "vertex.h"
+using Vertex = BaseVertex<true /* with tangent and bitangent */>;
+using Index = u32;
 
 #if defined(_WIN32)
 
@@ -186,13 +200,13 @@ struct alignas(64) HitData
 #include <Windows.h>
 struct handle_t
 {
-	uint32_t width;
-	uint32_t height;
+	u32 width;
+	u32 height;
 	HWND win;
 };
 using WindowHandle = struct handle_t*;
 
-inline WindowHandle CreateWindowHandle(HWND hwnd, uint32_t width, uint32_t height)
+inline WindowHandle CreateWindowHandle(HWND hwnd, u32 width, u32 height)
 {
 	return new handle_t{ width, height, hwnd };
 }
@@ -219,15 +233,15 @@ inline void ReleaseWindowHandle(WindowHandle& handle)
 #include <X11/keysym.h>
 struct handle_t
 {
-	uint32_t width;
-	uint32_t height;
-	int32_t ds;
+	u32 width;
+	u32 height;
+	i32 ds;
 	Display* dpy;
 	Window win;
 };
 using WindowHandle = struct handle_t*;
 
-inline WindowHandle CreateWindowHandle(uint32_t width, uint32_t height, int32_t ds, Display* dpy, Window win)
+inline WindowHandle CreateWindowHandle(u32 width, u32 height, i32 ds, Display* dpy, Window win)
 {
 	return new handle_t{ width, height, ds, dpy, win };
 }

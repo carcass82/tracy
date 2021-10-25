@@ -25,7 +25,7 @@ struct Input
 		bool buttonstatus[NumButtons];
 	};
 
-	bool GetKeyStatus(uint8_t c) const
+	bool GetKeyStatus(u8 c) const
 	{
 		return keystatus[c];
 	}
@@ -43,7 +43,7 @@ struct Input
 		}
 	}
 
-	void SetKeyStatus(uint8_t c, bool value)
+	void SetKeyStatus(u8 c, bool value)
 	{
 		keystatus[c] = value;
 	}
@@ -62,7 +62,7 @@ struct Input
 		}
 	}
 
-	void ResetKeyStatus(uint8_t c)
+	void ResetKeyStatus(u8 c)
 	{
 		SetKeyStatus(c, false);
 	}

@@ -59,7 +59,7 @@ void main()
 
 namespace OGL
 {
-static inline void ensure(GLenum val, const char* file, int line)
+static inline void ensure(GLenum val, const char* file, i32 line)
 {
     while (val != GL_NO_ERROR)
     {
@@ -95,7 +95,7 @@ static inline auto CheckProgramError = [](GLuint program)
 };
 }
 
-bool CUDADetails::Initialize(WindowHandle ctx, uint32_t w, uint32_t h)
+bool CUDADetails::Initialize(WindowHandle ctx, u32 w, u32 h)
 {
     render_data_.width = w;
     render_data_.height = h;
@@ -214,7 +214,7 @@ void CUDADetails::Update(const Scene& scene)
     kernel_.Trace();
 }
 
-void CUDADetails::Render(WindowHandle ctx, uint32_t w, uint32_t h)
+void CUDADetails::Render(WindowHandle ctx, u32 w, u32 h)
 {
     GLAssert(glClear(GL_COLOR_BUFFER_BIT));
 
@@ -260,7 +260,7 @@ void CUDADetails::CameraUpdated()
     camera_updated_ = true;
 }
 
-uint32_t CUDADetails::GetRayCount()
+u32 CUDADetails::GetRayCount()
 {
     return kernel_.GetRayCount();
 }

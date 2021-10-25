@@ -6,7 +6,7 @@
  */
 #include "bitmap.h"
 
-bool Bitmap::Create(WindowHandle ctx, uint32_t w, uint32_t h)
+bool Bitmap::Create(WindowHandle ctx, u32 w, u32 h)
 {
 	width = w;
 	height = h;
@@ -26,7 +26,7 @@ bool Bitmap::Create(WindowHandle ctx, uint32_t w, uint32_t h)
 
 #else
 
-	bitmap_bytes = new uint32_t[w * h];
+	bitmap_bytes = new u32[w * h];
 	bitmap = XCreateImage(ctx->dpy,
 		                  DefaultVisual(ctx->dpy, ctx->ds),
 		                  DefaultDepth(ctx->dpy, ctx->ds),
@@ -52,17 +52,29 @@ void Bitmap::Destroy()
 #endif
 }
 
-void Bitmap::SetPixel(uint32_t x, uint32_t y, const vec3& pixel)
+void Bitmap::SetPixel(u32 x, u32 y, const vec3& pixel)
 {
-	uint32_t encoded = (uint8_t)pixel.b       |
-	                  ((uint8_t)pixel.g << 8) |
-	                  ((uint8_t)pixel.r << 16);
+	u32 encoded =  (u8)pixel.b       |
+	              ((u8)pixel.g << 8) |
+	              ((u8)pixel.r << 16);
 
 #if defined(_WIN32)
 	bitmap_bytes[y * width + x] = encoded;
 #else
 	XPutPixel(bitmap, x, height - y, encoded);
 #endif
+}
+
+void Bitmap::Clear(const vec3& color)
+{
+	u32 encoded = (u8)color.b       |
+	             ((u8)color.g << 8) |
+	             ((u8)color.r << 16);
+
+	for (u32 i = 0; i < width * height; ++i)
+	{
+		bitmap_bytes[i] = encoded;
+	}
 }
 
 void Bitmap::Paint(WindowHandle ctx)

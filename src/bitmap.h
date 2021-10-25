@@ -11,19 +11,32 @@ class Bitmap
 {
 public:
 
-	bool Create(WindowHandle ctx, uint32_t w, uint32_t h);
+	Bitmap() {}
+	Bitmap(WindowHandle ctx, u32 w, u32 h) { Create(ctx, w, h); }
+	~Bitmap() { Destroy(); }
+
+	// disable copying
+	Bitmap(const Bitmap&) = delete;
+	Bitmap& operator=(const Bitmap&) = delete;
+
+	Bitmap(Bitmap&& other) noexcept
+		: width{ other.width }, height{ other.height }, bitmap{ std::exchange(other.bitmap, nullptr) }, bitmap_bytes{ std::exchange(other.bitmap_bytes, nullptr) }
+	{}
+
+	bool Create(WindowHandle ctx, u32 w, u32 h);
 
 	void Destroy();
 	
-	void SetPixel(uint32_t x, uint32_t y, const vec3& pixel);
+	void SetPixel(u32 x, u32 y, const vec3& pixel);
 	
 	void Paint(WindowHandle ctx);
 
+	void Clear(const vec3& color);
 
 private:
 
-	uint32_t width;
-	uint32_t height;
+	u32 width{};
+	u32 height{};
 
 #if defined(_WIN32)
 	HBITMAP bitmap{};
@@ -31,6 +44,6 @@ private:
 	XImage* bitmap{};
 #endif
 
-	uint32_t* bitmap_bytes{};
+	u32* bitmap_bytes{};
 
 };

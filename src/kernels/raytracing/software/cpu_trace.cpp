@@ -33,8 +33,8 @@ void CpuTrace::Shutdown()
 void CpuTrace::OnUpdate(const Scene& in_Scene, float in_DeltaTime)
 {
 #if !TILED_RENDERING
-	const int32_t w{ static_cast<int32_t>(in_Scene.GetWidth()) };
-	const int32_t h{ static_cast<int32_t>(in_Scene.GetHeight()) };
+	const i32 w{ static_cast<i32>(in_Scene.GetWidth()) };
+	const i32 h{ static_cast<i32>(in_Scene.GetHeight()) };
 #endif
 
 	#pragma omp parallel
@@ -44,19 +44,19 @@ void CpuTrace::OnUpdate(const Scene& in_Scene, float in_DeltaTime)
 		#pragma omp for collapse(2) schedule(dynamic)
 
 #if TILED_RENDERING
-		for (int32_t tile_x = 0; tile_x < static_cast<int32_t>(Details.GetTileCount()); ++tile_x)
+		for (i32 tile_x = 0; tile_x < static_cast<i32>(Details.GetTileCount()); ++tile_x)
 		{
-			for (int32_t tile_y = 0; tile_y < static_cast<int32_t>(Details.GetTileCount()); ++tile_y)
+			for (i32 tile_y = 0; tile_y < static_cast<i32>(Details.GetTileCount()); ++tile_y)
 			{
 				RenderTile(tile_x, tile_y, in_Scene, random_ctx);
 			}
 		}
 #else
-		for (int32_t x = 0; x < w; ++x)
+		for (i32 x = 0; x < w; ++x)
 		{
-			for (int32_t y = 0; y < h; ++y)
+			for (i32 y = 0; y < h; ++y)
 			{
-				int32_t idx{ y * w + x };
+				i32 idx{ y * w + x };
 				float u{ (x + fastrand(random_ctx)) / float(w) };
 				float v{ (y + fastrand(random_ctx)) / float(h) };
 
@@ -82,16 +82,16 @@ void CpuTrace::OnEvent(TracyEvent in_Event, const WindowHandle in_Window, const 
 }
 
 #if TILED_RENDERING
-void CpuTrace::RenderTile(uint32_t tile_x, uint32_t tile_y, const Scene& scene, RandomCtx random_ctx)
+void CpuTrace::RenderTile(u32 tile_x, u32 tile_y, const Scene& scene, RandomCtx random_ctx)
 {
-	uint32_t w = scene.GetWidth();
-	uint32_t h = scene.GetHeight();
+	u32 w = scene.GetWidth();
+	u32 h = scene.GetHeight();
 
-	for (uint32_t j = tile_x * kTileSize; j < (tile_x + 1) * kTileSize; ++j)
+	for (u32 j = tile_x * kTileSize; j < (tile_x + 1) * kTileSize; ++j)
 	{
-		for (uint32_t i = tile_y * kTileSize; i < (tile_y + 1) * kTileSize; ++i)
+		for (u32 i = tile_y * kTileSize; i < (tile_y + 1) * kTileSize; ++i)
 		{
-			uint32_t idx = j * w + i;
+			u32 idx = j * w + i;
 			if (idx < w * h)
 			{
 				float u = (i + fastrand(random_ctx)) / float(w);
@@ -110,7 +110,7 @@ vec3 CpuTrace::Trace(Ray&& ray, const Scene& scene, RandomCtx random_ctx)
 	vec3 throughput{ 1.f, 1.f, 1.f };
 	vec3 pixel;
 
-	for (uint32_t t = 0; t < kMaxBounces; ++t)
+	for (u32 t = 0; t < kMaxBounces; ++t)
 	{
 		#pragma omp atomic
 		++raycount_;

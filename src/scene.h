@@ -22,12 +22,12 @@ class Scene
 {
 public:
 
-	static constexpr uint32_t SKY_MATERIAL_ID{ 0 };
+	static constexpr u32 SKY_MATERIAL_ID{ 0 };
 
 
-	uint32_t AddTexture(const char* path, bool sRGB = false);
+	u32 AddTexture(const char* path, bool sRGB = false);
 
-	Mesh& AddSphere(const vec3& in_center, float in_radius, uint32_t steps = 32);
+	Mesh& AddSphere(const vec3& in_center, float in_radius, u32 steps = 32);
 
 	Mesh& AddBox(const vec3& bottom, const vec3& top, const mat4& transform = mat4{ 1 });
 
@@ -35,7 +35,7 @@ public:
 
 	Mesh& AddMesh(Mesh&& mesh, const mat4& transform = mat4{ 1 }, bool compute_normals = false);
 
-	bool Init(const char* scene_path, uint32_t& width, uint32_t& height);
+	bool Init(const char* scene_path, u32& width, u32& height);
 
 	Camera& GetCamera()                           { return camera_; }
 
@@ -43,23 +43,23 @@ public:
 
 	const vector<Mesh>& GetObjects() const        { return objects_; }
 
-	const Mesh& GetObject(uint32_t i) const       { return objects_[i]; }
+	const Mesh& GetObject(u32 i) const            { return objects_[i]; }
 
 	const string& GetName() const                 { return scene_name_; }
 
-	uint32_t GetObjectCount() const               { return static_cast<uint32_t>(objects_.size()); }
+	u32 GetObjectCount() const                    { return static_cast<u32>(objects_.size()); }
 
-	uint32_t GetTriCount() const;
+	u32 GetTriCount() const;
 	
-	uint32_t GetWidth() const                     { return width_; }
+	u32 GetWidth() const                          { return width_; }
 										          
-	uint32_t GetHeight() const                    { return height_; }
+	u32 GetHeight() const                         { return height_; }
 
-	const Material& GetMaterial(uint32_t i) const { return materials_[i]; }
+	const Material& GetMaterial(u32 i) const      { return materials_[i]; }
 
 	const vector<Material>& GetMaterials() const  { return materials_; }
 
-	const Texture& GetTexture(uint32_t i) const   { return textures_[i]; }
+	const Texture& GetTexture(u32 i) const        { return textures_[i]; }
 
 	const vector<Texture>& GetTextures() const    { return textures_; }
 
@@ -70,8 +70,8 @@ private:
 	vector<Mesh> objects_{};
 	vector<Material> materials_{ 1 };
 	vector<Texture> textures_{};
-	uint32_t width_{};
-	uint32_t height_{};
+	u32 width_{};
+	u32 height_{};
 	string scene_name_{};
 };
 
@@ -79,9 +79,9 @@ private:
 // --------------------------------------------------------------------------
 //
 
-inline uint32_t Scene::GetTriCount() const
+inline u32 Scene::GetTriCount() const
 {
-	uint32_t res = 0;
+	u32 res = 0;
 	for (const auto& object : objects_)
 	{
 		res += object.GetTriCount();
