@@ -580,7 +580,7 @@ int main(int argc, char** argv)
 	}
 	else
 	{
-		TracyLog("Unable to initialize kernel '%s'\n", kernelname);
+		TracyLog("Unable to initialize kernel '%s'\n", kernelname.c_str());
 	}
 	
 	return 0;

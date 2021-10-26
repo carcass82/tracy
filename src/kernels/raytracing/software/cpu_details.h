@@ -18,11 +18,6 @@ class Scene;
 class Ray;
 namespace collision { struct HitData; }
 
-#if defined(_MSC_VER) && _MSC_VER < 1920
- // pre-vs2019 ms compiler does not support openmp "collapse" clause
- #define collapse(x) 
-#endif
-
 struct RenderData
 {
 	u32 width{};

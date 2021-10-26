@@ -16,13 +16,25 @@
  #define DEBUG_ASSERT(x)
 #endif
 
+#ifndef __has_cpp_attribute
+# define __has_cpp_attribute(x) 0
+#endif
+
 // use as "if LIKELY(cond)" without parentheses surrounding LIKELY/UNLIKELY
 #if !defined(_MSC_VER) || defined(__CUDACC__)
  #define LIKELY(x)   (__builtin_expect(!!(x), 1))
  #define UNLIKELY(x) (__builtin_expect(!!(x), 0))
-#else
+#elif __has_cpp_attribute(likely) && __has_cpp_attribute(unlikely)
  #define LIKELY(x)   (!!(x)) [[likely]]
  #define UNLIKELY(x) (!!(x)) [[unlikely]]
+#else
+ #define LIKELY(x)   (x)
+ #define UNLIKELY(x) (x)
+#endif
+
+#if defined(_MSC_VER) && _MSC_VER < 1920
+ // pre-vs2019 ms compiler does not support openmp "collapse" clause
+ #define collapse(x)
 #endif
 
 // types shortcut
