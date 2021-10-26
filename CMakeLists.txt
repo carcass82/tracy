@@ -158,25 +158,12 @@ list(APPEND tracy_includes ${main_includes})
 ###############################################################################
 # Kernel selection                                                            #
 ###############################################################################
+option(MODULE_CPURTX "CPU Raytracing" ON) # no dependencies - enable cpu rtx
+option(MODULE_CPU "CPU Raster" ON)        # no dependencies - enable cpu raster
+option(MODULE_CUDA "CUDA Raytracing" OFF) # needs nVidia GPU + CUDA + OpenGL
+option(MODULE_OPENGL "OpenGL Raster" OFF) # needs OpenGL
 
-set(CPURTX_ON True) # no dependencies - enable cpu rtx
-set(CPU_ON True) # no dependencies - enable cpu raster
-set(CUDA_ON False)
-set(OPENGL_ON False)
-
-find_package(OpenGL)
-find_package(CUDA)
-
-if(OpenGL_FOUND)
-	set(OPENGL_ON True)
-	
-	if(CUDA_FOUND)
-		set(CUDA_ON True)
-	endif()
-
-endif()
-
-if(CPURTX_ON)
+if(MODULE_CPURTX)
 
 	message(STATUS "Enabling CPU Raytracing")
 	add_definitions(-DCPU_KERNEL=1)
@@ -220,7 +207,7 @@ if(CPURTX_ON)
 	endif()
 	
 endif()
-if(CUDA_ON)
+if(MODULE_CUDA)
 
 	message(STATUS "Enabling CUDA Raytracing")
 	add_definitions(-DCUDA_KERNEL=1)
@@ -273,7 +260,7 @@ if(CUDA_ON)
 	list(APPEND tracy_includes ${cuda_includes})
 
 endif()
-if(OPENGL_ON)
+if(MODULE_OPENGL)
 
 	message(STATUS "Enabling OpenGL")
 	add_definitions(-DOPENGL_KERNEL=1)
@@ -301,7 +288,7 @@ if(OPENGL_ON)
 	list(APPEND tracy_includes ${opengl_includes})
 
 endif()
-if(CPU_ON)
+if(MODULE_CPU)
 
 	message(STATUS "Enabling CPU")
 	add_definitions(-DCPU_RASTER_KERNEL=1)
