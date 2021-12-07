@@ -140,7 +140,6 @@ set(main_includes "./src/mesh.h"
                   "./src/timer.h"
                   "./src/random.h"
                   "./src/vertex.h"
-				  "./src/container.h"
 				  "./src/aabb.h"
 				  "./src/collision.h"
 				  "./src/kdtree.h"
@@ -202,7 +201,7 @@ if(MODULE_CPURTX)
 		add_definitions(-DTILED_RENDERING=1)
 	endif()
 
-	if (CPU_USE_SIMD_INTRINSICS)
+	if (CPU_USE_SIMD_INTRINSICS AND NOT MODULE_CUDA)
 		add_definitions(-DUSE_INTRINSICS=1)
 	endif()
 	

@@ -555,7 +555,10 @@ int main(int argc, char** argv)
 
 						frame_timer.End();
 					}
+					
 					g_kernel->Shutdown();
+					delete g_kernel;
+
 					TracyDestroyWindow(g_win_handle);
 
 					if (avg_raycount > 0)

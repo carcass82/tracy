@@ -469,8 +469,8 @@ bool Scene::Init(const char* scene_path, u32& inout_width, u32& inout_height)
 						                                                         &scaling) >= 2)
 						{
 							tinyobj::attrib_t attrib;
-							vector<tinyobj::shape_t> obj_shapes;
-							vector<tinyobj::material_t> obj_materials;
+							std::vector<tinyobj::shape_t> obj_shapes;
+							std::vector<tinyobj::material_t> obj_materials;
 							string warn, err;
 
 							if (tinyobj::LoadObj(&attrib, &obj_shapes, &obj_materials, &warn, &err, file_name))
