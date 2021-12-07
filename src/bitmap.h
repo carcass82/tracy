@@ -20,7 +20,10 @@ public:
 	Bitmap& operator=(const Bitmap&) = delete;
 
 	Bitmap(Bitmap&& other) noexcept
-		: width{ other.width }, height{ other.height }, bitmap{ std::exchange(other.bitmap, nullptr) }, bitmap_bytes{ std::exchange(other.bitmap_bytes, nullptr) }
+		: width_{ other.width_ }
+		, height_{ other.height_ }
+		, bitmap_{ std::exchange(other.bitmap_, nullptr) }
+		, bitmap_bytes_{ std::exchange(other.bitmap_bytes_, nullptr) }
 	{}
 
 	bool Create(WindowHandle ctx, u32 w, u32 h);
@@ -35,15 +38,15 @@ public:
 
 private:
 
-	u32 width{};
-	u32 height{};
+	u32 width_{};
+	u32 height_{};
 
 #if defined(_WIN32)
-	HBITMAP bitmap{};
+	HBITMAP bitmap_{};
 #else
-	XImage* bitmap{};
+	XImage* bitmap_{};
 #endif
 
-	u32* bitmap_bytes{};
+	u32* bitmap_bytes_{};
 
 };

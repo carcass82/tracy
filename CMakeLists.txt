@@ -153,6 +153,7 @@ source_group("include\\" FILES ${main_includes})
 
 list(APPEND tracy_includes ${main_includes})
 
+add_subdirectory(ext/bvh)
 
 
 ###############################################################################
@@ -378,7 +379,7 @@ elseif(UNIX)
 endif()
 
 add_executable(${PROJECT_NAME} ${WIN32_MAIN} ${tracy_sources} ${tracy_includes})
-target_link_libraries(${PROJECT_NAME} ${tracy_libraries})
+target_link_libraries(${PROJECT_NAME} ${tracy_libraries} bvh)
 
 foreach(target_property IN LISTS target_properties)
     

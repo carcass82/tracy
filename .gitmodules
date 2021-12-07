@@ -1,3 +1,6 @@
 [submodule "ext/cclib"]
 	path = ext/cclib
 	url = https://github.com/carcass82/cclib.git
+[submodule "ext/bvh"]
+	path = ext/bvh
+	url = https://github.com/madmann91/bvh.git

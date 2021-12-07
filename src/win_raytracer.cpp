@@ -449,16 +449,14 @@ int main(int argc, char** argv)
 			if (i + 1 < argc)
 			{
 				memset(SCENE_PATH, 0, MAX_PATH);
-				strncpy(SCENE_PATH, argv[i + 1], MAX_PATH);
-
-				++i;
+				strncpy(SCENE_PATH, argv[i++ + 1], MAX_PATH);
 			}
 		}
 		else if (argument == std::string("-kernel"))
 		{
 			if (i + 1 < argc)
 			{
-				kernelname = argv[i + 1];
+				kernelname = argv[i++ + 1];
 			}
 		}
 	}
