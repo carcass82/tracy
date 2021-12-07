@@ -21,7 +21,6 @@ bool CPUDetails::Initialize(WindowHandle ctx, u32 w, u32 h, u32 size)
 
 void CPUDetails::Shutdown()
 {
-	render_data_.bitmap.Destroy();
 }
 
 bool CPUDetails::ProcessScene(const Scene& scene)

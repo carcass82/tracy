@@ -6,9 +6,6 @@
  */
 #pragma once
 
-#include <vector>
-using std::vector;
-
 #include "common.h"
 #include "aabb.h"
 #include "material.h"

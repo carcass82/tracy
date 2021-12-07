@@ -48,7 +48,10 @@ void Bitmap::Destroy()
 #if defined(_WIN32)
 	DeleteObject(bitmap_);
 #else
-	XDestroyImage(bitmap_);
+	if (bitmap_)
+	{
+		XDestroyImage(bitmap_);
+	}
 #endif
 }
 

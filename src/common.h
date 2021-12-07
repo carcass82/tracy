@@ -5,10 +5,12 @@
  * (c) Carlo Casta, 2017-2021
  */
 #pragma once
-#include <cstdint>
-#include <cfloat>
-#include <climits>
-#include <cassert>
+#include <stdint.h>
+#include <float.h>
+#include <limits.h>
+#include <assert.h>
+#include <utility>
+#include <string.h>
 
 #if defined(_DEBUG)
  #define DEBUG_ASSERT(x) assert(x)
@@ -21,12 +23,12 @@
 #endif
 
 // use as "if LIKELY(cond)" without parentheses surrounding LIKELY/UNLIKELY
-#if !defined(_MSC_VER) || defined(__CUDACC__)
- #define LIKELY(x)   (__builtin_expect(!!(x), 1))
- #define UNLIKELY(x) (__builtin_expect(!!(x), 0))
-#elif __has_cpp_attribute(likely) && __has_cpp_attribute(unlikely)
+#if __has_cpp_attribute(likely) && __has_cpp_attribute(unlikely)
  #define LIKELY(x)   (!!(x)) [[likely]]
  #define UNLIKELY(x) (!!(x)) [[unlikely]]
+#elif !defined(_MSC_VER) || defined(__CUDACC__)
+ #define LIKELY(x)   (__builtin_expect(!!(x), 1))
+ #define UNLIKELY(x) (__builtin_expect(!!(x), 0))
 #else
  #define LIKELY(x)   (x)
  #define UNLIKELY(x) (x)
@@ -46,6 +48,16 @@ using u64 = uint64_t;
 using u32 = uint32_t;
 using u16 = uint16_t;
 using u8 = uint8_t;
+
+#if 0 // TODO: custom container for vector/string
+ #include "cclib/ccvector.h"
+ template<class T>
+ using vector = cc::Vector<T>;
+#else
+ #include <vector>
+ template<class T>
+ using vector = std::vector<T>;
+#endif
 
 #if defined(__CUDACC__)
  #if !defined(CUDA_ANY)
@@ -239,7 +251,6 @@ inline void ReleaseWindowHandle(WindowHandle& handle)
 
 #elif defined(__linux__)
 
-#include <cstring>
 #include <X11/Xlib.h>
 #include <X11/Xutil.h>
 #include <X11/keysym.h>

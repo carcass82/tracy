@@ -12,8 +12,6 @@
  #include "kdtree.h"
 #endif
 
-using std::vector;
-
 class Scene;
 class Ray;
 namespace collision { struct HitData; }
