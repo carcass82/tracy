@@ -66,7 +66,7 @@ namespace
 		mat3 uv0;
 	};
 
-	constexpr inline vec4 VS(const Vertex& v, const VSInput& vs_in, FSInput& vs_out)
+	inline vec4 VS(const Vertex& v, const VSInput& vs_in, FSInput& vs_out)
 	{
 		vs_out.normal = v.normal;
 		vs_out.tangent = v.tangent;
@@ -117,7 +117,7 @@ void CPURender::OnUpdate(const Scene& in_Scene, float in_DeltaTime)
 
 	// clear depth
 	bitmap.Clear(vec3(.0f));
-	fill(depth_buffer.begin(), depth_buffer.end(), FLT_MAX);
+	std::fill(depth_buffer.begin(), depth_buffer.end(), FLT_MAX);
 
 	for (const auto& object : in_Scene.GetObjects())
 	{

@@ -64,7 +64,7 @@ public:
 
 	constexpr const vec3& GetTarget() const { return center_; }
 
-	constexpr vec3 GetViewDirection() const { return center_ - eye_; }
+	                vec3 GetViewDirection() const { return center_ - eye_; }
 
 	void BeginFrame() const {}
 	

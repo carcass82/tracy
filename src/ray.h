@@ -40,10 +40,10 @@ public:
         return *this;
     }
 
-    constexpr const vec3& GetOrigin() const            { return origin_; }
-    constexpr const vec3& GetDirection() const         { return direction_; }
-	constexpr const vec3& GetDirectionInverse() const  { return inv_direction_; }
-    constexpr const vec3  GetPoint(float t) const      { return origin_ + t * direction_; }
+    CUDA_DEVICE constexpr const vec3& GetOrigin() const            { return origin_; }
+    CUDA_DEVICE constexpr const vec3& GetDirection() const         { return direction_; }
+	CUDA_DEVICE constexpr const vec3& GetDirectionInverse() const  { return inv_direction_; }
+    CUDA_DEVICE           const vec3  GetPoint(float t) const      { return origin_ + t * direction_; }
 
 private:
     vec3 origin_{};

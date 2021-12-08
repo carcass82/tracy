@@ -76,22 +76,22 @@ Mesh& Scene::AddSphere(const vec3& in_center, float in_radius, u32 steps /* = 32
 			//  3-----4 -- theta2
 
 			//vertex1 = vertex on a sphere of radius r at spherical coords theta1, phi1
-			vec3 pos = vec3{ sinf(theta1) * cosf(phi1), sinf(theta1) * sinf(phi1), cosf(theta1) };
+			vec3 pos = vec3{ tracy::sinf(theta1) * tracy::cosf(phi1), tracy::sinf(theta1) * tracy::sinf(phi1), tracy::cosf(theta1) };
 			vec2 uv = vec2{ delta_phi1, delta_theta1 };
 			vertices.emplace_back(in_center + pos * in_radius, pos, uv);
 
 			//vertex2 = vertex on a sphere of radius r at spherical coords theta1, phi2
-			pos = vec3{ sinf(theta1) * cosf(phi2), sinf(theta1) * sinf(phi2), cosf(theta1) };
+			pos = vec3{ tracy::sinf(theta1) * tracy::cosf(phi2), tracy::sinf(theta1) * tracy::sinf(phi2), tracy::cosf(theta1) };
 			uv = vec2{ delta_phi2, delta_theta1 };
 			vertices.emplace_back(in_center + pos * in_radius, pos, uv);
 
 			//vertex3 = vertex on a sphere of radius r at spherical coords theta2, phi2
-			pos = vec3{ sinf(theta2) * cosf(phi2), sinf(theta2) * sinf(phi2), cosf(theta2) };
+			pos = vec3{ tracy::sinf(theta2) * tracy::cosf(phi2), tracy::sinf(theta2) * tracy::sinf(phi2), tracy::cosf(theta2) };
 			uv = vec2{ delta_phi2, delta_theta2 };
 			vertices.emplace_back(in_center + pos * in_radius, pos, uv);
 
 			//vertex4 = vertex on a sphere of radius r at spherical coords theta2, phi1
-			pos = vec3{ sinf(theta2) * cosf(phi1), sinf(theta2) * sinf(phi1), cosf(theta2) };
+			pos = vec3{ tracy::sinf(theta2) * tracy::cosf(phi1), tracy::sinf(theta2) * tracy::sinf(phi1), tracy::cosf(theta2) };
 			uv = vec2{ delta_phi1, delta_theta2 };
 			vertices.emplace_back(in_center + pos * in_radius, pos, uv);
 

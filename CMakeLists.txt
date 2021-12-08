@@ -57,24 +57,31 @@ if(DEBUG_FORCE_CONSOLE)
 	add_definitions(-DFORCE_CONSOLE)
 endif()
 
-
-
 ###############################################################################
 # Math library selection                                                      #
 ###############################################################################
 set(TRACY_MATH_LIBRARY "cclib" CACHE STRING "Math Library")
 set_property(CACHE TRACY_MATH_LIBRARY PROPERTY STRINGS cclib glm)
 
+set(TRACY_STD_LIBRARY "stdlib" CACHE STRING "Standard Library")
+set_property(CACHE TRACY_STD_LIBRARY PROPERTY STRINGS cclib stdlib)
+
+set(cclib_includes "")
+
 if(TRACY_MATH_LIBRARY STREQUAL "glm")
 	add_definitions(-DUSE_GLM)
 else()
-	add_definitions(-DUSE_CCLIB)
-	set(cclib_includes "./ext/cclib/cclib.h")
-	source_group("ext\\cclib\\" FILES ${cclib_includes})
-	list(APPEND tracy_includes ${cclib_includes})
+	list(APPEND cclib_includes "./ext/cclib/cclib.h")
 endif()
 
+if(TRACY_STD_LIBRARY STREQUAL "stdlib")
+	add_definitions(-DUSE_STDLIB)
+else()
+	list(APPEND cclib_includes "./ext/cclib/ccvector.h")
+endif()
 
+source_group("ext\\cclib\\" FILES ${cclib_includes})
+list(APPEND tracy_includes ${cclib_includes})
 
 ###############################################################################
 # Misc options                                                                #

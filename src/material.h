@@ -141,7 +141,7 @@ static inline constexpr float schlick(float cos, float ref_idx)
     return r0 + (1.f - r0) * pow5(1.f - cos);
 }
 
-CUDA_DEVICE static inline CC_CONSTEXPR vec3 random_on_unit_sphere(RandomCtx random_ctx)
+CUDA_DEVICE static inline vec3 random_on_unit_sphere(RandomCtx random_ctx)
 {
     //
     // http://extremelearning.com.au/how-to-generate-uniformly-random-points-on-n-spheres-and-n-balls/
@@ -151,9 +151,9 @@ CUDA_DEVICE static inline CC_CONSTEXPR vec3 random_on_unit_sphere(RandomCtx rand
 
     const float phi{ 2.f * PI * fastrand(random_ctx) };
 
-    const float r{ sqrtf(1.f - pow2(z)) };
+    const float r{ tracy::sqrtf(1.f - pow2(z)) };
 
-    return vec3{ r * cosf(phi), r * sinf(phi), z };
+    return vec3{ r * tracy::cosf(phi), r * tracy::sinf(phi), z };
 }
 
 
@@ -236,7 +236,7 @@ CUDA_DEVICE inline void Material::Scatter(const TextureProvider& provider, const
     if (translucent_ > EPS) // BTDF
     {
         const bool inside{ VdotN > EPS };
-        const float cosine{ inside ? sqrtf(1.f - pow2(ior_) * (1.f - pow2(VdotN))) : -VdotN };
+        const float cosine{ inside ? tracy::sqrtf(1.f - pow2(ior_) * (1.f - pow2(VdotN))) : -VdotN };
         const float ior{ inside ? ior_ : rcp(ior_) };
 
         const vec3 refracted{ refract(raydir, normal, ior) };

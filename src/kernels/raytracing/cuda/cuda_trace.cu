@@ -158,9 +158,12 @@ __global__ void TraceKernel(cudaSurfaceObject_t surface, KernelData data, u32 w,
 
         const float blend_factor{ frame_count / (frame_count + 1.f) };
         
-        const vec4 prev_color{ surf2Dread<float4>(surface, i * sizeof(float4), j) };
+        float4 prev_color_float4 = surf2Dread<float4>(surface, i * sizeof(float4), j);
+        const vec4 prev_color{ prev_color_float4.x, prev_color_float4.y, prev_color_float4.z, prev_color_float4.w };
 
-        surf2Dwrite<float4>(lerp(color, prev_color, blend_factor), surface, i * sizeof(float4), j);
+        vec4 blend = lerp(color, prev_color, blend_factor);
+        float4 blend_float4{ blend.r, blend.g, blend.b, blend.a };
+        surf2Dwrite<float4>(blend_float4, surface, i * sizeof(float4), j);
 
 #else
 

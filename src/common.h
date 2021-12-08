@@ -49,14 +49,14 @@ using u32 = uint32_t;
 using u16 = uint16_t;
 using u8 = uint8_t;
 
-#if 0 // TODO: custom container for vector/string
- #include "cclib/ccvector.h"
- template<class T>
- using vector = cc::Vector<T>;
-#else
+#if USE_STDLIB
  #include <vector>
  template<class T>
  using vector = std::vector<T>;
+#else
+ #include "cclib/ccvector.h"
+ template<class T>
+ using vector = cc::Vector<T>;
 #endif
 
 #if defined(__CUDACC__)
@@ -118,14 +118,23 @@ using u8 = uint8_t;
 #include <glm/gtx/fast_trigonometry.hpp>
 #include <glm/gtx/compatibility.hpp>
 #include <glm/gtc/color_space.hpp>
+#include <glm/gtc/type_ptr.hpp>
+
+// common types
 using glm::mat4;
 using glm::mat3;
 using glm::vec4;
 using glm::vec3;
 using glm::vec2;
+
+// util
+template<typename T, size_t N> constexpr inline u32 array_size(const T(&)[N]) { return N; }
+
+// math functions
 using glm::radians;
 using glm::max;
 using glm::min;
+template<typename T> constexpr inline T rcp(const T& x) { return 1.f / x; }
 using glm::clamp;
 using glm::lerp;
 using glm::perspective;
@@ -134,27 +143,44 @@ using glm::transpose;
 using glm::translate;
 using glm::rotate;
 using glm::scale;
-using glm::lookAt;
 using glm::normalize;
-#define frac(x) glm::fract(x)
-#define cosf(x) glm::fastCos(x)
-#define sinf(x) glm::fastSin(x)
-CUDA_ANY inline void sincosf(float x, float* s, float* c) { *s = sinf(x); *c = cosf(x); }
+CUDA_ANY inline float frac(float x) { return glm::fract(x); }
 CUDA_ANY inline vec3 pmin(const vec3& a, const vec3& b) { return { min(a.x, b.x), min(a.y, b.y), min(a.z, b.z) }; }
 CUDA_ANY inline vec3 pmax(const vec3& a, const vec3& b) { return { max(a.x, b.x), max(a.y, b.y), max(a.z, b.z) }; }
+
+// color conversion
+template<typename T> constexpr inline T srgb(T x) { return convertLinearToSRGB(x); }
+template<typename T> constexpr inline T linear(T x) { return convertSRGBToLinear(x); }
+
+// constants
 constexpr float PI = 3.1415926535897932f;
 constexpr float EPS = 1.e-8f;
-template<typename T, size_t N> constexpr inline u32 array_size(const T(&)[N]) { return N; }
-template<typename T> constexpr inline T rcp(const T& x) { return 1.f / x; }
-#define srgb(x) convertLinearToSRGB(x)
-#define linear(x) convertSRGBToLinear(x)
+
+// wrap common math function to avoid name collision
+namespace tracy
+{
+CUDA_ANY inline float cosf(float x) { return glm::fastCos(x); }
+CUDA_ANY inline float sinf(float x) { return glm::fastSin(x); }
+using glm::pow;
+CUDA_ANY inline float sqrtf(float x) { return glm::sqrt(x); }
+}
+
+
 #else
+
 #include "cclib/cclib.h"
+
+// common types
 using cc::math::mat4;
 using cc::math::mat3;
 using cc::math::vec4;
 using cc::math::vec3;
 using cc::math::vec2;
+
+// util
+using cc::array_size;
+
+// math functions
 using cc::math::radians;
 using cc::math::max;
 using cc::math::min;
@@ -168,17 +194,26 @@ using cc::math::translate;
 using cc::math::rotate;
 using cc::math::scale;
 using cc::math::normalize;
-#define cosf(x) cc::math::cosf(x)
-#define sinf(x) cc::math::sinf(x)
-#define sincosf(x, s, c) cc::math::sincosf(x, s, c)
-#define powf(x, y) cc::math::pow(x, y)
-#define sqrtf(x) cc::math::sqrtf(x)
 using cc::math::frac;
-using cc::math::PI;
-using cc::math::EPS;
-using cc::array_size;
+using cc::math::pmin;
+using cc::math::pmax;
+
+// color conversion
 using cc::gfx::srgb;
 using cc::gfx::linear;
+
+// constants
+using cc::math::PI;
+using cc::math::EPS;
+
+// wrap common math function to avoid name collision
+namespace tracy
+{
+using cc::math::cosf;
+using cc::math::sinf;
+using cc::math::pow;
+using cc::math::sqrtf;
+}
 #endif
 
 #if defined(__CUDACC__)

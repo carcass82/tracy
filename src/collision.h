@@ -30,7 +30,7 @@ struct MeshHitData : public TriangleHitData
 
 
 // test ray against triangle and store result in TriangleHitData
-constexpr inline bool RayTriangle(const vec3& ray_origin, const vec3& ray_direction, const vec3& in_v0, const vec3& in_v1, const vec3& in_v2, TriangleHitData& inout_hit)
+CUDA_DEVICE inline bool RayTriangle(const vec3& ray_origin, const vec3& ray_direction, const vec3& in_v0, const vec3& in_v1, const vec3& in_v2, TriangleHitData& inout_hit)
 {
 	const vec3 v0v1 = in_v1 - in_v0;
 	const vec3 v0v2 = in_v2 - in_v0;
@@ -73,18 +73,18 @@ constexpr inline bool RayTriangle(const vec3& ray_origin, const vec3& ray_direct
 	return true;
 }
 
-constexpr inline bool RayTriangle(const vec3& in_ray_origin, const vec3& in_ray_direction, const vec3 in_vertices[3], TriangleHitData& inout_hit)
+CUDA_DEVICE inline bool RayTriangle(const vec3& in_ray_origin, const vec3& in_ray_direction, const vec3 in_vertices[3], TriangleHitData& inout_hit)
 {
 	return RayTriangle(in_ray_origin, in_ray_direction, in_vertices[0], in_vertices[1], in_vertices[2], inout_hit);
 }
 
-constexpr inline bool RayTriangle(const Ray& in_ray, const vec3 in_vertices[3], TriangleHitData& inout_hit)
+CUDA_DEVICE inline bool RayTriangle(const Ray& in_ray, const vec3 in_vertices[3], TriangleHitData& inout_hit)
 {
 	return RayTriangle(in_ray.GetOrigin(), in_ray.GetDirection(), in_vertices, inout_hit);
 }
 
 // test ray against triangle mesh and store result in MeshHitData
-constexpr inline bool RayMesh(const Ray& in_ray, const Mesh& in_mesh, MeshHitData& inout_hit)
+CUDA_DEVICE inline bool RayMesh(const Ray& in_ray, const Mesh& in_mesh, MeshHitData& inout_hit)
 {
 	bool result = false;
 

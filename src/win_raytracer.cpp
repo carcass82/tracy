@@ -484,7 +484,7 @@ int main(int argc, char** argv)
 					Timer frame_timer;
 					Timer run_timer;
 
-					u32 avg_raycount = 0;
+					float avg_raycount = 0;
 					float avg_fps = .0f;
 					u32 samples = 0;
 
@@ -518,10 +518,11 @@ int main(int argc, char** argv)
 
 						++frame_count;
 
-						if (trace_timer.GetDuration() > 1.f || frame_count > 100)
+						double trace_duration = trace_timer.GetDuration();
+						if (trace_duration > 1.f || frame_count > 100)
 						{
-							u32 raycount = g_kernel->GetRayCount(true);
-							float fps = frame_count / (float)trace_timer.GetDuration();
+							float raycount = g_kernel->GetRayCount(true) / (float)trace_duration;
+							float fps = frame_count / (float)trace_duration;
 
 							run_timer.End();
 
@@ -536,14 +537,14 @@ int main(int argc, char** argv)
 								TracySecondsToString(run_timer.GetDuration()),
 								object_count,
 								tri_count,
-								raycount * 1e-6 / trace_timer.GetDuration(),
+								raycount * 1e-6f,
 								fps);
 
 							UpdateWindowText(g_win_handle, window_title);
 
 							++samples;
-							avg_raycount = avg_raycount + (raycount - avg_raycount) / samples;
-							avg_fps = avg_fps + (fps - avg_fps) / samples;
+							avg_raycount = avg_raycount + (raycount - avg_raycount) / (float)samples;
+							avg_fps = avg_fps + (fps - avg_fps) / (float)samples;
 
 							trace_timer.Reset();
 							frame_count = 0;
@@ -563,7 +564,7 @@ int main(int argc, char** argv)
 					{
 						run_timer.End();
 						TracyLog("\n*** Performance: %.2f MRays/s and %.2f fps on average - Run time: %s ***\n\n",
-							avg_raycount * 1e-6,
+							avg_raycount * 1e-6f,
 							avg_fps,
 							TracySecondsToString(run_timer.GetDuration()));
 					}
