@@ -35,11 +35,14 @@ elseif(DEBUG_VIEW STREQUAL "Emissive")
 endif()
 
 set(TRACY_ACCELERATION_STRUCTURE "Kd-Tree" CACHE STRING "Use Acceleration Structure")
-set_property(CACHE TRACY_ACCELERATION_STRUCTURE PROPERTY STRINGS "None" "Kd-Tree" "BVH")
+set_property(CACHE TRACY_ACCELERATION_STRUCTURE PROPERTY STRINGS "None" "Kd-Tree" "BVH" "BVH (External)")
 if(TRACY_ACCELERATION_STRUCTURE STREQUAL "Kd-Tree")
 	add_definitions(-DUSE_KDTREE)
 elseif(TRACY_ACCELERATION_STRUCTURE STREQUAL "BVH")
 	add_definitions(-DUSE_BVH)
+elseif(TRACY_ACCELERATION_STRUCTURE STREQUAL "BVH (External)")
+	add_subdirectory(ext/bvh)
+	list(APPEND tracy_libraries bvh)
 endif()
 
 option(DEBUG_KDTREE_DISABLE_SAH "Disable SAH (Surface Area Heuristic) when building Kd-Tree" ON)
@@ -158,8 +161,6 @@ set(main_includes "./src/mesh.h"
 source_group("include\\" FILES ${main_includes})
 
 list(APPEND tracy_includes ${main_includes})
-
-add_subdirectory(ext/bvh)
 
 
 ###############################################################################
@@ -385,7 +386,7 @@ elseif(UNIX)
 endif()
 
 add_executable(${PROJECT_NAME} ${WIN32_MAIN} ${tracy_sources} ${tracy_includes})
-target_link_libraries(${PROJECT_NAME} ${tracy_libraries} bvh)
+target_link_libraries(${PROJECT_NAME} ${tracy_libraries})
 
 foreach(target_property IN LISTS target_properties)
     
